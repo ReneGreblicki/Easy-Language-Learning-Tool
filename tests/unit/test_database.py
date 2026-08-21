@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
 
-from easy_language_learning_tool.persistence.database import SCHEMA_VERSION, initialize_database
+from easy_language_learning_tool.persistence.database import (
+    SCHEMA_VERSION,
+    database_connection,
+    initialize_database,
+)
 
 
 class DatabaseTests(unittest.TestCase):
@@ -14,7 +17,7 @@ class DatabaseTests(unittest.TestCase):
             path = Path(directory) / "app.sqlite3"
             initialize_database(path)
             initialize_database(path)
-            with sqlite3.connect(path) as connection:
+            with database_connection(path) as connection:
                 version = connection.execute("SELECT version FROM schema_version").fetchone()
                 tables = {
                     row[0]
