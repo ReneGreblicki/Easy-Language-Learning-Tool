@@ -6,7 +6,6 @@ from pathlib import Path
 
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill
-from openpyxl.worksheet.table import Table, TableStyleInfo
 from pydantic import BaseModel, ConfigDict, Field
 
 from easy_language_learning_tool.domain.models import GenerationSettings, PlannedRow
@@ -122,10 +121,6 @@ def export_xlsx(
     sentences.column_dimensions["B"].width = 24
     sentences.column_dimensions["C"].width = 60
     sentences.column_dimensions["D"].width = 60
-    if generated:
-        table = Table(displayName="SentencesTable", ref=f"A1:D{len(generated) + 1}")
-        table.tableStyleInfo = TableStyleInfo(name="TableStyleMedium2", showRowStripes=True)
-        sentences.add_table(table)
     workbook.save(path)
 
 

@@ -42,7 +42,7 @@ into one natural-sounding, resumable MP3.
 
 ## End-user setup
 
-1. Run `EasyLanguageLearningTool-Setup-0.2.0.exe`.
+1. Run `EasyLanguageLearningTool-Setup-0.2.1.exe`.
 2. Accept the default per-user installation folder and optional desktop shortcut.
 3. Launch the app. It opens centered at 50% of the screen; resize or maximize it normally.
 4. In Sentence Creation, choose a provider:

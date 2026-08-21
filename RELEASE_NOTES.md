@@ -1,4 +1,9 @@
-# Easy Language Learning Tool 0.2.0 — release candidate
+# Easy Language Learning Tool 0.2.1 — release candidate
+
+## Workbook compatibility fix
+
+- Removed the redundant OOXML Table part that Microsoft Excel repaired on open.
+- Kept worksheet AutoFilter, frozen headers, column sizing, and header styling.
 
 ## Included
 
