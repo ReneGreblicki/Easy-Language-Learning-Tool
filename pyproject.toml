@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "easy-language-learning-tool"
-version = "0.2.0"
+version = "0.3.0"
 description = "Windows desktop app for deterministic language-learning sentence sets and resumable TTS audio."
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
@@ -23,10 +23,10 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "pytest>=8.3,<9",
+  "pytest>=9.0.3,<10",
   "pytest-cov>=6,<7",
   "pytest-qt>=4.4,<5",
-  "pytest-asyncio>=0.25,<1",
+  "pytest-asyncio>=1.2,<2",
   "ruff>=0.9,<1",
   "mypy>=1.14,<2",
   "pre-commit>=4,<5",

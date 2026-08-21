@@ -1,4 +1,24 @@
-# Easy Language Learning Tool 0.2.0 — release candidate
+# Easy Language Learning Tool 0.3.0 — internal release candidate
+
+## Frequency-data workflow
+
+- Added Kaikki/Wiktionary verb-candidate extraction with deterministic
+  `wordfreq` ranking, form filtering, duplicate removal, translation capture,
+  construction metadata, and usage/locale review flags.
+- Added a TSV audit tool and human-approval metadata required by the production
+  release gate.
+- Strengthened the release gate to reject missing translations, duplicate or
+  discontinuous ranks, incomplete attribution, missing constructions, and
+  unapproved records.
+- The interface now identifies the bundled dataset and caps base sentences to
+  the number of usable translated verbs, preventing the four-verb demonstration
+  build from accepting unsupported jobs.
+- Added Wiktionary/Kaikki licensing and attribution documentation.
+
+## Workbook compatibility fix
+
+- Removed the redundant OOXML Table part that Microsoft Excel repaired on open.
+- Kept worksheet AutoFilter, frozen headers, column sizing, and header styling.
 
 ## Included
 

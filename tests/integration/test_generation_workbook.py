@@ -6,6 +6,7 @@ import unittest
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
+from zipfile import ZipFile
 
 from openpyxl import load_workbook
 
@@ -104,13 +105,19 @@ class GenerationWorkbookTests(unittest.TestCase):
             )
             imported = import_xlsx(output)
             self.assertEqual(len(imported), 4)
-            workbook = load_workbook(output, read_only=True, data_only=True)
+            workbook = load_workbook(output, data_only=True)
             self.assertEqual(workbook.sheetnames, ["Sentences", "Metadata"])
             self.assertEqual(
                 tuple(cell.value for cell in next(workbook["Sentences"].iter_rows())),
                 SENTENCE_HEADERS,
             )
+            self.assertEqual(workbook["Sentences"].auto_filter.ref, "A1:D5")
             workbook.close()
+            with ZipFile(output) as archive:
+                self.assertFalse(
+                    any(name.startswith("xl/tables/") for name in archive.namelist()),
+                    "Excel table XML must not be emitted; worksheet AutoFilter provides filtering.",
+                )
 
 
 if __name__ == "__main__":

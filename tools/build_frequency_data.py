@@ -22,6 +22,25 @@ def build(source: Path, destination: Path) -> None:
         for raw in csv.DictReader(handle, delimiter="\t"):
             language = Language(raw["language"])
             lemma = raw["lemma"].strip()
+            if raw.get("review_status", "").strip() != "approved":
+                raise ValueError(f"{language.label} '{lemma}' is not approved.")
+            required_metadata = (
+                "source",
+                "licence",
+                "source_url",
+                "source_revision",
+                "reviewer",
+                "reviewed_at",
+                "supported_constructions",
+            )
+            missing_metadata = [
+                field for field in required_metadata if not raw.get(field, "").strip()
+            ]
+            if missing_metadata:
+                raise ValueError(
+                    f"{language.label} '{lemma}' is missing metadata: "
+                    f"{', '.join(missing_metadata)}."
+                )
             language_code = language.value.split("-")[0]
             translations = {
                 Language(key): value
@@ -34,6 +53,10 @@ def build(source: Path, destination: Path) -> None:
                 )
                 if value and key != language.value
             }
+            missing = (set(Language) - {language}) - set(translations)
+            if missing:
+                labels = ", ".join(sorted(item.label for item in missing))
+                raise ValueError(f"{language.label} '{lemma}' is missing: {labels}.")
             rows.append(
                 (
                     zipf_frequency(lemma, language_code),
@@ -43,9 +66,19 @@ def build(source: Path, destination: Path) -> None:
                         lemma=lemma,
                         translations=translations,
                         irregularity=raw.get("irregularity", "unknown"),
+                        supported_constructions=tuple(
+                            item.strip()
+                            for item in raw.get("supported_constructions", "").split("|")
+                            if item.strip()
+                        ),
                         confidence=raw.get("confidence", "verified"),
                         source=raw["source"],
                         licence=raw["licence"],
+                        source_url=raw["source_url"],
+                        source_revision=raw["source_revision"],
+                        review_status="approved",
+                        reviewer=raw["reviewer"],
+                        reviewed_at=raw["reviewed_at"],
                     ),
                 )
             )

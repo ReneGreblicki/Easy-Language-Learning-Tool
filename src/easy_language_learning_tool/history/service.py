@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import json
 import shutil
-import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+
+from easy_language_learning_tool.persistence.database import database_connection
 
 
 @dataclass(frozen=True)
@@ -53,7 +54,7 @@ class HistoryService:
         destination_directory.mkdir(parents=True, exist_ok=True)
         destination = self._deduplicated_path(destination_directory / source.name)
         shutil.copy2(source, destination)
-        with sqlite3.connect(self.database_path) as connection:
+        with database_connection(self.database_path) as connection:
             cursor = connection.execute(
                 """
                 INSERT INTO history_items(file_type, owned_path, display_name, settings_json, status)
@@ -80,12 +81,12 @@ class HistoryService:
             sql += " WHERE file_type = ?"
             params = (file_type,)
         sql += " ORDER BY created_at DESC, id DESC"
-        with sqlite3.connect(self.database_path) as connection:
+        with database_connection(self.database_path) as connection:
             rows = connection.execute(sql, params).fetchall()
         return [self._from_row(row) for row in rows]
 
     def get(self, item_id: int) -> HistoryItem:
-        with sqlite3.connect(self.database_path) as connection:
+        with database_connection(self.database_path) as connection:
             row = connection.execute(
                 "SELECT id, file_type, owned_path, display_name, created_at, settings_json, status FROM history_items WHERE id = ?",
                 (item_id,),
@@ -108,7 +109,7 @@ class HistoryService:
             raise FileExistsError("A history item with that name already exists.")
         item.path.rename(destination)
         try:
-            with sqlite3.connect(self.database_path) as connection:
+            with database_connection(self.database_path) as connection:
                 connection.execute(
                     "UPDATE history_items SET owned_path = ?, display_name = ? WHERE id = ?",
                     (str(destination), destination.name, item_id),
@@ -123,7 +124,7 @@ class HistoryService:
         self._assert_owned(item.path)
         if item.path.exists():
             self.recycler(str(item.path))
-        with sqlite3.connect(self.database_path) as connection:
+        with database_connection(self.database_path) as connection:
             connection.execute("DELETE FROM history_items WHERE id = ?", (item_id,))
 
     def export(self, item_id: int, destination: Path) -> Path:

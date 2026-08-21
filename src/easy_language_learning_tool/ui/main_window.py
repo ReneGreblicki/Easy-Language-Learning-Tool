@@ -92,6 +92,13 @@ def resource_path(*parts: str) -> Path:
     return Path(__file__).resolve().parents[3].joinpath(*parts)
 
 
+def frequency_data_path() -> Path:
+    production = resource_path("resources", "frequency_data", "production", "verbs.jsonl")
+    if production.is_file():
+        return production
+    return resource_path("resources", "frequency_data", "demo", "verbs.jsonl")
+
+
 class MainWindow(QMainWindow):
     def __init__(self, paths: AppPaths | None = None) -> None:
         super().__init__()
@@ -101,6 +108,9 @@ class MainWindow(QMainWindow):
         self.history = HistoryService(
             self.paths.data / "easy_language_learning_tool.sqlite3", self.paths.history
         )
+        self.frequency_path = frequency_data_path()
+        self.frequency_repository = FrequencyRepository.from_jsonl(self.frequency_path)
+        self.frequency_is_production = self.frequency_path.parent.name == "production"
         self._threads: set[TaskThread] = set()
         self._provider_adapter: Any = None
         self._tts_service: TtsService | None = None
@@ -220,6 +230,8 @@ class MainWindow(QMainWindow):
         self.pronouns = QComboBox()
         self.pronouns.addItems([str(value) for value in range(1, 6)])
         self.final_rows = QLabel()
+        self.frequency_status = QLabel()
+        self.frequency_status.setWordWrap(True)
         self.output_path = QLineEdit(str(Path.home() / "Documents" / "Language Sentences.xlsx"))
         browse = QPushButton("Browse…")
         browse.clicked.connect(self.choose_generation_output)
@@ -243,6 +255,7 @@ class MainWindow(QMainWindow):
             ("Percentage total", self.cefr_total),
             ("Questions / statements", question_row),
             ("Pronoun-change scale", self.pronouns),
+            ("Verb dataset", self.frequency_status),
             ("Calculated output", self.final_rows),
             ("Workbook", output_widget),
             ("", self.generate_button),
@@ -398,7 +411,7 @@ class MainWindow(QMainWindow):
         return self._scroll(root)
 
     def _provider_changed(self) -> None:
-        provider: Provider = self.provider_combo.currentData()
+        provider = Provider(str(self.provider_combo.currentData()))
         self.api_key.setText(self.credentials.get(provider.value) or "")
         self.endpoint.setEnabled(provider in {Provider.OLLAMA, Provider.CUSTOM_COMPATIBLE})
         if provider is Provider.OLLAMA and not self.endpoint.text():
@@ -409,7 +422,7 @@ class MainWindow(QMainWindow):
         self.refresh_sentence_state()
 
     def connect_provider(self) -> None:
-        provider: Provider = self.provider_combo.currentData()
+        provider = Provider(str(self.provider_combo.currentData()))
         adapter = create_provider(
             provider, api_key=self.api_key.text().strip(), base_url=self.endpoint.text().strip()
         )
@@ -443,8 +456,8 @@ class MainWindow(QMainWindow):
     def _selected_levels(self) -> list[CefrLevel]:
         levels = list(CefrLevel)
         start, end = (
-            levels.index(self.start_cefr.currentData()),
-            levels.index(self.end_cefr.currentData()),
+            levels.index(CefrLevel(str(self.start_cefr.currentData()))),
+            levels.index(CefrLevel(str(self.end_cefr.currentData()))),
         )
         return levels[start : end + 1] if start <= end else []
 
@@ -461,13 +474,25 @@ class MainWindow(QMainWindow):
         self.refresh_sentence_state()
 
     def refresh_sentence_state(self) -> None:
+        learning = Language(str(self.learning.currentData()))
+        translation = Language(str(self.translation.currentData()))
+        available = self.frequency_repository.available_count(learning, translation)
+        allowed = min(4_000, available)
+        self.base_count.setMaximum(max(1, allowed))
+        dataset_label = (
+            "Production dataset" if self.frequency_is_production else "Demonstration dataset"
+        )
+        self.frequency_status.setText(
+            f"{dataset_label}: {available:,} usable {learning.label} verbs with "
+            f"{translation.label} translations."
+        )
         base = self.base_count.value()
         self.extra_forms.setEnabled(base <= 1_000)
         if base > 1_000:
             self.extra_forms.setCurrentIndex(0)
         total = base * (1 + int(self.extra_forms.currentText()))
         self.final_rows.setText(f"{total:,} final rows (maximum 5,000)")
-        gradual = self.cefr_mode.currentData() is CefrMode.GRADUAL
+        gradual = CefrMode(str(self.cefr_mode.currentData())) is CefrMode.GRADUAL
         self.single_cefr.setEnabled(not gradual)
         self.start_cefr.setEnabled(gradual)
         self.end_cefr.setEnabled(gradual)
@@ -476,7 +501,12 @@ class MainWindow(QMainWindow):
             spin.setEnabled(gradual and level in selected)
         total_percent = sum(self.cefr_percentages[level].value() for level in selected)
         self.cefr_total.setText(f"{total_percent}%" if gradual else "Single-level mode")
-        valid = total <= 5_000 and self.learning.currentData() != self.translation.currentData()
+        valid = (
+            available > 0
+            and base <= available
+            and total <= 5_000
+            and self.learning.currentData() != self.translation.currentData()
+        )
         valid = valid and (not gradual or total_percent == 100)
         valid = (
             valid and self._provider_adapter is not None and bool(self.model_combo.currentData())
@@ -485,14 +515,17 @@ class MainWindow(QMainWindow):
         self.refresh_costs()
 
     def _settings(self) -> GenerationSettings:
-        mode: CefrMode = self.cefr_mode.currentData()
+        mode = CefrMode(str(self.cefr_mode.currentData()))
         cefr = (
-            CefrSelection(mode=mode, single_level=self.single_cefr.currentData())
+            CefrSelection(
+                mode=mode,
+                single_level=CefrLevel(str(self.single_cefr.currentData())),
+            )
             if mode is CefrMode.SINGLE
             else CefrSelection(
                 mode=mode,
-                start_level=self.start_cefr.currentData(),
-                end_level=self.end_cefr.currentData(),
+                start_level=CefrLevel(str(self.start_cefr.currentData())),
+                end_level=CefrLevel(str(self.end_cefr.currentData())),
                 percentages={
                     level: Decimal(self.cefr_percentages[level].value())
                     for level in self._selected_levels()
@@ -500,8 +533,8 @@ class MainWindow(QMainWindow):
             )
         )
         return GenerationSettings(
-            learning_language=self.learning.currentData(),
-            translation_language=self.translation.currentData(),
+            learning_language=Language(str(self.learning.currentData())),
+            translation_language=Language(str(self.translation.currentData())),
             base_sentences=self.base_count.value(),
             extra_forms=int(self.extra_forms.currentText()),
             question_percentage=Decimal(self.question_slider.value()),
@@ -535,10 +568,7 @@ class MainWindow(QMainWindow):
         self.generation_progress.setValue(0)
 
         async def task(report: Any) -> Path:
-            repository = FrequencyRepository.from_jsonl(
-                resource_path("resources", "frequency_data", "demo", "verbs.jsonl")
-            )
-            verbs = repository.select(
+            verbs = self.frequency_repository.select(
                 settings.learning_language, settings.translation_language, settings.base_sentences
             )
             plan = build_generation_plan(settings, verbs)
@@ -597,10 +627,12 @@ class MainWindow(QMainWindow):
         )
 
     def refresh_costs(self) -> None:
-        model, provider = self.model_combo.currentData(), self.provider_combo.currentData()
-        if not model or not provider:
+        model = self.model_combo.currentData()
+        provider_data = self.provider_combo.currentData()
+        if not model or not provider_data:
             self.cost_label.setText("Choose a connected model to see estimates.")
             return
+        provider = Provider(str(provider_data))
         try:
             registry = PricingRegistry.from_json(
                 resource_path("resources", "pricing", "registry.json")
@@ -876,11 +908,12 @@ class MainWindow(QMainWindow):
             (self.translation_language, self.translation_voice),
         ):
             voice_combo.clear()
-            voice_combo.addItems(VOICE_DEFAULTS[language_combo.currentData()])
+            language = Language(str(language_combo.currentData()))
+            voice_combo.addItems(VOICE_DEFAULTS[language])
 
     def refresh_edge_voices(self) -> None:
-        foreign = self.foreign_language.currentData()
-        translation = self.translation_language.currentData()
+        foreign = Language(str(self.foreign_language.currentData()))
+        translation = Language(str(self.translation_language.currentData()))
 
         async def task() -> tuple[list[str], list[str]]:
             return (

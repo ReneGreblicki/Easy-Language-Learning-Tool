@@ -26,6 +26,10 @@ def test_main_window_tabs_and_generation_limits(qtbot: object, tmp_path: Path) -
         "TTS",
         "History",
     ]
+    assert window.base_count.maximum() == 4
+    assert "Demonstration dataset" in window.frequency_status.text()
+    window.frequency_repository.available_count = lambda *_: 4_000  # type: ignore[method-assign]
+    window.refresh_sentence_state()
     window.base_count.setValue(1_001)
     assert not window.extra_forms.isEnabled()
     assert window.extra_forms.currentText() == "0"

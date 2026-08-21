@@ -42,7 +42,7 @@ into one natural-sounding, resumable MP3.
 
 ## End-user setup
 
-1. Run `EasyLanguageLearningTool-Setup-0.2.0.exe`.
+1. Run `EasyLanguageLearningTool-Setup-0.3.0.exe`.
 2. Accept the default per-user installation folder and optional desktop shortcut.
 3. Launch the app. It opens centered at 50% of the screen; resize or maximize it normally.
 4. In Sentence Creation, choose a provider:
@@ -96,6 +96,12 @@ python tools\build_frequency_data.py --help
 python tools\check_release_data.py resources\frequency_data\production\verbs.jsonl
 ```
 
+The candidate workflow uses Kaikki/Wiktionary verb entries for part-of-speech,
+lemma, translation, and construction evidence, then ranks the reviewed lemmas
+with `wordfreq`. See `resources/frequency_data/README.md`. Extracted candidates
+cannot enter the runtime corpus until human review is recorded and every
+supported translation is complete.
+
 ## Windows build and installer
 
 The Windows workflow runs all quality gates, downloads a pinned FFmpeg essentials
@@ -110,6 +116,11 @@ internal testing. A public installer is blocked until the reviewed frequency
 dataset reaches at least 4,000 unique, attributed verb lemmas for every supported
 language. See `docs/RELEASE_READINESS.md`. This prevents demo or licence-unclear
 material from being presented as production frequency data.
+
+Internal builds automatically cap the sentence-count control to the number of
+usable translated verbs in the bundled dataset. The demonstration build is
+therefore limited to four base sentences per language pair rather than failing
+after accepting an unsupported count.
 
 ## Project documentation
 
