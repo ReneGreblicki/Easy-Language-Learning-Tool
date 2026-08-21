@@ -25,7 +25,7 @@ jobs:
           $destination = Join-Path $env:RUNNER_TEMP "gitleaks"
           Invoke-WebRequest "https://github.com/gitleaks/gitleaks/releases/download/v$version/gitleaks_${version}_windows_x64.zip" -OutFile $archive
           $actual = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
-          $expected = "190ad53db301eec3e90afe3a1a75270768b8ebf89e731345e19421c32c1ae1a1"
+          $expected = "d29144deff3a68aa93ced33dddf84b7fdc26070add4aa0f4513094c8332afc4e"
           if ($actual -ne $expected) { throw "Gitleaks checksum mismatch." }
           Expand-Archive $archive -DestinationPath $destination
           & (Join-Path $destination "gitleaks.exe") detect --source . --redact --verbose
