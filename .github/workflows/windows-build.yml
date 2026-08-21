@@ -1,0 +1,82 @@
+name: Windows build
+on:
+  workflow_dispatch:
+  workflow_call:
+  pull_request:
+    paths:
+      - "src/**"
+      - "resources/**"
+      - "assets/**"
+      - "examples/**"
+      - "pyproject.toml"
+      - "installer/**"
+
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Install locked build dependencies
+        run: uv sync --locked --extra dev --extra build
+      - name: Run quality and Windows UI tests
+        run: |
+          uv run ruff format --check .
+          uv run ruff check .
+          uv run mypy src
+          uv run pytest --cov=easy_language_learning_tool --cov-report=term-missing --cov-fail-under=85
+      - name: Bundle FFmpeg essentials
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP "ffmpeg.zip"
+          $expanded = Join-Path $env:RUNNER_TEMP "ffmpeg"
+          Invoke-WebRequest "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" -OutFile $archive
+          Expand-Archive $archive -DestinationPath $expanded
+          $bin = Get-ChildItem $expanded -Directory | Select-Object -First 1 | ForEach-Object { Join-Path $_.FullName "bin" }
+          Copy-Item (Join-Path $bin "ffmpeg.exe") installer\bundled\ffmpeg\ffmpeg.exe
+          Copy-Item (Join-Path $bin "ffprobe.exe") installer\bundled\ffmpeg\ffprobe.exe
+      - name: Build standalone application
+        shell: pwsh
+        run: |
+          uv run python -m nuitka --standalone --enable-plugin=pyside6 --windows-console-mode=disable `
+            --assume-yes-for-downloads --output-dir=dist `
+            --output-filename=EasyLanguageLearningTool.exe `
+            --include-data-dir=resources=resources `
+            --include-data-dir=assets=assets `
+            --include-data-dir=examples=examples `
+            --include-data-dir=installer/bundled/ffmpeg=installer/bundled/ffmpeg `
+            --include-data-files=README.md=README.md `
+            --include-data-files=RELEASE_NOTES.md=RELEASE_NOTES.md `
+            src/easy_language_learning_tool/app.py
+          $built = Get-ChildItem dist -Directory -Filter "*.dist" | Select-Object -First 1
+          if (-not $built) { throw "Nuitka standalone directory was not produced." }
+          $target = Join-Path (Resolve-Path dist) "EasyLanguageLearningTool"
+          Move-Item $built.FullName $target
+      - name: Packaged launch smoke test
+        shell: pwsh
+        run: |
+          $process = Start-Process dist\EasyLanguageLearningTool\EasyLanguageLearningTool.exe -PassThru
+          Start-Sleep -Seconds 8
+          if ($process.HasExited -and $process.ExitCode -ne 0) { throw "Packaged app exited with code $($process.ExitCode)." }
+          if (-not $process.HasExited) { Stop-Process -Id $process.Id }
+      - name: Compile Inno Setup installer
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\inno_setup.iss
+      - name: Create SHA-256 checksum
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem dist\installer\*.exe | Select-Object -First 1
+          $hash = Get-FileHash $installer.FullName -Algorithm SHA256
+          "$($hash.Hash)  $($installer.Name)" | Set-Content (Join-Path $installer.DirectoryName "SHA256SUMS.txt")
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Easy-Language-Learning-Tool-Windows
+          path: |
+            dist/installer/*
+            dist/EasyLanguageLearningTool/**

@@ -1,0 +1,20 @@
+name: Quality
+on: [push, pull_request]
+jobs:
+  quality:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked --extra dev
+      - run: uv run ruff format --check .
+      - run: uv run ruff check .
+      - run: uv run mypy src
+      - run: uv run pip-audit
+      - run: uv run pip-licenses --format=markdown --output-file=third-party-licences.md
+      - uses: gitleaks/gitleaks-action@v2

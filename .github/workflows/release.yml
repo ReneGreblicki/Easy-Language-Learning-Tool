@@ -1,0 +1,25 @@
+name: Release candidate
+on:
+  workflow_dispatch:
+jobs:
+  frequency-data:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - name: Enforce production frequency corpus
+        shell: pwsh
+        run: |
+          $data = "resources\frequency_data\production\verbs.jsonl"
+          if (-not (Test-Path $data)) { throw "Production frequency corpus is not present." }
+          uv run python tools\check_release_data.py $data --minimum 4000
+  verify:
+    needs: frequency-data
+    uses: ./.github/workflows/tests.yml
+  package:
+    needs: verify
+    uses: ./.github/workflows/windows-build.yml
