@@ -15,6 +15,7 @@ This map is checked against both approved project artifacts at every build gate.
 | Exact questions/statements and pronoun cadence 1–5 | planner/rules | plan tests |
 | LLM never selects frequency rank | frequency repository and plan | frequency tests |
 | Source/licence data gate | JSONL schema and release tool | release-readiness gate |
+| Candidate ingestion and linguistic approval | `tools/build_frequency_candidates.py`, review TSV | candidate and release-gate tests |
 | Targeted retries and resumable generation | service/checkpoints | integration tests |
 | XLSX four public columns plus Metadata; legacy import | workbook service | round-trip tests |
 | Edge TTS, dual voices, four pauses, 2-row preview | TTS service/UI | mocked integration tests |

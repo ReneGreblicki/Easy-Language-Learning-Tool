@@ -23,7 +23,10 @@ licence-unclear example material from being presented as a frequency baseline.
 
 Approved production data must preserve rank, lemma, translations, irregularity,
 supported constructions, confidence, source, and licence in each internal
-record. The UI exposes only the four agreed workbook columns.
+record. It must also preserve the source URL and revision plus the reviewer,
+review date, and approval state. Every approved verb needs a non-empty
+translation into all four other supported languages. The UI exposes only the
+four agreed workbook columns.
 
 ## External release operations
 

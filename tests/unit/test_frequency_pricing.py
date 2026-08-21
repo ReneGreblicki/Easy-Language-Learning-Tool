@@ -5,7 +5,10 @@ from decimal import Decimal
 from pathlib import Path
 
 from easy_language_learning_tool.domain.enums import Language
-from easy_language_learning_tool.domain.frequency import FrequencyRepository
+from easy_language_learning_tool.domain.frequency import (
+    FrequencyRepository,
+    FrequencyVerb,
+)
 from easy_language_learning_tool.providers.pricing import PricingEntry, PricingRegistry
 
 
@@ -21,6 +24,34 @@ class FrequencyAndPricingTests(unittest.TestCase):
         source = Path(__file__).parents[2] / "resources" / "frequency_data" / "demo" / "verbs.jsonl"
         errors = FrequencyRepository.from_jsonl(source).validate_release_readiness(10)
         self.assertEqual(len(errors), 5)
+
+    def test_missing_translation_is_not_counted_or_selected(self) -> None:
+        repository = FrequencyRepository(
+            [
+                FrequencyVerb(
+                    language=Language.GERMAN,
+                    rank=1,
+                    lemma="gehen",
+                    translations={Language.US_ENGLISH: "to go"},
+                    source="fixture",
+                    licence="fixture",
+                ),
+                FrequencyVerb(
+                    language=Language.GERMAN,
+                    rank=2,
+                    lemma="bleiben",
+                    translations={Language.FRENCH: "rester"},
+                    source="fixture",
+                    licence="fixture",
+                ),
+            ]
+        )
+        self.assertEqual(repository.available_count(Language.GERMAN, Language.US_ENGLISH), 1)
+        self.assertEqual(
+            repository.select(Language.GERMAN, Language.US_ENGLISH, 1)[0].lemma, "gehen"
+        )
+        with self.assertRaisesRegex(ValueError, "US English translations"):
+            repository.select(Language.GERMAN, Language.US_ENGLISH, 2)
 
     def test_pricing_estimate_and_unknown_fallback(self) -> None:
         registry = PricingRegistry(

@@ -14,5 +14,7 @@ def test_release_support_files_are_present() -> None:
         root / "installer" / "inno_setup.iss",
         root / "resources" / "licences" / "FFMPEG_NOTICE.md",
         root / "resources" / "licences" / "WORDFREQ_NOTICE.md",
+        root / "resources" / "licences" / "WIKTIONARY_NOTICE.md",
+        root / "resources" / "frequency_data" / "README.md",
     )
     assert all(path.is_file() for path in required)

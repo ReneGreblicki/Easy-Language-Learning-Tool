@@ -92,6 +92,13 @@ def resource_path(*parts: str) -> Path:
     return Path(__file__).resolve().parents[3].joinpath(*parts)
 
 
+def frequency_data_path() -> Path:
+    production = resource_path("resources", "frequency_data", "production", "verbs.jsonl")
+    if production.is_file():
+        return production
+    return resource_path("resources", "frequency_data", "demo", "verbs.jsonl")
+
+
 class MainWindow(QMainWindow):
     def __init__(self, paths: AppPaths | None = None) -> None:
         super().__init__()
@@ -101,6 +108,9 @@ class MainWindow(QMainWindow):
         self.history = HistoryService(
             self.paths.data / "easy_language_learning_tool.sqlite3", self.paths.history
         )
+        self.frequency_path = frequency_data_path()
+        self.frequency_repository = FrequencyRepository.from_jsonl(self.frequency_path)
+        self.frequency_is_production = self.frequency_path.parent.name == "production"
         self._threads: set[TaskThread] = set()
         self._provider_adapter: Any = None
         self._tts_service: TtsService | None = None
@@ -220,6 +230,8 @@ class MainWindow(QMainWindow):
         self.pronouns = QComboBox()
         self.pronouns.addItems([str(value) for value in range(1, 6)])
         self.final_rows = QLabel()
+        self.frequency_status = QLabel()
+        self.frequency_status.setWordWrap(True)
         self.output_path = QLineEdit(str(Path.home() / "Documents" / "Language Sentences.xlsx"))
         browse = QPushButton("Browse…")
         browse.clicked.connect(self.choose_generation_output)
@@ -243,6 +255,7 @@ class MainWindow(QMainWindow):
             ("Percentage total", self.cefr_total),
             ("Questions / statements", question_row),
             ("Pronoun-change scale", self.pronouns),
+            ("Verb dataset", self.frequency_status),
             ("Calculated output", self.final_rows),
             ("Workbook", output_widget),
             ("", self.generate_button),
@@ -461,6 +474,18 @@ class MainWindow(QMainWindow):
         self.refresh_sentence_state()
 
     def refresh_sentence_state(self) -> None:
+        learning = Language(str(self.learning.currentData()))
+        translation = Language(str(self.translation.currentData()))
+        available = self.frequency_repository.available_count(learning, translation)
+        allowed = min(4_000, available)
+        self.base_count.setMaximum(max(1, allowed))
+        dataset_label = (
+            "Production dataset" if self.frequency_is_production else "Demonstration dataset"
+        )
+        self.frequency_status.setText(
+            f"{dataset_label}: {available:,} usable {learning.label} verbs with "
+            f"{translation.label} translations."
+        )
         base = self.base_count.value()
         self.extra_forms.setEnabled(base <= 1_000)
         if base > 1_000:
@@ -476,7 +501,12 @@ class MainWindow(QMainWindow):
             spin.setEnabled(gradual and level in selected)
         total_percent = sum(self.cefr_percentages[level].value() for level in selected)
         self.cefr_total.setText(f"{total_percent}%" if gradual else "Single-level mode")
-        valid = total <= 5_000 and self.learning.currentData() != self.translation.currentData()
+        valid = (
+            available > 0
+            and base <= available
+            and total <= 5_000
+            and self.learning.currentData() != self.translation.currentData()
+        )
         valid = valid and (not gradual or total_percent == 100)
         valid = (
             valid and self._provider_adapter is not None and bool(self.model_combo.currentData())
@@ -538,10 +568,7 @@ class MainWindow(QMainWindow):
         self.generation_progress.setValue(0)
 
         async def task(report: Any) -> Path:
-            repository = FrequencyRepository.from_jsonl(
-                resource_path("resources", "frequency_data", "demo", "verbs.jsonl")
-            )
-            verbs = repository.select(
+            verbs = self.frequency_repository.select(
                 settings.learning_language, settings.translation_language, settings.base_sentences
             )
             plan = build_generation_plan(settings, verbs)
