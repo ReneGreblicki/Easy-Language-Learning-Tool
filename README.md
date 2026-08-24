@@ -8,16 +8,16 @@ into one natural-sounding, resumable MP3.
 
 ### Sentence Creation
 
-- Supports US English, European Spanish, German, European Portuguese, and French.
-- Selects unique verbs deterministically from an internal ranked dataset; the AI
-  model creates examples but never decides which verbs are most common.
+- Supports US English, European Spanish, German, European Portuguese, French, and Italian.
+- Selects ranked words across all parts of speech deterministically from an internal
+  dataset; the AI creates examples but never decides which words are most common.
 - Connects to OpenAI, Anthropic, Google Gemini, DeepSeek, Ollama, or a custom
   OpenAI-compatible endpoint.
-- Lets the user choose 1–4,000 base sentences, a single CEFR level or a contiguous
+- Lets the user choose base words, a single CEFR level or a contiguous
   gradual A1–C2 range, exact level percentages, question percentage, and pronoun
   cadence.
-- Allows 0–4 extra forms only at 1,000 or fewer base sentences and never permits
-  more than 5,000 final rows.
+- Allows 0–4 part-of-speech-aware extra forms and dynamically limits base words so
+  `base words × (1 + extra forms)` never exceeds 5,000 final rows.
 - Exports `.xlsx` with exactly four public columns on `Sentences` and a separate
   audit-ready `Metadata` sheet. Optional CSV export is supported by the core API.
 - Checkpoints long AI jobs and retries only rejected or missing rows.
@@ -42,7 +42,7 @@ into one natural-sounding, resumable MP3.
 
 ## End-user setup
 
-1. Run `EasyLanguageLearningTool-Setup-0.3.0.exe`.
+1. Run `EasyLanguageLearningTool-Setup-0.4.0.exe`.
 2. Accept the default per-user installation folder and optional desktop shortcut.
 3. Launch the app. It opens centered at 50% of the screen; resize or maximize it normally.
 4. In Sentence Creation, choose a provider:
@@ -93,14 +93,13 @@ Frequency-data build and gate:
 ```powershell
 python -m pip install -e ".[data-build]"
 python tools\build_frequency_data.py --help
-python tools\check_release_data.py resources\frequency_data\production\verbs.jsonl
+python tools\check_release_data.py resources\frequency_data\production\words.jsonl.gz
 ```
 
-The candidate workflow uses Kaikki/Wiktionary verb entries for part-of-speech,
-lemma, translation, and construction evidence, then ranks the reviewed lemmas
-with `wordfreq`. See `resources/frequency_data/README.md`. Extracted candidates
-cannot enter the runtime corpus until human review is recorded and every
-supported translation is complete.
+The automated corpus workflow uses `wordfreq` for a reproducible six-language
+ranking and Kaikki/Wiktionary for lemma, part-of-speech, forms, and available
+translations. Missing translations must be machine-enriched and pass automated
+validation before compilation. See `resources/frequency_data/README.md`.
 
 ## Windows build and installer
 
@@ -111,16 +110,14 @@ The same steps can be run locally by following `.github/workflows/windows-build.
 
 ## Data and release status
 
-The application architecture and demo corpus are ready for development and
-internal testing. A public installer is blocked until the reviewed frequency
-dataset reaches at least 4,000 unique, attributed verb lemmas for every supported
-language. See `docs/RELEASE_READINESS.md`. This prevents demo or licence-unclear
-material from being presented as production frequency data.
+The repository includes a reproducible wordfreq baseline with exactly 5,000
+ranked words for each of the six languages. Kaikki/Wiktionary enrichment tools
+can add part-of-speech, form, and dictionary-translation evidence; when evidence
+is unavailable, the generation model infers a valid grammatical use and supplies
+the word translation. See `docs/RELEASE_READINESS.md`.
 
-Internal builds automatically cap the sentence-count control to the number of
-usable translated verbs in the bundled dataset. The demonstration build is
-therefore limited to four base sentences per language pair rather than failing
-after accepting an unsupported count.
+The interface caps the base-word control dynamically according to the available
+corpus and selected extra forms, so it never accepts a job above 5,000 final rows.
 
 ## Project documentation
 

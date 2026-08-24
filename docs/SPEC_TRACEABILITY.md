@@ -9,13 +9,13 @@ This map is checked against both approved project artifacts at every build gate.
 | Sentence Creation, TTS, History tabs | `MainWindow` | UI smoke test |
 | OpenAI, Anthropic, Gemini, DeepSeek, Ollama, custom endpoint | `providers/` | provider contract tests |
 | Session keys and Windows Credential Manager | `security/credentials.py` | platform-service and redaction tests |
-| Base 1–4,000; forms 0–4 only at ≤1,000; final ≤5,000 | domain models and UI | boundary and UI tests |
+| Dynamic base limit; forms 0–4; `base × (1 + forms) ≤ 5,000` | domain models and UI | boundary and UI tests |
 | A1–C2, 5/8/11/14/17/20 words, contiguous gradual ranges | enums/models/validator | rule tests |
 | Exact percentages and deterministic ascending allocation | planner/rules | allocation tests |
 | Exact questions/statements and pronoun cadence 1–5 | planner/rules | plan tests |
 | LLM never selects frequency rank | frequency repository and plan | frequency tests |
 | Source/licence data gate | JSONL schema and release tool | release-readiness gate |
-| Candidate ingestion and linguistic approval | `tools/build_frequency_candidates.py`, review TSV | candidate and release-gate tests |
+| Six-language all-word ingestion and automated validation | corpus build tools and word TSV | candidate and release-gate tests |
 | Targeted retries and resumable generation | service/checkpoints | integration tests |
 | XLSX four public columns plus Metadata; legacy import | workbook service | round-trip tests |
 | Edge TTS, dual voices, four pauses, 2-row preview | TTS service/UI | mocked integration tests |

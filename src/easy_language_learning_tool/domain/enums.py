@@ -9,6 +9,7 @@ class Language(StrEnum):
     GERMAN = "de-DE"
     EUROPEAN_PORTUGUESE = "pt-PT"
     FRENCH = "fr-FR"
+    ITALIAN = "it-IT"
 
     @property
     def label(self) -> str:
@@ -18,6 +19,7 @@ class Language(StrEnum):
             self.GERMAN: "German",
             self.EUROPEAN_PORTUGUESE: "European Portuguese",
             self.FRENCH: "French",
+            self.ITALIAN: "Italian",
         }[self]
 
 

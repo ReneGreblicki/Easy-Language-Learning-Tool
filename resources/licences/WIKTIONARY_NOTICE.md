@@ -18,6 +18,7 @@ The project also records the Wiktextract citation requested by Kaikki.org:
 Tatu Ylonen, “Wiktextract: Wiktionary as Machine-Readable Structured Data,”
 Proceedings of LREC 2022, pages 1317–1325.
 
-Human review is mandatory before a candidate enters the production corpus.
-Dictionary extraction and frequency scoring do not by themselves establish
-translation accuracy, regional suitability, or pedagogical quality.
+Production candidates must pass the project's automated translation, locale,
+form-consistency, metadata, duplicate, and rank-continuity gates. Dictionary
+extraction and frequency scoring are treated as evidence, not a guarantee of
+translation accuracy or pedagogical quality.

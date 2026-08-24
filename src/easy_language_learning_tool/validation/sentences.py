@@ -14,12 +14,12 @@ class GeneratedSentence(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     row_number: int = Field(ge=1)
-    foreign_verb: str = Field(min_length=1, max_length=120)
-    verb_translation: str = Field(min_length=1, max_length=200)
+    foreign_word: str = Field(min_length=1, max_length=120)
+    word_translation: str = Field(min_length=1, max_length=200)
     foreign_sentence: str = Field(min_length=1, max_length=1_000)
     sentence_translation: str = Field(min_length=1, max_length=2_000)
-    used_verb_form: str = Field(min_length=1, max_length=120)
-    tense_or_form: str = Field(min_length=1, max_length=120)
+    used_word_form: str = Field(min_length=1, max_length=120)
+    word_form_or_variant: str = Field(min_length=1, max_length=120)
 
 
 class ValidationIssue(BaseModel):
@@ -38,19 +38,19 @@ class SentenceValidator:
             issues.append(
                 ValidationIssue(code="row_number", message="Returned row number is incorrect.")
             )
-        if sentence.foreign_verb.casefold().strip() != plan.verb.lemma.casefold().strip():
+        if sentence.foreign_word.casefold().strip() != plan.word.lemma.casefold().strip():
             issues.append(
                 ValidationIssue(code="lemma", message="Returned lemma differs from the plan.")
             )
         if (
-            plan.verb.translation
-            and sentence.verb_translation.casefold().strip()
-            != plan.verb.translation.casefold().strip()
+            plan.word.translation
+            and sentence.word_translation.casefold().strip()
+            != plan.word.translation.casefold().strip()
         ):
             issues.append(
                 ValidationIssue(
-                    code="verb_translation",
-                    message="Verb translation differs from the ranked dataset.",
+                    code="word_translation",
+                    message="Word translation differs from the ranked dataset.",
                 )
             )
         words = WORD_PATTERN.findall(sentence.foreign_sentence)
@@ -62,17 +62,18 @@ class SentenceValidator:
                     message=f"Sentence has {len(words)} words; {maximum} allowed for {plan.cefr_level}.",
                 )
             )
-        used_form = sentence.used_verb_form.casefold().strip()
+        used_form = sentence.used_word_form.casefold().strip()
         if used_form not in sentence.foreign_sentence.casefold():
             issues.append(
                 ValidationIssue(
-                    code="verb_form", message="The declared verb form is absent from the sentence."
+                    code="word_form", message="The declared word form is absent from the sentence."
                 )
             )
-        if plan.form_index > 0 and sentence.tense_or_form.casefold() in {"base", "original"}:
+        if plan.form_index > 0 and sentence.word_form_or_variant.casefold() in {"base", "original"}:
             issues.append(
                 ValidationIssue(
-                    code="extra_form", message="An extra row must use a different verb form."
+                    code="extra_form",
+                    message="An extra row must use a different form or invariant context.",
                 )
             )
         is_question = sentence.foreign_sentence.rstrip().endswith("?")

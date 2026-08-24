@@ -16,5 +16,6 @@ def test_release_support_files_are_present() -> None:
         root / "resources" / "licences" / "WORDFREQ_NOTICE.md",
         root / "resources" / "licences" / "WIKTIONARY_NOTICE.md",
         root / "resources" / "frequency_data" / "README.md",
+        root / "resources" / "frequency_data" / "production" / "words.jsonl.gz",
     )
     assert all(path.is_file() for path in required)

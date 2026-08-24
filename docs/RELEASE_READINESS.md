@@ -13,20 +13,21 @@
 
 ## Frequency-data gate
 
-The repository contains a small, attributed demo corpus so the data contract and
-pipeline can be tested. It is intentionally not labelled production-ready.
+The repository contains an attributed, reproducible wordfreq production baseline
+and a smaller multi-POS demonstration fixture. `tools/check_release_data.py` must
+report exactly 5,000 ranked, source-attributed word entries for each of the six
+supported languages before packaging.
 
-A public installer must not be released until `tools/check_release_data.py`
-reports at least 4,000 unique, source-attributed verb lemmas for each of the five
-supported languages. This prevents unreviewed words, model-invented rankings, or
-licence-unclear example material from being presented as a frequency baseline.
-
-Approved production data must preserve rank, lemma, translations, irregularity,
-supported constructions, confidence, source, and licence in each internal
-record. It must also preserve the source URL and revision plus the reviewer,
-review date, and approval state. Every approved verb needs a non-empty
-translation into all four other supported languages. The UI exposes only the
+Production data must preserve rank, lemma, part of speech, forms, translations,
+confidence, source, licence, source URL, revision, and automated-validation state.
+Dictionary translations and POS/form evidence are retained when available. A
+blank baseline translation is supplied and validated by the generation provider.
+Ranks must be contiguous and normalized lemmas unique. The UI exposes only the
 four agreed workbook columns.
+
+Canonical ranking uses wordfreq; Kaikki/Wiktionary provides lexical enrichment.
+The supplied third-party pages are comparison sources unless their redistribution
+terms are explicitly compatible. No human linguistic approval gate is required.
 
 ## External release operations
 

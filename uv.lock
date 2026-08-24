@@ -297,7 +297,7 @@ wheels = [
 
 [[package]]
 name = "easy-language-learning-tool"
-version = "0.3.0"
+version = "0.4.0"
 source = { editable = "." }
 dependencies = [
     { name = "edge-tts" },
@@ -318,6 +318,7 @@ build = [
     { name = "ordered-set" },
 ]
 data-build = [
+    { name = "httpx" },
     { name = "wordfreq" },
 ]
 dev = [
@@ -336,6 +337,7 @@ dev = [
 requires-dist = [
     { name = "edge-tts", specifier = ">=7,<8" },
     { name = "httpx", specifier = ">=0.28,<1" },
+    { name = "httpx", marker = "extra == 'data-build'", specifier = ">=0.28,<1" },
     { name = "keyring", specifier = ">=25.5,<26" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.14,<2" },
     { name = "nuitka", marker = "extra == 'build'", specifier = ">=2.7,<3" },

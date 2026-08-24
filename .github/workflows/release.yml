@@ -14,9 +14,9 @@ jobs:
       - name: Enforce production frequency corpus
         shell: pwsh
         run: |
-          $data = "resources\frequency_data\production\verbs.jsonl"
+          $data = "resources\frequency_data\production\words.jsonl.gz"
           if (-not (Test-Path $data)) { throw "Production frequency corpus is not present." }
-          uv run python tools\check_release_data.py $data --minimum 4000
+          uv run python tools\check_release_data.py $data --minimum 5000
   verify:
     needs: frequency-data
     uses: ./.github/workflows/tests.yml

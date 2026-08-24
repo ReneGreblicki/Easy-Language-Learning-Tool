@@ -12,7 +12,7 @@ from easy_language_learning_tool.domain.enums import (
     Language,
     SentenceKind,
 )
-from easy_language_learning_tool.domain.models import CefrSelection, GenerationSettings, VerbRecord
+from easy_language_learning_tool.domain.models import CefrSelection, GenerationSettings, WordRecord
 from easy_language_learning_tool.domain.planner import build_generation_plan
 from easy_language_learning_tool.domain.rules import (
     grammatical_person_schedule,
@@ -67,8 +67,10 @@ class ProductRuleTests(unittest.TestCase):
 
     def test_extra_forms_limit_matrix(self) -> None:
         self.assertEqual(settings(base_sentences=1_000, extra_forms=4).final_rows, 5_000)
+        self.assertEqual(settings(base_sentences=2_500, extra_forms=1).final_rows, 5_000)
+        self.assertEqual(settings(base_sentences=5_000, extra_forms=0).final_rows, 5_000)
         with self.assertRaises(ValidationError):
-            settings(base_sentences=1_001, extra_forms=1)
+            settings(base_sentences=2_501, extra_forms=1)
         with self.assertRaises(ValidationError):
             settings(base_sentences=1_000, extra_forms=5)
 
@@ -85,8 +87,8 @@ class ProductRuleTests(unittest.TestCase):
 
     def test_plan_expands_forms_and_keeps_base_attributes(self) -> None:
         config = settings(base_sentences=5, extra_forms=2, question_percentage=Decimal("40"))
-        verbs = [VerbRecord(rank=index, lemma=f"verb-{index}") for index in range(1, 6)]
-        plan = build_generation_plan(config, verbs)
+        words = [WordRecord(rank=index, lemma=f"word-{index}") for index in range(1, 6)]
+        plan = build_generation_plan(config, words)
         self.assertEqual(len(plan), 15)
         self.assertEqual(sum(row.form_index == 0 for row in plan), 5)
         self.assertEqual(
@@ -95,15 +97,15 @@ class ProductRuleTests(unittest.TestCase):
         )
         for offset in range(0, 15, 3):
             group = plan[offset : offset + 3]
-            self.assertEqual(len({row.verb.lemma for row in group}), 1)
+            self.assertEqual(len({row.word.lemma for row in group}), 1)
             self.assertEqual(len({row.cefr_level for row in group}), 1)
             self.assertEqual([row.form_index for row in group], [0, 1, 2])
 
     def test_duplicate_base_lemmas_are_rejected(self) -> None:
         config = settings(base_sentences=2)
-        verbs = [VerbRecord(rank=1, lemma="gehen"), VerbRecord(rank=2, lemma="Gehen")]
+        words = [WordRecord(rank=1, lemma="gehen"), WordRecord(rank=2, lemma="Gehen")]
         with self.assertRaises(ValueError):
-            build_generation_plan(config, verbs)
+            build_generation_plan(config, words)
 
 
 if __name__ == "__main__":

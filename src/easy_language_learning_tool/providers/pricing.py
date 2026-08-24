@@ -79,7 +79,7 @@ class PricingRegistry:
         model: str,
         current_rows: int,
     ) -> tuple[CostEstimate, ...]:
-        counts = [1_000, 2_000, 3_000, 4_000]
+        counts = [1_000, 2_000, 3_000, 4_000, 5_000]
         if current_rows not in counts:
             counts.append(current_rows)
         return tuple(self.estimate(provider, model, count) for count in counts)

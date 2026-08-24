@@ -82,6 +82,7 @@ VOICE_DEFAULTS: dict[Language, tuple[str, str]] = {
     Language.GERMAN: ("de-DE-KatjaNeural", "de-DE-ConradNeural"),
     Language.EUROPEAN_PORTUGUESE: ("pt-PT-RaquelNeural", "pt-PT-DuarteNeural"),
     Language.FRENCH: ("fr-FR-DeniseNeural", "fr-FR-HenriNeural"),
+    Language.ITALIAN: ("it-IT-ElsaNeural", "it-IT-DiegoNeural"),
 }
 
 
@@ -93,10 +94,11 @@ def resource_path(*parts: str) -> Path:
 
 
 def frequency_data_path() -> Path:
-    production = resource_path("resources", "frequency_data", "production", "verbs.jsonl")
-    if production.is_file():
-        return production
-    return resource_path("resources", "frequency_data", "demo", "verbs.jsonl")
+    for filename in ("words.jsonl.gz", "words.jsonl"):
+        production = resource_path("resources", "frequency_data", "production", filename)
+        if production.is_file():
+            return production
+    return resource_path("resources", "frequency_data", "demo", "words.jsonl")
 
 
 class MainWindow(QMainWindow):
@@ -162,6 +164,15 @@ class MainWindow(QMainWindow):
     def _sentence_tab(self) -> QWidget:
         root = QWidget()
         layout = QVBoxLayout(root)
+        row_limit_notice = QLabel(
+            "Output is limited to 5,000 rows. Each base word creates one original row plus the "
+            "selected extra-form rows. Maximum base words = 5,000 ÷ (1 + extra forms): for "
+            "example, 1 extra form allows 2,500 base words. Extra forms adapt to the word type "
+            "(for example be/was, tool/tools, or adjective agreement)."
+        )
+        row_limit_notice.setWordWrap(True)
+        row_limit_notice.setObjectName("rowLimitNotice")
+        layout.addWidget(row_limit_notice)
         provider_group = QGroupBox("AI provider")
         provider_form = QFormLayout(provider_group)
         self.provider_combo = QComboBox()
@@ -196,7 +207,7 @@ class MainWindow(QMainWindow):
         self.translation = self._language_combo()
         self.translation.setCurrentIndex(1)
         self.base_count = QSpinBox()
-        self.base_count.setRange(1, 4_000)
+        self.base_count.setRange(1, 5_000)
         self.base_count.setValue(100)
         self.extra_forms = QComboBox()
         self.extra_forms.addItems([str(value) for value in range(5)])
@@ -246,8 +257,8 @@ class MainWindow(QMainWindow):
         for label, settings_widget in (
             ("Learning language (foreign)", self.learning),
             ("Translation language", self.translation),
-            ("Base sentences", self.base_count),
-            ("Extra forms (0–4)", self.extra_forms),
+            ("Base words", self.base_count),
+            ("Extra word forms (0–4)", self.extra_forms),
             ("CEFR mode", self.cefr_mode),
             ("Single level", self.single_cefr),
             ("Gradual range", range_widget),
@@ -255,7 +266,7 @@ class MainWindow(QMainWindow):
             ("Percentage total", self.cefr_total),
             ("Questions / statements", question_row),
             ("Pronoun-change scale", self.pronouns),
-            ("Verb dataset", self.frequency_status),
+            ("Word dataset", self.frequency_status),
             ("Calculated output", self.final_rows),
             ("Workbook", output_widget),
             ("", self.generate_button),
@@ -349,8 +360,8 @@ class MainWindow(QMainWindow):
         pause_form = QFormLayout(pauses)
         self.pause_sliders: list[QSlider] = []
         names = (
-            "Foreign verb → verb translation",
-            "Verb translation → foreign sentence",
+            "Foreign word → word translation",
+            "Word translation → foreign sentence",
             "Foreign sentence → sentence translation",
             "Sentence translation → next row",
         )
@@ -477,21 +488,22 @@ class MainWindow(QMainWindow):
         learning = Language(str(self.learning.currentData()))
         translation = Language(str(self.translation.currentData()))
         available = self.frequency_repository.available_count(learning, translation)
-        allowed = min(4_000, available)
+        form_multiplier = 1 + int(self.extra_forms.currentText())
+        allowed = min(5_000 // form_multiplier, available)
         self.base_count.setMaximum(max(1, allowed))
         dataset_label = (
             "Production dataset" if self.frequency_is_production else "Demonstration dataset"
         )
         self.frequency_status.setText(
-            f"{dataset_label}: {available:,} usable {learning.label} verbs with "
-            f"{translation.label} translations."
+            f"{dataset_label}: {available:,} ranked {learning.label} words; examples and missing "
+            f"word translations will be generated in {translation.label}."
         )
         base = self.base_count.value()
-        self.extra_forms.setEnabled(base <= 1_000)
-        if base > 1_000:
-            self.extra_forms.setCurrentIndex(0)
-        total = base * (1 + int(self.extra_forms.currentText()))
-        self.final_rows.setText(f"{total:,} final rows (maximum 5,000)")
+        self.extra_forms.setEnabled(True)
+        total = base * form_multiplier
+        self.final_rows.setText(
+            f"{total:,} final rows (base limit {allowed:,} at {form_multiplier}×; maximum 5,000)"
+        )
         gradual = CefrMode(str(self.cefr_mode.currentData())) is CefrMode.GRADUAL
         self.single_cefr.setEnabled(not gradual)
         self.start_cefr.setEnabled(gradual)
@@ -568,10 +580,10 @@ class MainWindow(QMainWindow):
         self.generation_progress.setValue(0)
 
         async def task(report: Any) -> Path:
-            verbs = self.frequency_repository.select(
+            words = self.frequency_repository.select(
                 settings.learning_language, settings.translation_language, settings.base_sentences
             )
-            plan = build_generation_plan(settings, verbs)
+            plan = build_generation_plan(settings, words)
             result = await GenerationService(provider).generate(
                 settings=settings,
                 plan=plan,
@@ -638,7 +650,7 @@ class MainWindow(QMainWindow):
                 resource_path("resources", "pricing", "registry.json")
             )
             lines = []
-            counts = [1_000, 2_000, 3_000, 4_000]
+            counts = [1_000, 2_000, 3_000, 4_000, 5_000]
             current = self.base_count.value() * (1 + int(self.extra_forms.currentText()))
             if current not in counts:
                 counts.append(current)
