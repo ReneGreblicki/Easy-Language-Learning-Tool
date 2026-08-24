@@ -57,6 +57,26 @@ jobs:
           if (-not $built) { throw "Nuitka standalone directory was not produced." }
           $target = Join-Path (Resolve-Path dist) "EasyLanguageLearningTool"
           Move-Item $built.FullName $target
+      - name: Validate signing configuration
+        id: signing
+        env:
+          WINDOWS_SIGNING_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE_BASE64 }}
+          WINDOWS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE_PASSWORD }}
+        shell: pwsh
+        run: |
+          $hasCertificate = -not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERTIFICATE_BASE64)
+          $hasPassword = -not [string]::IsNullOrWhiteSpace($env:WINDOWS_SIGNING_CERTIFICATE_PASSWORD)
+          if ($hasCertificate -xor $hasPassword) {
+            throw "Configure both Windows signing secrets or neither of them."
+          }
+          "enabled=$($hasCertificate.ToString().ToLowerInvariant())" | Out-File $env:GITHUB_OUTPUT -Append
+      - name: Sign standalone executable
+        if: steps.signing.outputs.enabled == 'true'
+        env:
+          WINDOWS_SIGNING_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE_BASE64 }}
+          WINDOWS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE_PASSWORD }}
+        shell: pwsh
+        run: installer\sign_windows_artifacts.ps1 -Paths dist\EasyLanguageLearningTool\EasyLanguageLearningTool.exe
       - name: Packaged launch smoke test
         shell: pwsh
         run: |
@@ -68,6 +88,30 @@ jobs:
         shell: pwsh
         run: |
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" installer\inno_setup.iss
+      - name: Sign installer
+        if: steps.signing.outputs.enabled == 'true'
+        env:
+          WINDOWS_SIGNING_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE_BASE64 }}
+          WINDOWS_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERTIFICATE_PASSWORD }}
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem dist\installer\*.exe | Select-Object -First 1
+          installer\sign_windows_artifacts.ps1 -Paths $installer.FullName
+      - name: Installed application acceptance test
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem dist\installer\*.exe | Select-Object -First 1
+          installer\windows_acceptance.ps1 -InstallerPath $installer.FullName
+      - name: Create build provenance
+        shell: pwsh
+        run: |
+          @(
+            "version=0.4.0",
+            "commit=${{ github.sha }}",
+            "workflow_run=${{ github.run_id }}",
+            "built_utc=$([DateTime]::UtcNow.ToString('o'))",
+            "authenticode_signed=${{ steps.signing.outputs.enabled }}"
+          ) | Set-Content dist\installer\BUILD_PROVENANCE.txt
       - name: Create SHA-256 checksum
         shell: pwsh
         run: |

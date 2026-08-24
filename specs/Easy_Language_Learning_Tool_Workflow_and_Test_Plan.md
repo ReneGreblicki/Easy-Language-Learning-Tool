@@ -2,7 +2,7 @@
 
 ## Development Workflow and Test Plan
 
-Version: 2.0 (approved all-word revision)
+Version: 2.1 (release hardening)
 
 Target: Windows 10/11 x64 desktop app and regular installer
 
@@ -107,7 +107,7 @@ Safe local history, 20+20 retention, recycle-bin actions, three tabs, themes, ac
 
 ### Phase 6 — Packaging and release
 
-Nuitka bundle, FFmpeg, Inno Setup, README, notices, release notes, checksum, Windows VM tests, Defender scan. Gate: clean Windows 10/11 install runs without separate Python/Qt/FFmpeg downloads; Ollama remains optional; upgrades preserve user data.
+Nuitka bundle, FFmpeg, Inno Setup, README, notices, release notes, checksum, provenance, Windows acceptance, Defender scan, and optional Authenticode signing. Gate: CI silently installs into a Unicode path, launches, upgrades/repairs, verifies bundled resources, uninstalls, and preserves user data; clean Windows 10/11 client installs require no separate Python/Qt/FFmpeg downloads; Ollama remains optional.
 
 ## 4. Test measures during development
 
@@ -150,7 +150,8 @@ Nuitka bundle, FFmpeg, Inno Setup, README, notices, release notes, checksum, Win
 
 - Six-language Edge voice filtering, four-cell order, two-row preview, configured pauses, audio controls, cancellation, failure, partial playback, and resume are tested.
 - Retention is independent per file type; path traversal, symlink/junction escape, collision, and rollback cases are covered.
-- Clean Windows 10/11 VMs test fresh install, paths with spaces/Unicode, launch, upgrade, repair, uninstall, shortcuts, bundled FFmpeg, and preserved exports.
+- CI tests silent install into a path with spaces/Unicode, launch, in-place upgrade/repair, uninstall, bundled FFmpeg/resources, and preserved app-owned data.
+- Final clean Windows 10 and Windows 11 client machines verify interactive install, shortcuts, SmartScreen/Defender behaviour, upgrade, repair, uninstall, and preserved exports.
 
 Performance targets: cold launch ≤5 seconds; local UI response ≤200 ms; 5,000-row import ≤3 seconds; peak workbook handling ≤750 MB; 40-item history load ≤1 second. Network and FFmpeg work never block the UI thread.
 
@@ -158,7 +159,7 @@ Performance targets: cold launch ≤5 seconds; local UI response ≤200 ms; 5,00
 
 - `quality.yml`: Ruff format/lint, mypy, secret scan, dependency and licence audit.
 - `tests.yml`: unit, contract, integration, headless UI, corpus fixtures, coverage.
-- `windows-build.yml`: executable, installer, launch smoke, layout/notices, SHA-256 artifact.
+- `windows-build.yml`: executable, optional Authenticode signing, installer, launch smoke, silent install/upgrade/uninstall acceptance, layout/notices, provenance, and SHA-256 artifact.
 - `release.yml`: repeat required checks and publish installer, README, notices, release notes, checksum, and provenance after an approved tag.
 
 Release checklist:
@@ -170,6 +171,7 @@ Release checklist:
 - [ ] Word workbook, legacy import, TTS recovery, and history safety pass.
 - [ ] App launches centered at 50% with usable light/dark themes.
 - [ ] Clean Windows installer needs no separate Python, Qt, or FFmpeg download.
+- [ ] Signed public artifact has valid timestamped Authenticode signatures and provenance.
 - [ ] README, notices, source manifest, release notes, and checksum are included.
 - [ ] No critical/high defect or required-check failure remains.
 

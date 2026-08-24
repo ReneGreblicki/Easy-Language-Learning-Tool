@@ -20,3 +20,5 @@
 ## Production release gate
 
 The bundled production baseline contains exactly 5,000 validated, attributed wordfreq entries for each of the six languages. Public release still requires clean Windows 10/11 installer verification and publisher signing. Kaikki enrichment is reproducible and optional at runtime because the generation provider supplies and validates missing translation/form evidence.
+
+The CI release candidate now performs silent install, launch, in-place upgrade/repair, bundled-file verification, uninstall, and user-data preservation checks. Authenticode signing and verification are automatically enabled when the two protected signing-certificate secrets are configured.

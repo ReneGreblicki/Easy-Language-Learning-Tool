@@ -9,6 +9,10 @@
 - Windows build contains the Python/Qt runtime, application resources, FFmpeg,
   FFmpeg notices, the README, and the example workbook.
 - Inno Setup produces a normal per-user installer.
+- The compiled installer is silently installed into a path containing spaces and
+  Unicode, launched, installed again to exercise upgrade/repair, and uninstalled.
+- Automated installer acceptance verifies bundled resources and preservation of
+  app-owned user data across upgrade and uninstall.
 - The installer artifact receives a SHA-256 checksum.
 
 ## Frequency-data gate
@@ -33,4 +37,11 @@ terms are explicitly compatible. No human linguistic approval gate is required.
 
 Code signing and Microsoft Defender/SmartScreen reputation require a publisher
 identity and signing certificate. The unsigned installer can be built and tested
-without them, but public distribution should use a signed installer.
+without them, but public distribution should use a signed installer. The Windows
+workflow signs both the standalone executable and installer when the repository
+secrets `WINDOWS_SIGNING_CERTIFICATE_BASE64` and
+`WINDOWS_SIGNING_CERTIFICATE_PASSWORD` are configured, verifies each Authenticode
+signature, and records signing state in `BUILD_PROVENANCE.txt`.
+
+GitHub-hosted Windows acceptance is an automated packaging gate, not a substitute
+for the final clean Windows 10 and Windows 11 client-machine acceptance record.

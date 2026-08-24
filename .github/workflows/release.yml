@@ -23,3 +23,4 @@ jobs:
   package:
     needs: verify
     uses: ./.github/workflows/windows-build.yml
+    secrets: inherit

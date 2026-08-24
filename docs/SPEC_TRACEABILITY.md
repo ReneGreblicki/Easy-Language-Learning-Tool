@@ -22,7 +22,8 @@ This map is checked against both approved project artifacts at every build gate.
 | Pause/resume/cancel and checksum recovery | TTS manifests/service | recovery tests |
 | Latest 20 files per type and safe app-owned actions | History service/UI | file-safety tests |
 | World-map/letters logo | `assets/icons/logo.svg` | packaging test |
-| Bundled runtime/FFmpeg and regular installer | Nuitka + Inno Setup | Windows workflow |
+| Bundled runtime/FFmpeg and regular installer | Nuitka + Inno Setup | Windows workflow install/upgrade/uninstall acceptance |
+| Authenticode publisher signing and provenance | signing script and Windows workflow | signature verification and build provenance artifact |
 | README and example workbook included | README and `examples/` | packaging test |
 
 ## Phase status
@@ -36,5 +37,6 @@ This map is checked against both approved project artifacts at every build gate.
 - Phase 5 — History and local-file safety: complete
 - Phase 6 — PySide6 interface: complete; Windows CI smoke test configured
 - Phase 7 — standalone app and installer automation: complete; runs on Windows CI
-- Phase 8 — automated hardening complete; publisher signing and the production
-  frequency corpus are external public-release gates
+- Phase 8 — automated hardening and production corpus complete; clean Windows
+  10/11 client acceptance and publisher certificate configuration remain external
+  public-release gates

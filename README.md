@@ -105,8 +105,16 @@ validation before compilation. See `resources/frequency_data/README.md`.
 
 The Windows workflow runs all quality gates, downloads a pinned FFmpeg essentials
 build, builds a standalone Qt application with Nuitka, compiles an Inno Setup
-installer, and publishes the installer, portable directory, and SHA-256 checksum.
-The same steps can be run locally by following `.github/workflows/windows-build.yml`.
+installer, performs silent install/launch/upgrade/uninstall acceptance testing,
+and publishes the installer, portable directory, provenance record, and SHA-256
+checksum. The same steps can be run locally by following
+`.github/workflows/windows-build.yml`.
+
+Public release maintainers can enable Authenticode signing by adding the protected
+repository secrets `WINDOWS_SIGNING_CERTIFICATE_BASE64` (the Base64-encoded PFX)
+and `WINDOWS_SIGNING_CERTIFICATE_PASSWORD`. Both must be configured together.
+Pull-request builds remain deliberately unsigned; signed builds verify the
+standalone executable and installer before artifact publication.
 
 ## Data and release status
 
