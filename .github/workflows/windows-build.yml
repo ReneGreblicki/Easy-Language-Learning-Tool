@@ -49,7 +49,6 @@ jobs:
             --include-data-dir=resources=resources `
             --include-data-dir=assets=assets `
             --include-data-dir=examples=examples `
-            --include-data-dir=installer/bundled/ffmpeg=installer/bundled/ffmpeg `
             --include-data-files=README.md=README.md `
             --include-data-files=RELEASE_NOTES.md=RELEASE_NOTES.md `
             src/easy_language_learning_tool/app.py
@@ -57,6 +56,10 @@ jobs:
           if (-not $built) { throw "Nuitka standalone directory was not produced." }
           $target = Join-Path (Resolve-Path dist) "EasyLanguageLearningTool"
           Move-Item $built.FullName $target
+          $ffmpegTarget = Join-Path $target "installer\bundled\ffmpeg"
+          New-Item $ffmpegTarget -ItemType Directory -Force | Out-Null
+          Copy-Item installer\bundled\ffmpeg\ffmpeg.exe $ffmpegTarget
+          Copy-Item installer\bundled\ffmpeg\ffprobe.exe $ffmpegTarget
       - name: Validate signing configuration
         id: signing
         env:

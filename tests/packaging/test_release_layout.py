@@ -28,4 +28,6 @@ def test_windows_workflow_runs_installer_acceptance_and_supports_signing() -> No
     workflow = (root / ".github" / "workflows" / "windows-build.yml").read_text(encoding="utf-8")
     assert "installer\\windows_acceptance.ps1" in workflow
     assert "installer\\sign_windows_artifacts.ps1" in workflow
+    assert "Copy-Item installer\\bundled\\ffmpeg\\ffmpeg.exe" in workflow
+    assert "Copy-Item installer\\bundled\\ffmpeg\\ffprobe.exe" in workflow
     assert "actions/upload-artifact@v6" in workflow
