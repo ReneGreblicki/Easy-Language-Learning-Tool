@@ -15,11 +15,11 @@ jobs:
   package:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v10
         with:
           enable-cache: true
       - name: Install locked build dependencies
@@ -74,7 +74,7 @@ jobs:
           $installer = Get-ChildItem dist\installer\*.exe | Select-Object -First 1
           $hash = Get-FileHash $installer.FullName -Algorithm SHA256
           "$($hash.Hash)  $($installer.Name)" | Set-Content (Join-Path $installer.DirectoryName "SHA256SUMS.txt")
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: Easy-Language-Learning-Tool-Windows
           path: |
