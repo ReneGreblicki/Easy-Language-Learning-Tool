@@ -45,7 +45,13 @@ Providers: OpenAI, Anthropic, Google Gemini, DeepSeek, Ollama, and custom OpenAI
 - Every sentence contains the selected word/form, stands alone, makes sense, and uses formal standard language.
 - Translations prioritize accuracy and direct wording without losing meaning.
 
-Pronoun-change values remain: 1 one person throughout; 2 change every 20 base rows; 3 every 10; 4 every 3; 5 every base row. A scheduled change selects a different person.
+The sentence-subject scale is applied across every final row, including extra-form
+rows. Value 0 keeps all rows neutral or impersonal. Values 1–4 assign exactly
+20%, 40%, 60%, or 80% of rows to personal subject patterns, with the remaining
+rows neutral or impersonal. Value 5 changes the subject pattern on every
+consecutive row, includes neutral or impersonal structures in the rotation, and
+does not repeat the immediately preceding pattern. Planning is deterministic for
+the same settings, seed, and corpus.
 
 ### Workbook, TTS, history, and design
 
@@ -163,6 +169,12 @@ Performance targets: cold launch ≤5 seconds; local UI response ≤200 ms; 5,00
 - `release.yml`: repeat required checks and publish installer, README, notices, release notes, checksum, and provenance after an approved tag.
 
 Release checklist:
+
+Current RC automation status (commit `7dbc21a`): Quality, Tests, Windows packaging,
+silent install, launch, upgrade/repair, uninstall, bundled-resource validation,
+user-data preservation, provenance, and checksum gates pass. The remaining public
+release operations are publisher signing and clean Windows 10/11 client-machine
+acceptance. Pull-request artifacts are intentionally unsigned.
 
 - [ ] Six languages and 30,000 production word records pass the corpus gate.
 - [ ] Every configuration obeys the dynamic 5,000-row cap.
