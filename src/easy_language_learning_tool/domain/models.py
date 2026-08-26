@@ -56,7 +56,7 @@ class GenerationSettings(BaseModel):
     base_sentences: int = Field(ge=1, le=5_000)
     extra_forms: int = Field(ge=0, le=4)
     question_percentage: Decimal = Field(ge=0, le=100)
-    pronoun_change: int = Field(ge=1, le=5)
+    pronoun_change: int = Field(ge=0, le=5)
     cefr: CefrSelection
     seed: int = 0
 

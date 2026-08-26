@@ -1,24 +1,36 @@
-# Easy Language Learning Tool 0.4.0 — all-word internal release candidate
+# Easy Language Learning Tool 0.5.0 — sentence-structure release candidate
 
-## Changed
+## Changed since 0.4.0
 
-- Expanded generation from verbs to the 5,000 most common words across all parts of speech.
-- Added Italian throughout language selection, corpus models, voices, tests, and documentation.
-- Replaced the former 4,000-base/1,000-extra-form rule with a universal 5,000-final-row formula: `base words × (1 + extra forms) ≤ 5,000`.
-- Added a clear row-limit explanation above Sentence Creation controls and a dynamic base maximum.
-- Generalized extra forms for verbs, nouns, adjectives, pronouns/determiners, and invariant words.
-- Updated workbook headers to `Foreign-language word` and `Word translation`; previous verb headers remain import-compatible.
-- Replaced the human-review corpus gate with reproducible wordfreq ranking, Kaikki/Wiktionary enrichment, automated validation, and cross-source comparison.
+- Defaulted both Sentence Creation and TTS to European Spanish as the learning/foreign
+  language and US English as the translation language.
+- Reworded the dynamic dataset notice to distinguish the ranked learning-language words,
+  AI-generated learning-language examples, translated examples, and AI-generated missing
+  word translations.
+- Moved the calculated final-row count directly below the Extra word forms control.
+- Replaced pronoun cadence with a neutral-to-personal sentence-subject scale from 0 to 5:
+  - 0 keeps every sentence neutral or impersonal.
+  - 1–4 assign exactly 20%, 40%, 60%, or 80% of final rows to randomly selected personal forms.
+  - 5 changes the subject pattern on every consecutive row and includes neutral/impersonal
+    structures in the rotation.
+- Added a short contextual explanation that changes with the selected scale value.
+- Applied the subject schedule to every final row, including extra-form rows.
 
-## Existing capabilities retained
+## Capabilities retained from 0.4.0
 
+- 5,000 ranked words for each of six languages, deterministic word selection, CEFR planning,
+  question/statement allocation, and part-of-speech-aware extra forms.
 - OpenAI, Anthropic, Gemini, DeepSeek, Ollama, and custom-compatible providers.
-- Deterministic CEFR, question/statement, pronoun, frequency-rank, and extra-form planning.
-- Resumable structured generation, Excel-safe XLSX/CSV, Edge neural TTS, partial MP3 recovery, and safe local History.
-- PySide6 light/dark interface, centered 50% launch, Windows installer automation, bundled FFmpeg, and security/testing gates.
+- Resumable structured generation, Excel-safe XLSX/CSV, Edge neural TTS, partial MP3 recovery,
+  safe local History, light/dark themes, Windows packaging, and bundled FFmpeg.
 
 ## Production release gate
 
-The bundled production baseline contains exactly 5,000 validated, attributed wordfreq entries for each of the six languages. Public release still requires clean Windows 10/11 installer verification and publisher signing. Kaikki enrichment is reproducible and optional at runtime because the generation provider supplies and validates missing translation/form evidence.
+The bundled production baseline contains exactly 5,000 validated, attributed wordfreq entries
+for each of the six languages. Kaikki enrichment is reproducible and optional at runtime because
+the generation provider supplies and validates missing translation/form evidence.
 
-The CI release candidate now performs silent install, launch, in-place upgrade/repair, bundled-file verification, uninstall, and user-data preservation checks. Authenticode signing and verification are automatically enabled when the two protected signing-certificate secrets are configured.
+The CI release candidate performs silent install, launch, in-place upgrade/repair, bundled-file
+verification, uninstall, and user-data preservation checks. Authenticode signing and verification
+are automatically enabled when the protected signing-certificate secrets are configured. Public
+release still requires a clean Windows 10/11 installer verification and publisher signing.

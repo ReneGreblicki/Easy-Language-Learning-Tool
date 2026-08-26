@@ -5,7 +5,12 @@
 - Ruff formatting and lint pass.
 - Strict mypy checking passes.
 - Unit, provider-contract, workbook, History, and mocked-TTS tests pass.
+- Subject-structure tests prove fully neutral option 0, exact 20% increments for
+  options 1–4, deterministic assignments, and no consecutive pattern repetition
+  for option 5 across all final rows.
 - Windows UI smoke test opens all three tabs and validates the 50% launch size.
+- Windows UI smoke checks European Spanish → US English defaults, unambiguous
+  dataset wording, calculated-row placement, and contextual scale help.
 - Windows build contains the Python/Qt runtime, application resources, FFmpeg,
   FFmpeg notices, the README, and the example workbook.
 - Inno Setup produces a normal per-user installer.

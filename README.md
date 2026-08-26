@@ -14,8 +14,10 @@ into one natural-sounding, resumable MP3.
 - Connects to OpenAI, Anthropic, Google Gemini, DeepSeek, Ollama, or a custom
   OpenAI-compatible endpoint.
 - Lets the user choose base words, a single CEFR level or a contiguous
-  gradual A1–C2 range, exact level percentages, question percentage, and pronoun
-  cadence.
+  gradual A1–C2 range, exact level percentages, question percentage, and a
+  neutral-to-personal sentence-subject scale. Scale 0 keeps every sentence neutral
+  or impersonal; scales 1–4 use personal forms for 20%–80% of rows; scale 5 changes
+  the subject pattern on every row.
 - Allows 0–4 part-of-speech-aware extra forms and dynamically limits base words so
   `base words × (1 + extra forms)` never exceeds 5,000 final rows.
 - Exports `.xlsx` with exactly four public columns on `Sentences` and a separate
@@ -42,7 +44,7 @@ into one natural-sounding, resumable MP3.
 
 ## End-user setup
 
-1. Run `EasyLanguageLearningTool-Setup-0.4.0.exe`.
+1. Run `EasyLanguageLearningTool-Setup-0.5.0.exe`.
 2. Accept the default per-user installation folder and optional desktop shortcut.
 3. Launch the app. It opens centered at 50% of the screen; resize or maximize it normally.
 4. In Sentence Creation, choose a provider:

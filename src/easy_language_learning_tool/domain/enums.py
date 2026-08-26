@@ -54,6 +54,7 @@ class SentenceKind(StrEnum):
 
 
 class GrammaticalPerson(StrEnum):
+    NEUTRAL = "neutral"
     FIRST_SINGULAR = "first_singular"
     SECOND_SINGULAR = "second_singular"
     THIRD_SINGULAR = "third_singular"

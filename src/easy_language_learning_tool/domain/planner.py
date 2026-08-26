@@ -42,7 +42,7 @@ def build_generation_plan(
         SentenceKind.STATEMENT,
     ) * kind_counts[SentenceKind.STATEMENT]
     people = grammatical_person_schedule(
-        settings.base_sentences,
+        settings.final_rows,
         settings.pronoun_change,
         settings.seed,
     )
@@ -50,6 +50,7 @@ def build_generation_plan(
     rows: list[PlannedRow] = []
     for base_index, word in enumerate(selected_words):
         for form_index in range(settings.extra_forms + 1):
+            row_index = len(rows)
             rows.append(
                 PlannedRow(
                     row_number=len(rows) + 1,
@@ -58,7 +59,7 @@ def build_generation_plan(
                     word=word,
                     cefr_level=cefr_schedule[base_index],
                     sentence_kind=kind_schedule[base_index],
-                    grammatical_person=people[base_index],
+                    grammatical_person=people[row_index],
                     seed=settings.seed,
                 )
             )

@@ -85,6 +85,33 @@ VOICE_DEFAULTS: dict[Language, tuple[str, str]] = {
     Language.ITALIAN: ("it-IT-ElsaNeural", "it-IT-DiegoNeural"),
 }
 
+PRONOUN_SCALE_EXPLANATIONS = {
+    0: (
+        "Option 0: Every sentence uses a neutral or impersonal subject structure, such as "
+        "‘The day is nice’, ‘The sun is up’, or ‘The school is far’."
+    ),
+    1: (
+        "Option 1: 80% of sentences stay neutral or impersonal; 20% use a randomly selected "
+        "first-, second-, or third-person form."
+    ),
+    2: (
+        "Option 2: 60% of sentences stay neutral or impersonal; 40% use a randomly selected "
+        "first-, second-, or third-person form."
+    ),
+    3: (
+        "Option 3: 40% of sentences stay neutral or impersonal; 60% use a randomly selected "
+        "first-, second-, or third-person form."
+    ),
+    4: (
+        "Option 4: 20% of sentences stay neutral or impersonal; 80% use a randomly selected "
+        "first-, second-, or third-person form."
+    ),
+    5: (
+        "Option 5: Every sentence changes to a different subject pattern. Neutral or impersonal "
+        "structures are included alongside first-, second-, and third-person forms."
+    ),
+}
+
 
 def resource_path(*parts: str) -> Path:
     packaged = Path(sys.argv[0]).resolve().parent
@@ -203,9 +230,11 @@ class MainWindow(QMainWindow):
 
         settings_group = QGroupBox("Sentence settings")
         form = QFormLayout(settings_group)
+        self.sentence_settings_form = form
         self.learning = self._language_combo()
         self.translation = self._language_combo()
-        self.translation.setCurrentIndex(1)
+        self.learning.setCurrentIndex(self.learning.findData(Language.EUROPEAN_SPANISH))
+        self.translation.setCurrentIndex(self.translation.findData(Language.US_ENGLISH))
         self.base_count = QSpinBox()
         self.base_count.setRange(1, 5_000)
         self.base_count.setValue(100)
@@ -239,7 +268,9 @@ class MainWindow(QMainWindow):
         self.cefr_total = QLabel()
         self.question_slider, question_row = self._labelled_slider(0, 100, 20, "%")
         self.pronouns = QComboBox()
-        self.pronouns.addItems([str(value) for value in range(1, 6)])
+        self.pronouns.addItems([str(value) for value in range(6)])
+        self.pronoun_explanation = QLabel()
+        self.pronoun_explanation.setWordWrap(True)
         self.final_rows = QLabel()
         self.frequency_status = QLabel()
         self.frequency_status.setWordWrap(True)
@@ -259,15 +290,16 @@ class MainWindow(QMainWindow):
             ("Translation language", self.translation),
             ("Base words", self.base_count),
             ("Extra word forms (0–4)", self.extra_forms),
+            ("Calculated output", self.final_rows),
             ("CEFR mode", self.cefr_mode),
             ("Single level", self.single_cefr),
             ("Gradual range", range_widget),
             ("Level percentages", percentages),
             ("Percentage total", self.cefr_total),
             ("Questions / statements", question_row),
-            ("Pronoun-change scale", self.pronouns),
+            ("Pronoun-change scale (0–5)", self.pronouns),
+            ("", self.pronoun_explanation),
             ("Word dataset", self.frequency_status),
-            ("Calculated output", self.final_rows),
             ("Workbook", output_widget),
             ("", self.generate_button),
             ("Progress", self.generation_progress),
@@ -288,6 +320,7 @@ class MainWindow(QMainWindow):
             self.cefr_mode.currentIndexChanged,
             self.start_cefr.currentIndexChanged,
             self.end_cefr.currentIndexChanged,
+            self.pronouns.currentIndexChanged,
         ):
             signal.connect(self.refresh_sentence_state)
         for signal in (
@@ -325,7 +358,12 @@ class MainWindow(QMainWindow):
             self._language_combo(),
             self._language_combo(),
         )
-        self.translation_language.setCurrentIndex(1)
+        self.foreign_language.setCurrentIndex(
+            self.foreign_language.findData(Language.EUROPEAN_SPANISH)
+        )
+        self.translation_language.setCurrentIndex(
+            self.translation_language.findData(Language.US_ENGLISH)
+        )
         self.foreign_voice, self.translation_voice = QComboBox(), QComboBox()
         self.foreign_language.currentIndexChanged.connect(self._refresh_voices)
         self.translation_language.currentIndexChanged.connect(self._refresh_voices)
@@ -495,14 +533,18 @@ class MainWindow(QMainWindow):
             "Production dataset" if self.frequency_is_production else "Demonstration dataset"
         )
         self.frequency_status.setText(
-            f"{dataset_label}: {available:,} ranked {learning.label} words; examples and missing "
-            f"word translations will be generated in {translation.label}."
+            f"{dataset_label}: {available:,} ranked {learning.label} words. Examples will be AI "
+            f"generated in {learning.label} and translated into {translation.label}. Missing word "
+            f"translations will also be AI generated in {translation.label}."
         )
         base = self.base_count.value()
         self.extra_forms.setEnabled(True)
         total = base * form_multiplier
         self.final_rows.setText(
             f"{total:,} final rows (base limit {allowed:,} at {form_multiplier}×; maximum 5,000)"
+        )
+        self.pronoun_explanation.setText(
+            PRONOUN_SCALE_EXPLANATIONS[int(self.pronouns.currentText())]
         )
         gradual = CefrMode(str(self.cefr_mode.currentData())) is CefrMode.GRADUAL
         self.single_cefr.setEnabled(not gradual)

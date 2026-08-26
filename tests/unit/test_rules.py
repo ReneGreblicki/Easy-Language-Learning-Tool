@@ -9,6 +9,7 @@ from easy_language_learning_tool.domain.enums import (
     CEFR_MAX_WORDS,
     CefrLevel,
     CefrMode,
+    GrammaticalPerson,
     Language,
     SentenceKind,
 )
@@ -18,6 +19,7 @@ from easy_language_learning_tool.domain.rules import (
     grammatical_person_schedule,
     largest_remainder_allocation,
 )
+from easy_language_learning_tool.generation.prompts import build_batch_prompt
 
 
 def single_level(level: CefrLevel = CefrLevel.A1) -> CefrSelection:
@@ -78,12 +80,43 @@ class ProductRuleTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             settings(translation_language=Language.GERMAN)
 
-    def test_pronoun_schedule_is_deterministic_and_changes_on_boundary(self) -> None:
-        first = grammatical_person_schedule(25, 2, 77)
-        second = grammatical_person_schedule(25, 2, 77)
-        self.assertEqual(first, second)
-        self.assertEqual(len(set(first[:20])), 1)
-        self.assertNotEqual(first[19], first[20])
+    def test_pronoun_scale_zero_is_always_neutral(self) -> None:
+        schedule = grammatical_person_schedule(100, 0, 77)
+        self.assertEqual(schedule, (GrammaticalPerson.NEUTRAL,) * 100)
+
+    def test_neutral_plan_is_explicit_in_generation_prompt(self) -> None:
+        config = settings(base_sentences=1, pronoun_change=0)
+        plan = build_generation_plan(config, [WordRecord(rank=1, lemma="Tag")])
+        prompt = build_batch_prompt(config, list(plan))
+        self.assertIn("neutral or impersonal sentence structure", prompt)
+        self.assertIn('"grammatical_person":"neutral"', prompt)
+
+    def test_pronoun_scale_uses_exact_twenty_percent_increments(self) -> None:
+        for value in range(1, 5):
+            with self.subTest(value=value):
+                first = grammatical_person_schedule(100, value, 77)
+                second = grammatical_person_schedule(100, value, 77)
+                self.assertEqual(first, second)
+                personal_count = sum(person is not GrammaticalPerson.NEUTRAL for person in first)
+                self.assertEqual(personal_count, value * 20)
+
+    def test_pronoun_scale_five_changes_every_sentence_and_includes_neutral(self) -> None:
+        schedule = grammatical_person_schedule(70, 5, 77)
+        self.assertIn(GrammaticalPerson.NEUTRAL, schedule)
+        self.assertTrue(
+            all(first is not second for first, second in zip(schedule, schedule[1:], strict=False))
+        )
+
+    def test_plan_applies_person_schedule_to_every_extra_form_row(self) -> None:
+        config = settings(base_sentences=5, extra_forms=1, pronoun_change=5)
+        words = [WordRecord(rank=index, lemma=f"word-{index}") for index in range(1, 6)]
+        plan = build_generation_plan(config, words)
+        self.assertTrue(
+            all(
+                first.grammatical_person is not second.grammatical_person
+                for first, second in zip(plan, plan[1:], strict=False)
+            )
+        )
 
     def test_plan_expands_forms_and_keeps_base_attributes(self) -> None:
         config = settings(base_sentences=5, extra_forms=2, question_percentage=Decimal("40"))

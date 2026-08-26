@@ -38,28 +38,52 @@ def largest_remainder_allocation[T](
     return allocated
 
 
-def pronoun_cadence_size(value: int, base_count: int) -> int:
-    if value == 1:
-        return base_count
-    return {2: 20, 3: 10, 4: 3, 5: 1}[value]
-
-
 def grammatical_person_schedule(
-    base_count: int,
-    cadence_value: int,
+    sentence_count: int,
+    change_value: int,
     seed: int,
 ) -> tuple[GrammaticalPerson, ...]:
-    if base_count < 1:
-        raise ValueError("Base count must be positive.")
-    if cadence_value not in range(1, 6):
-        raise ValueError("Pronoun-change value must be from 1 to 5.")
-    cadence = pronoun_cadence_size(cadence_value, base_count)
+    """Return a deterministic neutral/personal sentence-subject schedule.
+
+    Values 0–4 assign exactly 0%, 20%, 40%, 60%, or 80% of rows to a
+    randomly selected grammatical person, with the remainder kept neutral.
+    Value 5 varies every consecutive row across neutral and personal patterns.
+    """
+    if sentence_count < 1:
+        raise ValueError("Sentence count must be positive.")
+    if change_value not in range(6):
+        raise ValueError("Pronoun-change value must be from 0 to 5.")
+
     rng = random.Random(seed)
-    people = list(GrammaticalPerson)
-    current = rng.choice(people)
-    result: list[GrammaticalPerson] = []
-    for index in range(base_count):
-        if index and index % cadence == 0:
-            current = rng.choice([person for person in people if person is not current])
-        result.append(current)
-    return tuple(result)
+    personal_people = [
+        person for person in GrammaticalPerson if person is not GrammaticalPerson.NEUTRAL
+    ]
+    if change_value == 0:
+        return (GrammaticalPerson.NEUTRAL,) * sentence_count
+
+    if change_value == 5:
+        people = list(GrammaticalPerson)
+        result: list[GrammaticalPerson] = []
+        while len(result) < sentence_count:
+            rng.shuffle(people)
+            if result and people[0] is result[-1]:
+                swap_index = next(
+                    index for index, person in enumerate(people[1:], 1) if person is not result[-1]
+                )
+                people[0], people[swap_index] = people[swap_index], people[0]
+            result.extend(people)
+        return tuple(result[:sentence_count])
+
+    counts = largest_remainder_allocation(
+        sentence_count,
+        {
+            "neutral": 5 - change_value,
+            "personal": change_value,
+        },
+        ("neutral", "personal"),
+    )
+    personal_positions = set(rng.sample(range(sentence_count), counts["personal"]))
+    return tuple(
+        rng.choice(personal_people) if index in personal_positions else GrammaticalPerson.NEUTRAL
+        for index in range(sentence_count)
+    )

@@ -12,7 +12,7 @@ This map is checked against both approved project artifacts at every build gate.
 | Dynamic base limit; forms 0–4; `base × (1 + forms) ≤ 5,000` | domain models and UI | boundary and UI tests |
 | A1–C2, 5/8/11/14/17/20 words, contiguous gradual ranges | enums/models/validator | rule tests |
 | Exact percentages and deterministic ascending allocation | planner/rules | allocation tests |
-| Exact questions/statements and pronoun cadence 1–5 | planner/rules | plan tests |
+| Exact questions/statements and neutral-to-personal scale 0–5 | planner/rules | distribution and plan tests |
 | LLM never selects frequency rank | frequency repository and plan | frequency tests |
 | Source/licence data gate | JSONL schema and release tool | release-readiness gate |
 | Six-language all-word ingestion and automated validation | corpus build tools and word TSV | candidate and release-gate tests |
