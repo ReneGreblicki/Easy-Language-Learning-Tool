@@ -108,9 +108,17 @@ jobs:
       - name: Create build provenance
         shell: pwsh
         run: |
+          $versionMatch = Select-String -Path pyproject.toml -Pattern '^version = "([^"]+)"$' | Select-Object -First 1
+          if (-not $versionMatch) { throw "Project version was not found in pyproject.toml." }
+          $version = $versionMatch.Matches[0].Groups[1].Value
+          $sourceCommit = if ("${{ github.event_name }}" -eq "pull_request") {
+            "${{ github.event.pull_request.head.sha }}"
+          } else {
+            "${{ github.sha }}"
+          }
           @(
-            "version=0.4.0",
-            "commit=${{ github.sha }}",
+            "version=$version",
+            "commit=$sourceCommit",
             "workflow_run=${{ github.run_id }}",
             "built_utc=$([DateTime]::UtcNow.ToString('o'))",
             "authenticode_signed=${{ steps.signing.outputs.enabled }}"

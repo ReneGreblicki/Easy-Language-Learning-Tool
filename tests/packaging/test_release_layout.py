@@ -31,3 +31,6 @@ def test_windows_workflow_runs_installer_acceptance_and_supports_signing() -> No
     assert "Copy-Item installer\\bundled\\ffmpeg\\ffmpeg.exe" in workflow
     assert "Copy-Item installer\\bundled\\ffmpeg\\ffprobe.exe" in workflow
     assert "actions/upload-artifact@v6" in workflow
+    assert "Select-String -Path pyproject.toml" in workflow
+    assert "github.event.pull_request.head.sha" in workflow
+    assert '"version=0.4.0"' not in workflow
