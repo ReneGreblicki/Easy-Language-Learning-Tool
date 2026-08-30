@@ -37,6 +37,8 @@ This map is checked against both approved project artifacts at every build gate.
 - Phase 5 — History and local-file safety: complete
 - Phase 6 — PySide6 interface: complete; Windows CI smoke test configured
 - Phase 7 — standalone app and installer automation: complete; runs on Windows CI
-- Phase 8 — automated hardening and production corpus complete; clean Windows
-  10/11 client acceptance and publisher certificate configuration remain external
-  public-release gates
+- Phase 8 — automated hardening and production corpus: complete
+- Phase 9 — clean Windows 10/11 client acceptance: complete
+- Phase 10 — production 1.0.0 version alignment and tag-driven release automation:
+  complete; Authenticode signing is applied when the protected publisher
+  certificate secrets are configured

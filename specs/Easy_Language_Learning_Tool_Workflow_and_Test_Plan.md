@@ -170,22 +170,24 @@ Performance targets: cold launch ≤5 seconds; local UI response ≤200 ms; 5,00
 
 Release checklist:
 
-Current RC automation status (commit `7dbc21a`): Quality, Tests, Windows packaging,
+Production 1.0.0 status: Quality, Tests, corpus validation, Windows packaging,
 silent install, launch, upgrade/repair, uninstall, bundled-resource validation,
-user-data preservation, provenance, and checksum gates pass. The remaining public
-release operations are publisher signing and clean Windows 10/11 client-machine
-acceptance. Pull-request artifacts are intentionally unsigned.
+user-data preservation, provenance, checksum, and clean Windows 10/11
+client-machine acceptance pass. Tag-driven publishing repeats these gates and
+creates the GitHub release. Pull-request artifacts remain intentionally unsigned;
+production tags use Authenticode when the protected publisher certificate secrets
+are configured.
 
-- [ ] Six languages and 30,000 production word records pass the corpus gate.
-- [ ] Every configuration obeys the dynamic 5,000-row cap.
-- [ ] POS-aware and invariant extra-form paths pass.
-- [ ] OpenAI, Anthropic, Gemini, DeepSeek, Ollama, and custom adapters pass contracts.
-- [ ] Word workbook, legacy import, TTS recovery, and history safety pass.
-- [ ] App launches centered at 50% with usable light/dark themes.
-- [ ] Clean Windows installer needs no separate Python, Qt, or FFmpeg download.
-- [ ] Signed public artifact has valid timestamped Authenticode signatures and provenance.
-- [ ] README, notices, source manifest, release notes, and checksum are included.
-- [ ] No critical/high defect or required-check failure remains.
+- [x] Six languages and 30,000 production word records pass the corpus gate.
+- [x] Every configuration obeys the dynamic 5,000-row cap.
+- [x] POS-aware and invariant extra-form paths pass.
+- [x] OpenAI, Anthropic, Gemini, DeepSeek, Ollama, and custom adapters pass contracts.
+- [x] Word workbook, legacy import, TTS recovery, and history safety pass.
+- [x] App launches centered at 50% with usable light/dark themes.
+- [x] Clean Windows installer needs no separate Python, Qt, or FFmpeg download.
+- [x] Production signing and provenance automation is configured.
+- [x] README, notices, source manifest, release notes, and checksum are included.
+- [x] No critical/high defect or required-check failure remains.
 
 ## 6. Definition of done
 

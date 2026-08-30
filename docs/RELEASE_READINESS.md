@@ -50,3 +50,11 @@ signature, and records signing state in `BUILD_PROVENANCE.txt`.
 
 GitHub-hosted Windows acceptance is an automated packaging gate, not a substitute
 for the final clean Windows 10 and Windows 11 client-machine acceptance record.
+
+The 1.0.0 acceptance record confirms clean-client installation, launch,
+upgrade/repair, uninstall, shortcuts, bundled FFmpeg, and preservation of
+user-owned exports on Windows 10 and Windows 11. The production tag workflow
+repeats the automated gates and publishes the installer, checksum, provenance,
+and portable archive. Authenticode signing remains conditional on the protected
+publisher certificate secrets because publisher identity cannot be stored in
+source control.

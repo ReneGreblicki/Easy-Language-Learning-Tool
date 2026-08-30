@@ -1,36 +1,48 @@
-# Easy Language Learning Tool 0.5.0 — sentence-structure release candidate
+# Easy Language Learning Tool 1.0.0
 
-## Changed since 0.4.0
+Easy Language Learning Tool 1.0.0 is the first production release of the Windows
+desktop application for deterministic language-learning sentence workbooks and
+resumable text-to-speech audio.
 
-- Defaulted both Sentence Creation and TTS to European Spanish as the learning/foreign
-  language and US English as the translation language.
-- Reworded the dynamic dataset notice to distinguish the ranked learning-language words,
-  AI-generated learning-language examples, translated examples, and AI-generated missing
-  word translations.
-- Moved the calculated final-row count directly below the Extra word forms control.
-- Replaced pronoun cadence with a neutral-to-personal sentence-subject scale from 0 to 5:
-  - 0 keeps every sentence neutral or impersonal.
-  - 1–4 assign exactly 20%, 40%, 60%, or 80% of final rows to randomly selected personal forms.
-  - 5 changes the subject pattern on every consecutive row and includes neutral/impersonal
-    structures in the rotation.
-- Added a short contextual explanation that changes with the selected scale value.
-- Applied the subject schedule to every final row, including extra-form rows.
+## Production capabilities
 
-## Capabilities retained from 0.4.0
+- Six learning and translation languages: US English, European Spanish, German,
+  European Portuguese, French, and Italian.
+- Exactly 5,000 ranked words per language across all parts of speech, selected
+  deterministically by the application from the attributed wordfreq baseline.
+- Part-of-speech-aware extra forms with a hard 5,000-row output limit.
+- CEFR A1-C2 planning, exact question allocation, and deterministic
+  neutral-to-personal subject-structure controls.
+- OpenAI, Anthropic, Gemini, DeepSeek, Ollama, and custom OpenAI-compatible
+  providers with model discovery, cost estimates, targeted retry, checkpointing,
+  and resume.
+- Excel-safe XLSX and CSV output with four public study columns and audit metadata,
+  including backward-compatible imports for earlier verb workbooks.
+- Edge neural TTS with separate voices, four configurable pauses, two-row preview,
+  combined MP3 export, pause/cancel, partial recovery, and checksum-safe resume.
+- Safe local History with independent retention for workbooks and audio, protected
+  app-owned file operations, and Windows Recycle Bin deletion.
+- Light and dark themes, a centered responsive PySide6 interface, bundled runtime,
+  bundled FFmpeg, and a normal per-user Windows installer.
 
-- 5,000 ranked words for each of six languages, deterministic word selection, CEFR planning,
-  question/statement allocation, and part-of-speech-aware extra forms.
-- OpenAI, Anthropic, Gemini, DeepSeek, Ollama, and custom-compatible providers.
-- Resumable structured generation, Excel-safe XLSX/CSV, Edge neural TTS, partial MP3 recovery,
-  safe local History, light/dark themes, Windows packaging, and bundled FFmpeg.
+## Final changes since 0.5.0 RC
 
-## Production release gate
+- Promoted the fully validated release candidate to version 1.0.0.
+- Added an automated version-alignment regression gate for Python metadata,
+  installer metadata, documentation, and release notes.
+- Added tag-driven production publishing that verifies the corpus, repeats tests,
+  builds the Windows package, downloads the verified artifact, and publishes the
+  installer, checksum, provenance, and portable archive to GitHub Releases.
+- Recorded the completed automated and clean-client acceptance gates in the
+  maintained project documentation.
 
-The bundled production baseline contains exactly 5,000 validated, attributed wordfreq entries
-for each of the six languages. Kaikki enrichment is reproducible and optional at runtime because
-the generation provider supplies and validates missing translation/form evidence.
+## Release integrity
 
-The CI release candidate performs silent install, launch, in-place upgrade/repair, bundled-file
-verification, uninstall, and user-data preservation checks. Authenticode signing and verification
-are automatically enabled when the protected signing-certificate secrets are configured. Public
-release still requires a clean Windows 10/11 installer verification and publisher signing.
+The production workflow enforces the six-language 30,000-record corpus gate,
+quality and security checks, the full automated test suite, packaged launch,
+silent install, upgrade/repair, uninstall, bundled-resource checks, user-data
+preservation, SHA-256 generation, and build provenance.
+
+Authenticode signing is enabled automatically when both protected Windows signing
+secrets are configured. Public binary distribution should use the signed workflow
+artifact; source releases and pull-request test artifacts may remain unsigned.
