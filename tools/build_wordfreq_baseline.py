@@ -8,6 +8,11 @@ from easy_language_learning_tool.domain.enums import Language
 from easy_language_learning_tool.domain.frequency import FrequencyWord, write_frequency_jsonl
 
 VALID_WORD = re.compile(r"[^\W\d_]+(?:['’-][^\W\d_]+)*", re.UNICODE)
+WORDFREQ_LANGUAGES = tuple(
+    language
+    for language in Language
+    if language not in {Language.THAI_SCRIPT, Language.THAI_PAIBOON}
+)
 
 
 def build(destination: Path, limit: int = 5_000) -> None:
@@ -18,7 +23,7 @@ def build(destination: Path, limit: int = 5_000) -> None:
         raise SystemExit("Install the data-build extra before running this tool.") from error
 
     records: list[FrequencyWord] = []
-    for language in Language:
+    for language in WORDFREQ_LANGUAGES:
         code = language.value.split("-")[0]
         seen: set[str] = set()
         selected: list[str] = []
@@ -60,7 +65,9 @@ def build(destination: Path, limit: int = 5_000) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Build six 5,000-word wordfreq baselines.")
+    parser = argparse.ArgumentParser(
+        description="Build six wordfreq baselines; Thai is built with the Thai pipeline."
+    )
     parser.add_argument(
         "destination",
         type=Path,

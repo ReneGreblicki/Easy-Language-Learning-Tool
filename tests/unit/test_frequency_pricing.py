@@ -23,7 +23,7 @@ class FrequencyAndPricingTests(unittest.TestCase):
     def test_release_readiness_reports_demo_shortfall(self) -> None:
         source = Path(__file__).parents[2] / "resources" / "frequency_data" / "demo" / "words.jsonl"
         errors = FrequencyRepository.from_jsonl(source).validate_release_readiness(10)
-        self.assertEqual(len(errors), 6)
+        self.assertEqual(len(errors), len(Language))
 
     def test_missing_translation_uses_generation_time_translation(self) -> None:
         repository = FrequencyRepository(

@@ -124,6 +124,10 @@ class PlatformServiceTests(unittest.TestCase):
             result = asyncio.run(list_edge_voices("de-DE"))
         self.assertEqual(result, ["de-DE-ConradNeural", "de-DE-KatjaNeural"])
 
+    def test_thai_script_variants_use_the_native_voice_locale(self) -> None:
+        self.assertEqual(Language.THAI_SCRIPT.speech_locale, "th-TH")
+        self.assertEqual(Language.THAI_PAIBOON.speech_locale, "th-TH")
+
 
 if __name__ == "__main__":
     unittest.main()

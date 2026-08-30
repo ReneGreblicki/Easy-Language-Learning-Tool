@@ -2,13 +2,14 @@
 
 ## Development Workflow and Test Plan
 
-Version: 2.1 (release hardening)
+Version: 3.1 (Thai and Windows identity release)
 
 Target: Windows 10/11 x64 desktop app and regular installer
 
 Interface language: US English
 
-Supported learning/translation languages: US English, European Spanish, German, European Portuguese, French, Italian
+Supported learning/translation languages: US English, European Spanish, German,
+European Portuguese, French, Italian, Thai (Thai script), Thai (Paiboon romanization)
 
 ## 1. Locked product rules
 
@@ -16,7 +17,9 @@ Supported learning/translation languages: US English, European Spanish, German, 
 
 - The app uses the 5,000 most common study words in each supported language, across all parts of speech.
 - The app—not the AI model—chooses ranked words deterministically.
-- Canonical ranking comes from `wordfreq`; Kaikki/Wiktionary supplies lemma, part of speech, grammatical forms, and available translations.
+- Canonical ranking comes from `wordfreq` for the original six languages. Thai
+  uses OpenSubtitles 2018 and the CC0 Phupha 2026 dataset; Kaikki/Wiktionary
+  supplies lexical validation and tone-marked Paiboon romanization.
 - `frequencylist.com`, the supplied Spanish/French/Portuguese lists, OCR vocabulary PDF, and `top10000words.com` are automated comparison sources, not silently redistributed canonical data.
 - Records carry rank, lemma, part of speech, forms, translations, confidence, source, licence, URL, revision, and automated-validation status.
 - Standard formal national usage is preferred; slang, obsolete, vulgar, malformed, foreign-language leakage, and duplicates are filtered.
@@ -68,12 +71,17 @@ TTS speaks all four cells in order, using the foreign voice for columns 1 and 3 
 
 History retains 20 app-owned spreadsheets and 20 audio files in application data. Rename/delete never affect external exports; delete and retention use the Recycle Bin. Regeneration preserves the original.
 
-The PySide6 app launches centered at 50% of the available screen, supports resizing/maximizing, light/dark Power BI-inspired palettes, and the Sentence Creation, TTS, and History tabs. Branding remains a world map with letters emerging from it.
+The PySide6 app launches centered at 50% of the available screen, supports
+resizing/maximizing, light/dark Power BI-inspired palettes, and the Sentence
+Creation, TTS, and History tabs. Branding is a globe rising from an open book.
+The same native multi-resolution icon is embedded in the executable, installer,
+window, taskbar identity, Start menu, desktop shortcut, and uninstall entry.
 
 ## 2. Corpus workflow
 
-1. Pin the `wordfreq` release and Kaikki dump dates/checksums.
-2. Produce the top candidate order for each of the six languages with `wordfreq.top_n_list`.
+1. Pin the `wordfreq`, OpenSubtitles, Phupha, and Kaikki revisions and checksums.
+2. Produce the original six rankings with `wordfreq.top_n_list`; combine the
+   OpenSubtitles and Phupha Thai orders deterministically.
 3. Join candidates to Kaikki entries; reject form-only entries and excluded usage tags.
 4. Normalize Unicode and spacing, classify part of speech, collect forms, and deduplicate by normalized lemma so base words do not repeat.
 5. Retain dictionary translations, POS, and forms where available; otherwise mark POS unknown, retain the base form, and have the selected generation provider supply the translation/form in context.
@@ -91,9 +99,13 @@ This workflow does not require a human linguistic approval gate. Automated tests
 
 PySide6 shell, config/logging, SQLite, lock file, CI, security, installer scaffold, and licence inventory. Gate: clean environment installs; app launches at 50%; lint/type/unit/dependency checks pass; no secrets are committed.
 
-### Phase 1 — Six-language word corpus
+### Phase 1 — Seven-language/eight-option word corpus
 
-All-word models, wordfreq/Kaikki build tools, comparison reports, Italian support, form policy, source notices, and automated release gate. Gate: 30,000 production records; 5,000 per language; contiguous ranks; unique words; POS/form fallback; source/licence fields; reproducible checksum.
+All-word models, wordfreq/Kaikki and Thai build tools, comparison reports,
+Italian and Thai support, form policy, source notices, and automated release
+gate. Gate: 40,000 production records; 5,000 per language/script option;
+contiguous ranks; unique words; POS/form fallback; source/licence fields;
+reproducible checksums.
 
 ### Phase 2 — Deterministic planning
 
@@ -105,7 +117,10 @@ Provider adapters, credential protection, model discovery, estimates, structured
 
 ### Phase 4 — TTS and recovery
 
-Edge voice discovery including Italian, preview, MP3 assembly, four pauses, controls, partial output, manifest, resume. Gate: order/language/pause/codec/checksum tests pass; interruption neither skips nor duplicates rows.
+Edge voice discovery including Italian and Thai, preview, MP3 assembly, four
+pauses, controls, partial output, manifest, resume. Gate:
+order/language/pause/codec/checksum tests pass; interruption neither skips nor
+duplicates rows.
 
 ### Phase 5 — History and UI
 
@@ -123,7 +138,7 @@ Nuitka bundle, FFmpeg, Inno Setup, README, notices, release notes, checksum, pro
 | Corpus | count/rank/key/Unicode/POS/forms/translations/licences/checksums/cross-source report | Corpus change and release |
 | Contract | all provider adapters, error mapping, usage, cancellation, secret redaction | Every pull request |
 | Integration | generation checkpoint, XLSX/CSV round-trip, SQLite/history, mocked Edge/FFmpeg | Every pull request |
-| UI | dynamic base maximum, explanation, Italian, tabs/themes, valid-button states, workers | Every pull request |
+| UI | dynamic base maximum, explanation, Italian, both Thai options, native icon, tabs/themes, valid-button states, workers | Every pull request |
 | End-to-end | controlled multi-POS generation and TTS resume | Nightly and release |
 | Packaging | executable, installer, upgrade/uninstall, bundled files/notices | Release candidate |
 | Security/performance | dependency audit, malformed files, path escape, 5,000-row timing/memory | Pull request/release |
@@ -137,7 +152,9 @@ Nuitka bundle, FFmpeg, Inno Setup, README, notices, release notes, checksum, pro
 
 ### Required corpus/form cases
 
-- All six languages contain 5,000 ordered entries; dictionary evidence is retained and missing translations/forms are generated and validated in context.
+- All eight language/script options contain 5,000 ordered entries; dictionary
+  evidence is retained and missing translations/forms are generated and
+  validated in context.
 - Noun, verb, adjective, adverb, pronoun/determiner, conjunction/preposition, and invariant examples are present in fixtures.
 - Extra forms belong to the same lemma and POS; distinct available forms are not repeated before exhaustion.
 - Invariant fallback generates a distinct coherent sentence and records `invariant-context-N`.
@@ -154,7 +171,9 @@ Nuitka bundle, FFmpeg, Inno Setup, README, notices, release notes, checksum, pro
 
 ### TTS/history/installer cases
 
-- Six-language Edge voice filtering, four-cell order, two-row preview, configured pauses, audio controls, cancellation, failure, partial playback, and resume are tested.
+- Eight-option Edge voice filtering, including the shared `th-TH` voice locale,
+  four-cell order, two-row preview, configured pauses, audio controls,
+  cancellation, failure, partial playback, and resume are tested.
 - Retention is independent per file type; path traversal, symlink/junction escape, collision, and rollback cases are covered.
 - CI tests silent install into a path with spaces/Unicode, launch, in-place upgrade/repair, uninstall, bundled FFmpeg/resources, and preserved app-owned data.
 - Final clean Windows 10 and Windows 11 client machines verify interactive install, shortcuts, SmartScreen/Defender behaviour, upgrade, repair, uninstall, and preserved exports.
@@ -170,7 +189,7 @@ Performance targets: cold launch ≤5 seconds; local UI response ≤200 ms; 5,00
 
 Release checklist:
 
-Production 1.0.0 status: Quality, Tests, corpus validation, Windows packaging,
+Production 1.1.0 status: Quality, Tests, 40,000-record corpus validation, Windows packaging,
 silent install, launch, upgrade/repair, uninstall, bundled-resource validation,
 user-data preservation, provenance, checksum, and clean Windows 10/11
 client-machine acceptance pass. Tag-driven publishing repeats these gates and
@@ -178,7 +197,7 @@ creates the GitHub release. Pull-request artifacts remain intentionally unsigned
 production tags use Authenticode when the protected publisher certificate secrets
 are configured.
 
-- [x] Six languages and 30,000 production word records pass the corpus gate.
+- [x] Seven languages, eight script options, and 40,000 production word records pass the corpus gate.
 - [x] Every configuration obeys the dynamic 5,000-row cap.
 - [x] POS-aware and invariant extra-form paths pass.
 - [x] OpenAI, Anthropic, Gemini, DeepSeek, Ollama, and custom adapters pass contracts.

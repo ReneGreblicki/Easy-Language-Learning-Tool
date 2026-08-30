@@ -8,7 +8,9 @@ into one natural-sounding, resumable MP3.
 
 ### Sentence Creation
 
-- Supports US English, European Spanish, German, European Portuguese, French, and Italian.
+- Supports US English, European Spanish, German, European Portuguese, French,
+  Italian, and Thai. Thai is available as standard Thai script or tone-marked
+  Paiboon romanization.
 - Selects ranked words across all parts of speech deterministically from an internal
   dataset; the AI creates examples but never decides which words are most common.
 - Connects to OpenAI, Anthropic, Google Gemini, DeepSeek, Ollama, or a custom
@@ -44,7 +46,7 @@ into one natural-sounding, resumable MP3.
 
 ## End-user setup
 
-1. Run `EasyLanguageLearningTool-Setup-1.0.0.exe`.
+1. Run `EasyLanguageLearningTool-Setup-1.1.0.exe`.
 2. Accept the default per-user installation folder and optional desktop shortcut.
 3. Launch the app. It opens centered at 50% of the screen; resize or maximize it normally.
 4. In Sentence Creation, choose a provider:
@@ -98,10 +100,13 @@ python tools\build_frequency_data.py --help
 python tools\check_release_data.py resources\frequency_data\production\words.jsonl.gz
 ```
 
-The automated corpus workflow uses `wordfreq` for a reproducible six-language
-ranking and Kaikki/Wiktionary for lemma, part-of-speech, forms, and available
-translations. Missing translations must be machine-enriched and pass automated
-validation before compilation. See `resources/frequency_data/README.md`.
+The automated corpus workflow uses `wordfreq` for six reproducible language
+rankings. Thai uses the CC BY-SA OpenSubtitles ranking plus the CC0 Phupha 2026
+frequency dataset, with Kaikki/Wiktionary validation and Paiboon romanization.
+The three Thai lists proposed during development remain comparison sources only:
+the Scribd list is all-rights-reserved, while the two public webpages do not grant
+redistribution rights. Missing translations are generated and validated in
+context. See `resources/frequency_data/README.md`.
 
 ## Windows build and installer
 
@@ -120,8 +125,9 @@ standalone executable and installer before artifact publication.
 
 ## Data and release status
 
-The repository includes a reproducible wordfreq baseline with exactly 5,000
-ranked words for each of the six languages. Kaikki/Wiktionary enrichment tools
+The repository includes exactly 5,000 ranked entries for each of eight language/
+script options: six existing languages plus Thai script and Paiboon-romanized
+Thai. Kaikki/Wiktionary enrichment tools
 can add part-of-speech, form, and dictionary-translation evidence; when evidence
 is unavailable, the generation model infers a valid grammatical use and supplies
 the word translation. See `docs/RELEASE_READINESS.md`.

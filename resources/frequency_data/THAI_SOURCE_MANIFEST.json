@@ -1,0 +1,31 @@
+{
+  "built_for": "Easy Language Learning Tool 1.1.0",
+  "sources": [
+    {
+      "name": "Phupha Thai Word Frequency Dataset",
+      "revision": "5a2301246e4b16ae40c330e86b0d7ff585ceb3d3",
+      "sha256": "2eb2a148490517afece956a291a0d5119368350648ec5328dcd181c8bae9ffdb",
+      "licence": "CC0 1.0",
+      "url": "https://github.com/PyThaiNLP/Phupha-Word-freq"
+    },
+    {
+      "name": "FrequencyWords OpenSubtitles 2018 Thai",
+      "revision": "525f9b560de45753a5ea01069454e72e9aa541c6",
+      "sha256": "20e7052f2d64222e1420c5d0b4ed6b68cd6290f0cf8b908d8bc6b0af781b6083",
+      "licence": "CC BY-SA 4.0",
+      "url": "https://github.com/hermitdave/FrequencyWords"
+    },
+    {
+      "name": "Kaikki Thai dictionary",
+      "revision": "2026-08-28 (enwiktionary dump 2026-08-05)",
+      "sha256": "64397565fbc0b1accbf6b6e7ec2a278898fafe66416b227684ee046e309a0d9b",
+      "licence": "CC BY-SA 3.0 and GFDL",
+      "url": "https://kaikki.org/dictionary/Thai/"
+    }
+  ],
+  "comparison_only": [
+    "https://www.lenguia.com/tools/most-common-words/thai",
+    "https://1000mostcommonwords.com/1000-most-common-thai-words/",
+    "https://www.scribd.com/doc/235703960/Thai-Frequency-Top-4000-Words"
+  ]
+}

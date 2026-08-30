@@ -83,6 +83,8 @@ VOICE_DEFAULTS: dict[Language, tuple[str, str]] = {
     Language.EUROPEAN_PORTUGUESE: ("pt-PT-RaquelNeural", "pt-PT-DuarteNeural"),
     Language.FRENCH: ("fr-FR-DeniseNeural", "fr-FR-HenriNeural"),
     Language.ITALIAN: ("it-IT-ElsaNeural", "it-IT-DiegoNeural"),
+    Language.THAI_SCRIPT: ("th-TH-PremwadeeNeural", "th-TH-NiwatNeural"),
+    Language.THAI_PAIBOON: ("th-TH-PremwadeeNeural", "th-TH-NiwatNeural"),
 }
 
 PRONOUN_SCALE_EXPLANATIONS = {
@@ -145,7 +147,7 @@ class MainWindow(QMainWindow):
         self._tts_service: TtsService | None = None
         self._generation_resume: tuple[GenerationSettings, Path, Path, str, str] | None = None
         self.setWindowTitle("Easy Language Learning Tool")
-        self.setWindowIcon(QIcon(str(resource_path("assets", "icons", "logo.svg"))))
+        self.setWindowIcon(QIcon(str(resource_path("assets", "icons", "logo.ico"))))
         self.setMinimumSize(720, 405)
         view = self.menuBar().addMenu("View")
         theme = QAction("Use dark theme", self, checkable=True)
@@ -971,8 +973,8 @@ class MainWindow(QMainWindow):
 
         async def task() -> tuple[list[str], list[str]]:
             return (
-                await list_edge_voices(foreign.value),
-                await list_edge_voices(translation.value),
+                await list_edge_voices(foreign.speech_locale),
+                await list_edge_voices(translation.speech_locale),
             )
 
         def success(voices: tuple[list[str], list[str]]) -> None:

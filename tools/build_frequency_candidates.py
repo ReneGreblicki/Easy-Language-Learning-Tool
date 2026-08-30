@@ -19,9 +19,19 @@ LANGUAGE_NAMES: dict[Language, str] = {
     Language.EUROPEAN_PORTUGUESE: "Portuguese",
     Language.FRENCH: "French",
     Language.ITALIAN: "Italian",
+    Language.THAI_SCRIPT: "Thai",
+    Language.THAI_PAIBOON: "Thai",
 }
 LANGUAGE_CODES = {language: language.value.split("-")[0] for language in Language}
-TARGET_BY_CODE = {code: language for language, code in LANGUAGE_CODES.items()}
+TARGET_BY_CODE = {
+    "en": Language.US_ENGLISH,
+    "es": Language.EUROPEAN_SPANISH,
+    "de": Language.GERMAN,
+    "pt": Language.EUROPEAN_PORTUGUESE,
+    "fr": Language.FRENCH,
+    "it": Language.ITALIAN,
+    "th": Language.THAI_SCRIPT,
+}
 FIELDS = (
     "language",
     "rank",
@@ -34,6 +44,8 @@ FIELDS = (
     "pt-PT",
     "fr-FR",
     "it-IT",
+    "th-Thai-TH",
+    "th-Latn-TH",
     "confidence",
     "source",
     "licence",

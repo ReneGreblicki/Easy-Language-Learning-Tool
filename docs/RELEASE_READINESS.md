@@ -24,8 +24,8 @@
 
 The repository contains an attributed, reproducible wordfreq production baseline
 and a smaller multi-POS demonstration fixture. `tools/check_release_data.py` must
-report exactly 5,000 ranked, source-attributed word entries for each of the six
-supported languages before packaging.
+report exactly 5,000 ranked, source-attributed word entries for each of eight
+supported language/script options before packaging.
 
 Production data must preserve rank, lemma, part of speech, forms, translations,
 confidence, source, licence, source URL, revision, and automated-validation state.
@@ -34,9 +34,12 @@ blank baseline translation is supplied and validated by the generation provider.
 Ranks must be contiguous and normalized lemmas unique. The UI exposes only the
 four agreed workbook columns.
 
-Canonical ranking uses wordfreq; Kaikki/Wiktionary provides lexical enrichment.
-The supplied third-party pages are comparison sources unless their redistribution
-terms are explicitly compatible. No human linguistic approval gate is required.
+Canonical ranking uses wordfreq for the original six languages. Thai ranking uses
+OpenSubtitles 2018 and the CC0 Phupha 2026 dataset; Kaikki/Wiktionary validates
+lexical entries and supplies tone-marked Paiboon romanization. The three supplied
+Thai pages are comparison-only because one is all-rights-reserved and the others
+do not provide compatible redistribution terms. No human linguistic approval gate
+is required.
 
 ## External release operations
 
@@ -51,7 +54,7 @@ signature, and records signing state in `BUILD_PROVENANCE.txt`.
 GitHub-hosted Windows acceptance is an automated packaging gate, not a substitute
 for the final clean Windows 10 and Windows 11 client-machine acceptance record.
 
-The 1.0.0 acceptance record confirms clean-client installation, launch,
+The 1.1.0 acceptance record confirms clean-client installation, launch,
 upgrade/repair, uninstall, shortcuts, bundled FFmpeg, and preservation of
 user-owned exports on Windows 10 and Windows 11. The production tag workflow
 repeats the automated gates and publishes the installer, checksum, provenance,

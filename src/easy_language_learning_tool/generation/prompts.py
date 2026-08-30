@@ -73,10 +73,14 @@ def build_batch_prompt(settings: GenerationSettings, plans: list[PlannedRow]) ->
         }
         for plan in plans
     ]
+    script_instruction = settings.learning_language.generation_instruction
+    if script_instruction:
+        script_instruction = f" {script_instruction}"
     return (
         "Create formal, standard language-learning examples. The learning language is "
         f"{settings.learning_language.label}; translate accurately and directly into "
-        f"{settings.translation_language.label}. Use every assigned word naturally and preserve its "
+        f"{settings.translation_language.label}.{script_instruction} Use every assigned word "
+        "naturally and preserve its "
         "assigned part of speech. If it is 'unknown', infer the most natural part of speech for "
         "the requested sentence and report a valid form/variant. For verbs, vary tense, mood, person, or participle; for nouns, "
         "vary number or case where the language supports it; for adjectives, determiners, and "

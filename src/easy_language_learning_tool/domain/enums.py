@@ -10,6 +10,8 @@ class Language(StrEnum):
     EUROPEAN_PORTUGUESE = "pt-PT"
     FRENCH = "fr-FR"
     ITALIAN = "it-IT"
+    THAI_SCRIPT = "th-Thai-TH"
+    THAI_PAIBOON = "th-Latn-TH"
 
     @property
     def label(self) -> str:
@@ -20,7 +22,26 @@ class Language(StrEnum):
             self.EUROPEAN_PORTUGUESE: "European Portuguese",
             self.FRENCH: "French",
             self.ITALIAN: "Italian",
+            self.THAI_SCRIPT: "Thai (Thai script)",
+            self.THAI_PAIBOON: "Thai (Paiboon romanization)",
         }[self]
+
+    @property
+    def speech_locale(self) -> str:
+        if self in {self.THAI_SCRIPT, self.THAI_PAIBOON}:
+            return "th-TH"
+        return self.value
+
+    @property
+    def generation_instruction(self) -> str:
+        if self is self.THAI_SCRIPT:
+            return "Write Thai words and sentences only in standard Thai script."
+        if self is self.THAI_PAIBOON:
+            return (
+                "Write Thai words and sentences only in tone-marked Paiboon romanization; "
+                "do not use Thai script in the learning-language fields."
+            )
+        return ""
 
 
 class CefrLevel(StrEnum):

@@ -31,6 +31,10 @@ class FrequencyRepository:
     def __init__(self, records: list[FrequencyWord]) -> None:
         self._records = records
 
+    @property
+    def records(self) -> tuple[FrequencyWord, ...]:
+        return tuple(self._records)
+
     @classmethod
     def from_jsonl(cls, path: Path) -> FrequencyRepository:
         records: list[FrequencyWord] = []

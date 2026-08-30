@@ -80,6 +80,23 @@ class ProductRuleTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             settings(translation_language=Language.GERMAN)
 
+    def test_thai_script_options_have_real_labels_and_shared_speech_locale(self) -> None:
+        self.assertEqual(Language.THAI_SCRIPT.label, "Thai (Thai script)")
+        self.assertEqual(Language.THAI_PAIBOON.label, "Thai (Paiboon romanization)")
+        self.assertEqual(Language.THAI_SCRIPT.speech_locale, "th-TH")
+        self.assertEqual(Language.THAI_PAIBOON.speech_locale, "th-TH")
+
+    def test_thai_romanization_is_locked_in_generation_prompt(self) -> None:
+        config = settings(
+            learning_language=Language.THAI_PAIBOON,
+            base_sentences=1,
+            pronoun_change=0,
+        )
+        plan = build_generation_plan(config, [WordRecord(rank=1, lemma="sà-wàt-dii")])
+        prompt = build_batch_prompt(config, list(plan))
+        self.assertIn("tone-marked Paiboon romanization", prompt)
+        self.assertIn("do not use Thai script", prompt)
+
     def test_pronoun_scale_zero_is_always_neutral(self) -> None:
         schedule = grammatical_person_schedule(100, 0, 77)
         self.assertEqual(schedule, (GrammaticalPerson.NEUTRAL,) * 100)
