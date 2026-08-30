@@ -289,8 +289,8 @@ class TtsService:
                 row_files.append(output)
                 continue
             values = (
-                (row.foreign_verb, settings.foreign),
-                (row.verb_translation, settings.translation),
+                (row.foreign_word, settings.foreign),
+                (row.word_translation, settings.translation),
                 (row.foreign_sentence, settings.foreign),
                 (row.sentence_translation, settings.translation),
             )

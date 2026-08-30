@@ -53,10 +53,10 @@ class GenerationSettings(BaseModel):
 
     learning_language: Language
     translation_language: Language
-    base_sentences: int = Field(ge=1, le=4_000)
+    base_sentences: int = Field(ge=1, le=5_000)
     extra_forms: int = Field(ge=0, le=4)
     question_percentage: Decimal = Field(ge=0, le=100)
-    pronoun_change: int = Field(ge=1, le=5)
+    pronoun_change: int = Field(ge=0, le=5)
     cefr: CefrSelection
     seed: int = 0
 
@@ -64,10 +64,10 @@ class GenerationSettings(BaseModel):
     def validate_product_limits(self) -> GenerationSettings:
         if self.learning_language is self.translation_language:
             raise ValueError("Learning and translation languages must differ.")
-        if self.base_sentences > 1_000 and self.extra_forms != 0:
-            raise ValueError("Extra forms are available only for 1,000 or fewer base sentences.")
         if self.final_rows > 5_000:
-            raise ValueError("The final output cannot exceed 5,000 rows.")
+            raise ValueError(
+                "The final output cannot exceed 5,000 rows: base words × (1 + extra forms)."
+            )
         return self
 
     @property
@@ -75,11 +75,13 @@ class GenerationSettings(BaseModel):
         return self.base_sentences * (1 + self.extra_forms)
 
 
-class VerbRecord(BaseModel):
+class WordRecord(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     rank: int = Field(ge=1)
     lemma: str = Field(min_length=1)
+    part_of_speech: str = Field(default="unknown", min_length=1)
+    forms: tuple[str, ...] = ()
     translation: str = ""
     confidence: str = "verified"
     source: str = ""
@@ -92,7 +94,7 @@ class PlannedRow(BaseModel):
     row_number: int
     base_index: int
     form_index: int
-    verb: VerbRecord
+    word: WordRecord
     cefr_level: CefrLevel
     sentence_kind: SentenceKind
     grammatical_person: GrammaticalPerson

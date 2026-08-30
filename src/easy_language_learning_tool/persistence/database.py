@@ -1,15 +1,28 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 SCHEMA_VERSION = 1
 
 
+@contextmanager
+def database_connection(path: Path) -> Iterator[sqlite3.Connection]:
+    """Return a transactional connection that is always closed explicitly."""
+    connection = sqlite3.connect(path)
+    try:
+        with connection:
+            yield connection
+    finally:
+        connection.close()
+
+
 def initialize_database(path: Path) -> None:
     """Create the Phase-0 database atomically using only local app data."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(path) as connection:
+    with database_connection(path) as connection:
         connection.execute("PRAGMA foreign_keys = ON")
         connection.execute("PRAGMA journal_mode = WAL")
         connection.executescript(

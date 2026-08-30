@@ -3,21 +3,21 @@ from __future__ import annotations
 from decimal import Decimal
 
 from .enums import CefrMode, SentenceKind
-from .models import GenerationSettings, PlannedRow, VerbRecord
+from .models import GenerationSettings, PlannedRow, WordRecord
 from .rules import grammatical_person_schedule, largest_remainder_allocation
 
 
 def build_generation_plan(
     settings: GenerationSettings,
-    ranked_verbs: list[VerbRecord],
+    ranked_words: list[WordRecord],
 ) -> tuple[PlannedRow, ...]:
     """Build the complete deterministic row plan before any LLM call is made."""
-    if len(ranked_verbs) < settings.base_sentences:
-        raise ValueError("The ranked verb list does not contain enough unique verbs.")
-    selected_verbs = ranked_verbs[: settings.base_sentences]
-    normalized = [verb.lemma.casefold().strip() for verb in selected_verbs]
+    if len(ranked_words) < settings.base_sentences:
+        raise ValueError("The ranked word list does not contain enough entries.")
+    selected_words = ranked_words[: settings.base_sentences]
+    normalized = [word.lemma.casefold().strip() for word in selected_words]
     if len(normalized) != len(set(normalized)):
-        raise ValueError("Base verb lemmas must be unique before list exhaustion.")
+        raise ValueError("Base words must be unique before list exhaustion.")
 
     levels = settings.cefr.ordered_levels()
     if settings.cefr.mode is CefrMode.SINGLE:
@@ -42,23 +42,24 @@ def build_generation_plan(
         SentenceKind.STATEMENT,
     ) * kind_counts[SentenceKind.STATEMENT]
     people = grammatical_person_schedule(
-        settings.base_sentences,
+        settings.final_rows,
         settings.pronoun_change,
         settings.seed,
     )
 
     rows: list[PlannedRow] = []
-    for base_index, verb in enumerate(selected_verbs):
+    for base_index, word in enumerate(selected_words):
         for form_index in range(settings.extra_forms + 1):
+            row_index = len(rows)
             rows.append(
                 PlannedRow(
                     row_number=len(rows) + 1,
                     base_index=base_index + 1,
                     form_index=form_index,
-                    verb=verb,
+                    word=word,
                     cefr_level=cefr_schedule[base_index],
                     sentence_kind=kind_schedule[base_index],
-                    grammatical_person=people[base_index],
+                    grammatical_person=people[row_index],
                     seed=settings.seed,
                 )
             )

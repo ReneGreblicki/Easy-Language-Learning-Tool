@@ -6,26 +6,32 @@ from pathlib import Path
 
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill
-from openpyxl.worksheet.table import Table, TableStyleInfo
 from pydantic import BaseModel, ConfigDict, Field
 
 from easy_language_learning_tool.domain.models import GenerationSettings, PlannedRow
 from easy_language_learning_tool.validation.sentences import GeneratedSentence
 
 SENTENCE_HEADERS = (
+    "Foreign-language word",
+    "Word translation",
+    "Foreign-language sentence",
+    "Sentence translation",
+)
+LEGACY_HEADERS = ("Verb", "Translation", "German Sentence", "English Sentence")
+PREVIOUS_HEADERS = (
     "Foreign-language verb",
     "Verb translation",
     "Foreign-language sentence",
     "Sentence translation",
 )
-LEGACY_HEADERS = ("Verb", "Translation", "German Sentence", "English Sentence")
 METADATA_HEADERS = (
     "Row number",
     "Base item",
     "CEFR level",
     "Frequency rank",
+    "Part of speech",
     "Grammatical person",
-    "Tense/form",
+    "Word form/variant",
     "Question/statement",
     "Generation timestamp",
     "Provider",
@@ -43,16 +49,16 @@ METADATA_HEADERS = (
 class WorkbookRow(BaseModel):
     model_config = ConfigDict(frozen=True)
 
-    foreign_verb: str = Field(min_length=1)
-    verb_translation: str = Field(min_length=1)
+    foreign_word: str = Field(min_length=1)
+    word_translation: str = Field(min_length=1)
     foreign_sentence: str = Field(min_length=1)
     sentence_translation: str = Field(min_length=1)
 
 
 def _public_values(row: WorkbookRow) -> tuple[str, str, str, str]:
     return (
-        row.foreign_verb,
-        row.verb_translation,
+        row.foreign_word,
+        row.word_translation,
         row.foreign_sentence,
         row.sentence_translation,
     )
@@ -85,8 +91,8 @@ def export_xlsx(
     for sentence, planned in zip(generated, plan, strict=True):
         sentences.append(
             (
-                sentence.foreign_verb,
-                sentence.verb_translation,
+                sentence.foreign_word,
+                sentence.word_translation,
                 sentence.foreign_sentence,
                 sentence.sentence_translation,
             )
@@ -96,9 +102,10 @@ def export_xlsx(
                 planned.row_number,
                 planned.base_index,
                 planned.cefr_level.value,
-                planned.verb.rank,
+                planned.word.rank,
+                planned.word.part_of_speech,
                 planned.grammatical_person.value,
-                sentence.tense_or_form,
+                sentence.word_form_or_variant,
                 planned.sentence_kind.value,
                 timestamp,
                 provider,
@@ -122,10 +129,6 @@ def export_xlsx(
     sentences.column_dimensions["B"].width = 24
     sentences.column_dimensions["C"].width = 60
     sentences.column_dimensions["D"].width = 60
-    if generated:
-        table = Table(displayName="SentencesTable", ref=f"A1:D{len(generated) + 1}")
-        table.tableStyleInfo = TableStyleInfo(name="TableStyleMedium2", showRowStripes=True)
-        sentences.add_table(table)
     workbook.save(path)
 
 
@@ -144,7 +147,7 @@ def import_xlsx(path: Path, *, maximum_rows: int = 5_000) -> list[WorkbookRow]:
     sheet = workbook["Sentences"] if "Sentences" in workbook.sheetnames else workbook.active
     iterator = sheet.iter_rows(values_only=True)
     headers = tuple(str(value).strip() if value is not None else "" for value in next(iterator, ()))
-    if headers[:4] not in {SENTENCE_HEADERS, LEGACY_HEADERS}:
+    if headers[:4] not in {SENTENCE_HEADERS, PREVIOUS_HEADERS, LEGACY_HEADERS}:
         workbook.close()
         raise ValueError("Workbook headers do not match the required four-column schema.")
     rows: list[WorkbookRow] = []
@@ -157,8 +160,8 @@ def import_xlsx(path: Path, *, maximum_rows: int = 5_000) -> list[WorkbookRow]:
             raise ValueError(f"Workbook row {len(rows) + 2} contains an empty required cell.")
         rows.append(
             WorkbookRow(
-                foreign_verb=first_four[0],
-                verb_translation=first_four[1],
+                foreign_word=first_four[0],
+                word_translation=first_four[1],
                 foreign_sentence=first_four[2],
                 sentence_translation=first_four[3],
             )

@@ -82,6 +82,34 @@ VOICE_DEFAULTS: dict[Language, tuple[str, str]] = {
     Language.GERMAN: ("de-DE-KatjaNeural", "de-DE-ConradNeural"),
     Language.EUROPEAN_PORTUGUESE: ("pt-PT-RaquelNeural", "pt-PT-DuarteNeural"),
     Language.FRENCH: ("fr-FR-DeniseNeural", "fr-FR-HenriNeural"),
+    Language.ITALIAN: ("it-IT-ElsaNeural", "it-IT-DiegoNeural"),
+}
+
+PRONOUN_SCALE_EXPLANATIONS = {
+    0: (
+        "Option 0: Every sentence uses a neutral or impersonal subject structure, such as "
+        "‘The day is nice’, ‘The sun is up’, or ‘The school is far’."
+    ),
+    1: (
+        "Option 1: 80% of sentences stay neutral or impersonal; 20% use a randomly selected "
+        "first-, second-, or third-person form."
+    ),
+    2: (
+        "Option 2: 60% of sentences stay neutral or impersonal; 40% use a randomly selected "
+        "first-, second-, or third-person form."
+    ),
+    3: (
+        "Option 3: 40% of sentences stay neutral or impersonal; 60% use a randomly selected "
+        "first-, second-, or third-person form."
+    ),
+    4: (
+        "Option 4: 20% of sentences stay neutral or impersonal; 80% use a randomly selected "
+        "first-, second-, or third-person form."
+    ),
+    5: (
+        "Option 5: Every sentence changes to a different subject pattern. Neutral or impersonal "
+        "structures are included alongside first-, second-, and third-person forms."
+    ),
 }
 
 
@@ -90,6 +118,14 @@ def resource_path(*parts: str) -> Path:
     if packaged.joinpath(parts[0]).exists():
         return packaged.joinpath(*parts)
     return Path(__file__).resolve().parents[3].joinpath(*parts)
+
+
+def frequency_data_path() -> Path:
+    for filename in ("words.jsonl.gz", "words.jsonl"):
+        production = resource_path("resources", "frequency_data", "production", filename)
+        if production.is_file():
+            return production
+    return resource_path("resources", "frequency_data", "demo", "words.jsonl")
 
 
 class MainWindow(QMainWindow):
@@ -101,6 +137,9 @@ class MainWindow(QMainWindow):
         self.history = HistoryService(
             self.paths.data / "easy_language_learning_tool.sqlite3", self.paths.history
         )
+        self.frequency_path = frequency_data_path()
+        self.frequency_repository = FrequencyRepository.from_jsonl(self.frequency_path)
+        self.frequency_is_production = self.frequency_path.parent.name == "production"
         self._threads: set[TaskThread] = set()
         self._provider_adapter: Any = None
         self._tts_service: TtsService | None = None
@@ -152,6 +191,15 @@ class MainWindow(QMainWindow):
     def _sentence_tab(self) -> QWidget:
         root = QWidget()
         layout = QVBoxLayout(root)
+        row_limit_notice = QLabel(
+            "Output is limited to 5,000 rows. Each base word creates one original row plus the "
+            "selected extra-form rows. Maximum base words = 5,000 ÷ (1 + extra forms): for "
+            "example, 1 extra form allows 2,500 base words. Extra forms adapt to the word type "
+            "(for example be/was, tool/tools, or adjective agreement)."
+        )
+        row_limit_notice.setWordWrap(True)
+        row_limit_notice.setObjectName("rowLimitNotice")
+        layout.addWidget(row_limit_notice)
         provider_group = QGroupBox("AI provider")
         provider_form = QFormLayout(provider_group)
         self.provider_combo = QComboBox()
@@ -182,11 +230,13 @@ class MainWindow(QMainWindow):
 
         settings_group = QGroupBox("Sentence settings")
         form = QFormLayout(settings_group)
+        self.sentence_settings_form = form
         self.learning = self._language_combo()
         self.translation = self._language_combo()
-        self.translation.setCurrentIndex(1)
+        self.learning.setCurrentIndex(self.learning.findData(Language.EUROPEAN_SPANISH))
+        self.translation.setCurrentIndex(self.translation.findData(Language.US_ENGLISH))
         self.base_count = QSpinBox()
-        self.base_count.setRange(1, 4_000)
+        self.base_count.setRange(1, 5_000)
         self.base_count.setValue(100)
         self.extra_forms = QComboBox()
         self.extra_forms.addItems([str(value) for value in range(5)])
@@ -218,8 +268,12 @@ class MainWindow(QMainWindow):
         self.cefr_total = QLabel()
         self.question_slider, question_row = self._labelled_slider(0, 100, 20, "%")
         self.pronouns = QComboBox()
-        self.pronouns.addItems([str(value) for value in range(1, 6)])
+        self.pronouns.addItems([str(value) for value in range(6)])
+        self.pronoun_explanation = QLabel()
+        self.pronoun_explanation.setWordWrap(True)
         self.final_rows = QLabel()
+        self.frequency_status = QLabel()
+        self.frequency_status.setWordWrap(True)
         self.output_path = QLineEdit(str(Path.home() / "Documents" / "Language Sentences.xlsx"))
         browse = QPushButton("Browse…")
         browse.clicked.connect(self.choose_generation_output)
@@ -234,16 +288,18 @@ class MainWindow(QMainWindow):
         for label, settings_widget in (
             ("Learning language (foreign)", self.learning),
             ("Translation language", self.translation),
-            ("Base sentences", self.base_count),
-            ("Extra forms (0–4)", self.extra_forms),
+            ("Base words", self.base_count),
+            ("Extra word forms (0–4)", self.extra_forms),
+            ("Calculated output", self.final_rows),
             ("CEFR mode", self.cefr_mode),
             ("Single level", self.single_cefr),
             ("Gradual range", range_widget),
             ("Level percentages", percentages),
             ("Percentage total", self.cefr_total),
             ("Questions / statements", question_row),
-            ("Pronoun-change scale", self.pronouns),
-            ("Calculated output", self.final_rows),
+            ("Pronoun-change scale (0–5)", self.pronouns),
+            ("", self.pronoun_explanation),
+            ("Word dataset", self.frequency_status),
             ("Workbook", output_widget),
             ("", self.generate_button),
             ("Progress", self.generation_progress),
@@ -264,6 +320,7 @@ class MainWindow(QMainWindow):
             self.cefr_mode.currentIndexChanged,
             self.start_cefr.currentIndexChanged,
             self.end_cefr.currentIndexChanged,
+            self.pronouns.currentIndexChanged,
         ):
             signal.connect(self.refresh_sentence_state)
         for signal in (
@@ -301,7 +358,12 @@ class MainWindow(QMainWindow):
             self._language_combo(),
             self._language_combo(),
         )
-        self.translation_language.setCurrentIndex(1)
+        self.foreign_language.setCurrentIndex(
+            self.foreign_language.findData(Language.EUROPEAN_SPANISH)
+        )
+        self.translation_language.setCurrentIndex(
+            self.translation_language.findData(Language.US_ENGLISH)
+        )
         self.foreign_voice, self.translation_voice = QComboBox(), QComboBox()
         self.foreign_language.currentIndexChanged.connect(self._refresh_voices)
         self.translation_language.currentIndexChanged.connect(self._refresh_voices)
@@ -336,8 +398,8 @@ class MainWindow(QMainWindow):
         pause_form = QFormLayout(pauses)
         self.pause_sliders: list[QSlider] = []
         names = (
-            "Foreign verb → verb translation",
-            "Verb translation → foreign sentence",
+            "Foreign word → word translation",
+            "Word translation → foreign sentence",
             "Foreign sentence → sentence translation",
             "Sentence translation → next row",
         )
@@ -398,7 +460,7 @@ class MainWindow(QMainWindow):
         return self._scroll(root)
 
     def _provider_changed(self) -> None:
-        provider: Provider = self.provider_combo.currentData()
+        provider = Provider(str(self.provider_combo.currentData()))
         self.api_key.setText(self.credentials.get(provider.value) or "")
         self.endpoint.setEnabled(provider in {Provider.OLLAMA, Provider.CUSTOM_COMPATIBLE})
         if provider is Provider.OLLAMA and not self.endpoint.text():
@@ -409,7 +471,7 @@ class MainWindow(QMainWindow):
         self.refresh_sentence_state()
 
     def connect_provider(self) -> None:
-        provider: Provider = self.provider_combo.currentData()
+        provider = Provider(str(self.provider_combo.currentData()))
         adapter = create_provider(
             provider, api_key=self.api_key.text().strip(), base_url=self.endpoint.text().strip()
         )
@@ -443,8 +505,8 @@ class MainWindow(QMainWindow):
     def _selected_levels(self) -> list[CefrLevel]:
         levels = list(CefrLevel)
         start, end = (
-            levels.index(self.start_cefr.currentData()),
-            levels.index(self.end_cefr.currentData()),
+            levels.index(CefrLevel(str(self.start_cefr.currentData()))),
+            levels.index(CefrLevel(str(self.end_cefr.currentData()))),
         )
         return levels[start : end + 1] if start <= end else []
 
@@ -461,13 +523,30 @@ class MainWindow(QMainWindow):
         self.refresh_sentence_state()
 
     def refresh_sentence_state(self) -> None:
+        learning = Language(str(self.learning.currentData()))
+        translation = Language(str(self.translation.currentData()))
+        available = self.frequency_repository.available_count(learning, translation)
+        form_multiplier = 1 + int(self.extra_forms.currentText())
+        allowed = min(5_000 // form_multiplier, available)
+        self.base_count.setMaximum(max(1, allowed))
+        dataset_label = (
+            "Production dataset" if self.frequency_is_production else "Demonstration dataset"
+        )
+        self.frequency_status.setText(
+            f"{dataset_label}: {available:,} ranked {learning.label} words. Examples will be AI "
+            f"generated in {learning.label} and translated into {translation.label}. Missing word "
+            f"translations will also be AI generated in {translation.label}."
+        )
         base = self.base_count.value()
-        self.extra_forms.setEnabled(base <= 1_000)
-        if base > 1_000:
-            self.extra_forms.setCurrentIndex(0)
-        total = base * (1 + int(self.extra_forms.currentText()))
-        self.final_rows.setText(f"{total:,} final rows (maximum 5,000)")
-        gradual = self.cefr_mode.currentData() is CefrMode.GRADUAL
+        self.extra_forms.setEnabled(True)
+        total = base * form_multiplier
+        self.final_rows.setText(
+            f"{total:,} final rows (base limit {allowed:,} at {form_multiplier}×; maximum 5,000)"
+        )
+        self.pronoun_explanation.setText(
+            PRONOUN_SCALE_EXPLANATIONS[int(self.pronouns.currentText())]
+        )
+        gradual = CefrMode(str(self.cefr_mode.currentData())) is CefrMode.GRADUAL
         self.single_cefr.setEnabled(not gradual)
         self.start_cefr.setEnabled(gradual)
         self.end_cefr.setEnabled(gradual)
@@ -476,7 +555,12 @@ class MainWindow(QMainWindow):
             spin.setEnabled(gradual and level in selected)
         total_percent = sum(self.cefr_percentages[level].value() for level in selected)
         self.cefr_total.setText(f"{total_percent}%" if gradual else "Single-level mode")
-        valid = total <= 5_000 and self.learning.currentData() != self.translation.currentData()
+        valid = (
+            available > 0
+            and base <= available
+            and total <= 5_000
+            and self.learning.currentData() != self.translation.currentData()
+        )
         valid = valid and (not gradual or total_percent == 100)
         valid = (
             valid and self._provider_adapter is not None and bool(self.model_combo.currentData())
@@ -485,14 +569,17 @@ class MainWindow(QMainWindow):
         self.refresh_costs()
 
     def _settings(self) -> GenerationSettings:
-        mode: CefrMode = self.cefr_mode.currentData()
+        mode = CefrMode(str(self.cefr_mode.currentData()))
         cefr = (
-            CefrSelection(mode=mode, single_level=self.single_cefr.currentData())
+            CefrSelection(
+                mode=mode,
+                single_level=CefrLevel(str(self.single_cefr.currentData())),
+            )
             if mode is CefrMode.SINGLE
             else CefrSelection(
                 mode=mode,
-                start_level=self.start_cefr.currentData(),
-                end_level=self.end_cefr.currentData(),
+                start_level=CefrLevel(str(self.start_cefr.currentData())),
+                end_level=CefrLevel(str(self.end_cefr.currentData())),
                 percentages={
                     level: Decimal(self.cefr_percentages[level].value())
                     for level in self._selected_levels()
@@ -500,8 +587,8 @@ class MainWindow(QMainWindow):
             )
         )
         return GenerationSettings(
-            learning_language=self.learning.currentData(),
-            translation_language=self.translation.currentData(),
+            learning_language=Language(str(self.learning.currentData())),
+            translation_language=Language(str(self.translation.currentData())),
             base_sentences=self.base_count.value(),
             extra_forms=int(self.extra_forms.currentText()),
             question_percentage=Decimal(self.question_slider.value()),
@@ -535,13 +622,10 @@ class MainWindow(QMainWindow):
         self.generation_progress.setValue(0)
 
         async def task(report: Any) -> Path:
-            repository = FrequencyRepository.from_jsonl(
-                resource_path("resources", "frequency_data", "demo", "verbs.jsonl")
-            )
-            verbs = repository.select(
+            words = self.frequency_repository.select(
                 settings.learning_language, settings.translation_language, settings.base_sentences
             )
-            plan = build_generation_plan(settings, verbs)
+            plan = build_generation_plan(settings, words)
             result = await GenerationService(provider).generate(
                 settings=settings,
                 plan=plan,
@@ -597,16 +681,18 @@ class MainWindow(QMainWindow):
         )
 
     def refresh_costs(self) -> None:
-        model, provider = self.model_combo.currentData(), self.provider_combo.currentData()
-        if not model or not provider:
+        model = self.model_combo.currentData()
+        provider_data = self.provider_combo.currentData()
+        if not model or not provider_data:
             self.cost_label.setText("Choose a connected model to see estimates.")
             return
+        provider = Provider(str(provider_data))
         try:
             registry = PricingRegistry.from_json(
                 resource_path("resources", "pricing", "registry.json")
             )
             lines = []
-            counts = [1_000, 2_000, 3_000, 4_000]
+            counts = [1_000, 2_000, 3_000, 4_000, 5_000]
             current = self.base_count.value() * (1 + int(self.extra_forms.currentText()))
             if current not in counts:
                 counts.append(current)
@@ -876,11 +962,12 @@ class MainWindow(QMainWindow):
             (self.translation_language, self.translation_voice),
         ):
             voice_combo.clear()
-            voice_combo.addItems(VOICE_DEFAULTS[language_combo.currentData()])
+            language = Language(str(language_combo.currentData()))
+            voice_combo.addItems(VOICE_DEFAULTS[language])
 
     def refresh_edge_voices(self) -> None:
-        foreign = self.foreign_language.currentData()
-        translation = self.translation_language.currentData()
+        foreign = Language(str(self.foreign_language.currentData()))
+        translation = Language(str(self.translation_language.currentData()))
 
         async def task() -> tuple[list[str], list[str]]:
             return (

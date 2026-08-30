@@ -6,11 +6,12 @@ import unittest
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
+from zipfile import ZipFile
 
 from openpyxl import load_workbook
 
 from easy_language_learning_tool.domain.enums import CefrLevel, CefrMode, Language
-from easy_language_learning_tool.domain.models import CefrSelection, GenerationSettings, VerbRecord
+from easy_language_learning_tool.domain.models import CefrSelection, GenerationSettings, WordRecord
 from easy_language_learning_tool.domain.planner import build_generation_plan
 from easy_language_learning_tool.generation.service import GenerationService
 from easy_language_learning_tool.providers.base import (
@@ -45,12 +46,12 @@ class FakeProvider(ProviderAdapter):
             rows.append(
                 {
                     "row_number": task["row_number"],
-                    "foreign_verb": task["lemma"],
-                    "verb_translation": task["baseline_translation"] or "translation",
+                    "foreign_word": task["lemma"],
+                    "word_translation": task["baseline_translation"] or "translation",
                     "foreign_sentence": sentence,
                     "sentence_translation": "Am I here?" if question else "I am here.",
-                    "used_verb_form": "bin" if is_sein else "habe",
-                    "tense_or_form": "present",
+                    "used_word_form": "bin" if is_sein else "habe",
+                    "word_form_or_variant": "present",
                 }
             )
         return ProviderResponse(
@@ -75,8 +76,8 @@ class GenerationWorkbookTests(unittest.TestCase):
         plan = build_generation_plan(
             settings,
             [
-                VerbRecord(rank=1, lemma="sein", translation="to be"),
-                VerbRecord(rank=2, lemma="haben", translation="to have"),
+                WordRecord(rank=1, lemma="sein", part_of_speech="verb", translation="to be"),
+                WordRecord(rank=2, lemma="haben", part_of_speech="verb", translation="to have"),
             ],
         )
         with tempfile.TemporaryDirectory() as directory:
@@ -104,13 +105,19 @@ class GenerationWorkbookTests(unittest.TestCase):
             )
             imported = import_xlsx(output)
             self.assertEqual(len(imported), 4)
-            workbook = load_workbook(output, read_only=True, data_only=True)
+            workbook = load_workbook(output, data_only=True)
             self.assertEqual(workbook.sheetnames, ["Sentences", "Metadata"])
             self.assertEqual(
                 tuple(cell.value for cell in next(workbook["Sentences"].iter_rows())),
                 SENTENCE_HEADERS,
             )
+            self.assertEqual(workbook["Sentences"].auto_filter.ref, "A1:D5")
             workbook.close()
+            with ZipFile(output) as archive:
+                self.assertFalse(
+                    any(name.startswith("xl/tables/") for name in archive.namelist()),
+                    "Excel table XML must not be emitted; worksheet AutoFilter provides filtering.",
+                )
 
 
 if __name__ == "__main__":
