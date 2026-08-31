@@ -1,48 +1,47 @@
-# Easy Language Learning Tool 1.0.0
+# Easy Language Learning Tool 1.1.0
 
-Easy Language Learning Tool 1.0.0 is the first production release of the Windows
-desktop application for deterministic language-learning sentence workbooks and
-resumable text-to-speech audio.
+Version 1.1.0 adds complete Thai support and repairs Windows application identity
+and icon packaging.
 
-## Production capabilities
+## Thai support
 
-- Six learning and translation languages: US English, European Spanish, German,
-  European Portuguese, French, and Italian.
-- Exactly 5,000 ranked words per language across all parts of speech, selected
-  deterministically by the application from the attributed wordfreq baseline.
-- Part-of-speech-aware extra forms with a hard 5,000-row output limit.
-- CEFR A1-C2 planning, exact question allocation, and deterministic
-  neutral-to-personal subject-structure controls.
-- OpenAI, Anthropic, Gemini, DeepSeek, Ollama, and custom OpenAI-compatible
-  providers with model discovery, cost estimates, targeted retry, checkpointing,
-  and resume.
-- Excel-safe XLSX and CSV output with four public study columns and audit metadata,
-  including backward-compatible imports for earlier verb workbooks.
-- Edge neural TTS with separate voices, four configurable pauses, two-row preview,
-  combined MP3 export, pause/cancel, partial recovery, and checksum-safe resume.
-- Safe local History with independent retention for workbooks and audio, protected
-  app-owned file operations, and Windows Recycle Bin deletion.
-- Light and dark themes, a centered responsive PySide6 interface, bundled runtime,
-  bundled FFmpeg, and a normal per-user Windows installer.
+- Adds Thai as the seventh supported spoken language.
+- Adds two explicit learning and translation options:
+  - Thai (Thai script)
+  - Thai (Paiboon romanization)
+- Includes 5,000 ranked, validated entries for each Thai option, bringing the
+  production corpus to 40,000 records across eight language/script options.
+- Uses the CC BY-SA OpenSubtitles 2018 ranking, the CC0 Phupha 2026 frequency
+  dataset, and Kaikki/Wiktionary lexical and tone-marked romanization data.
+- Uses Thai Microsoft Edge neural voices for both Thai options.
+- Locks prompts so the Thai-script option stays in Thai script and the Paiboon
+  option stays in tone-marked Latin romanization.
 
-## Final changes since 0.5.0 RC
+The supplied Lenguia and 1000MostCommonWords.com pages remain comparison sources
+because they do not grant redistribution rights. The supplied Scribd list is
+marked All Rights Reserved and is not bundled.
 
-- Promoted the fully validated release candidate to version 1.0.0.
-- Added an automated version-alignment regression gate for Python metadata,
-  installer metadata, documentation, and release notes.
-- Added tag-driven production publishing that verifies the corpus, repeats tests,
-  builds the Windows package, downloads the verified artifact, and publishes the
-  installer, checksum, provenance, and portable archive to GitHub Releases.
-- Recorded the completed automated and clean-client acceptance gates in the
-  maintained project documentation.
+## Windows identity and branding
 
-## Release integrity
+- Replaces the previous logo with a globe rising from an open book.
+- Adds a native multi-resolution Windows `.ico` and matching high-resolution PNG.
+- Embeds the icon directly into the Nuitka executable.
+- Applies the icon to the running Qt application, title bar, taskbar card,
+  installer, Start menu shortcut, desktop shortcut, and uninstall entry.
+- Sets an explicit Windows AppUserModelID so the taskbar groups the running app
+  under the installed application identity instead of displaying a generic icon.
 
-The production workflow enforces the six-language 30,000-record corpus gate,
-quality and security checks, the full automated test suite, packaged launch,
-silent install, upgrade/repair, uninstall, bundled-resource checks, user-data
-preservation, SHA-256 generation, and build provenance.
+## Existing production capabilities
 
-Authenticode signing is enabled automatically when both protected Windows signing
-secrets are configured. Public binary distribution should use the signed workflow
-artifact; source releases and pull-request test artifacts may remain unsigned.
+- Deterministic 5,000-word selection, CEFR planning, exact question allocation,
+  neutral/personal subject controls, and part-of-speech-aware extra forms.
+- OpenAI, Anthropic, Gemini, DeepSeek, Ollama, and custom compatible providers.
+- Excel-safe workbooks, checkpointed generation, resumable Edge TTS, safe local
+  History, bundled FFmpeg, and per-user Windows installation.
+- Automated formatting, linting, strict typing, corpus validation, Windows UI,
+  packaged launch, install, upgrade/repair, uninstall, checksum, and provenance
+  gates.
+
+Authenticode signing remains automatic when both protected publisher-certificate
+secrets are configured. Unsigned builds may display a Windows Unknown Publisher
+warning.

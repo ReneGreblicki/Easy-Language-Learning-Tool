@@ -1,5 +1,5 @@
 #define MyAppName "Easy Language Learning Tool"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "Easy Language Learning Tool"
 #define MyAppExeName "EasyLanguageLearningTool.exe"
 
@@ -18,6 +18,7 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=lowest
 UninstallDisplayIcon={app}\{#MyAppExeName}
+SetupIconFile=..\assets\icons\logo.ico
 
 [Files]
 Source: "..\dist\EasyLanguageLearningTool\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs

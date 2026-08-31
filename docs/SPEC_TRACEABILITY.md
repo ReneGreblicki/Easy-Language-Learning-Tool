@@ -15,13 +15,14 @@ This map is checked against both approved project artifacts at every build gate.
 | Exact questions/statements and neutral-to-personal scale 0–5 | planner/rules | distribution and plan tests |
 | LLM never selects frequency rank | frequency repository and plan | frequency tests |
 | Source/licence data gate | JSONL schema and release tool | release-readiness gate |
-| Six-language all-word ingestion and automated validation | corpus build tools and word TSV | candidate and release-gate tests |
+| Seven-language/eight-option ingestion and automated validation | corpus build tools and word TSV | candidate and release-gate tests |
+| Thai script and tone-marked Paiboon options | `Language`, Thai corpus builder, prompts | corpus, prompt, and UI tests |
 | Targeted retries and resumable generation | service/checkpoints | integration tests |
 | XLSX four public columns plus Metadata; legacy import | workbook service | round-trip tests |
 | Edge TTS, dual voices, four pauses, 2-row preview | TTS service/UI | mocked integration tests |
 | Pause/resume/cancel and checksum recovery | TTS manifests/service | recovery tests |
 | Latest 20 files per type and safe app-owned actions | History service/UI | file-safety tests |
-| World-map/letters logo | `assets/icons/logo.svg` | packaging test |
+| Globe rising from an open book; native Windows identity | `assets/icons/logo.png`, `logo.ico`, AppUserModelID | packaging and Windows UI tests |
 | Bundled runtime/FFmpeg and regular installer | Nuitka + Inno Setup | Windows workflow install/upgrade/uninstall acceptance |
 | Authenticode publisher signing and provenance | signing script and Windows workflow | signature verification and build provenance artifact |
 | README and example workbook included | README and `examples/` | packaging test |
@@ -42,3 +43,5 @@ This map is checked against both approved project artifacts at every build gate.
 - Phase 10 — production 1.0.0 version alignment and tag-driven release automation:
   complete; Authenticode signing is applied when the protected publisher
   certificate secrets are configured
+- Phase 11 — production 1.1.0 Thai expansion and Windows icon repair: complete;
+  eight 5,000-entry language/script options and native executable/installer icons

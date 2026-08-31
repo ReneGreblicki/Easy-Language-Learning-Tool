@@ -46,6 +46,7 @@ jobs:
           uv run python -m nuitka --standalone --enable-plugin=pyside6 --windows-console-mode=disable `
             --assume-yes-for-downloads --output-dir=dist `
             --output-filename=EasyLanguageLearningTool.exe `
+            --windows-icon-from-ico=assets/icons/logo.ico `
             --include-data-dir=resources=resources `
             --include-data-dir=assets=assets `
             --include-data-dir=examples=examples `
@@ -60,6 +61,16 @@ jobs:
           New-Item $ffmpegTarget -ItemType Directory -Force | Out-Null
           Copy-Item installer\bundled\ffmpeg\ffmpeg.exe $ffmpegTarget
           Copy-Item installer\bundled\ffmpeg\ffprobe.exe $ffmpegTarget
+      - name: Verify native executable icon
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Drawing
+          $executable = (Resolve-Path dist\EasyLanguageLearningTool\EasyLanguageLearningTool.exe).Path
+          $icon = [System.Drawing.Icon]::ExtractAssociatedIcon($executable)
+          if (-not $icon -or $icon.Width -lt 16 -or $icon.Height -lt 16) {
+            throw "The packaged executable does not contain a usable native Windows icon."
+          }
+          $icon.Dispose()
       - name: Validate signing configuration
         id: signing
         env:
