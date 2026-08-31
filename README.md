@@ -1,5 +1,12 @@
 # Easy Language Learning Tool
 
+[![Download for Windows](https://img.shields.io/badge/Download_for_Windows-v1.1.0-0078D4?logo=windows&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.1.0/EasyLanguageLearningTool-Setup-1.1.0.exe)
+
+**Windows users only need the `.exe` installer; the workflow ZIP is not required.**  
+[Release notes, checksum, and build provenance](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/tag/v1.1.0)
+
+> The installer is not yet Authenticode-signed, so Windows may display an Unknown Publisher or SmartScreen warning.
+
 Easy Language Learning Tool is a Windows desktop application for creating
 structured language-learning sentence workbooks and turning those workbooks
 into one natural-sounding, resumable MP3.
