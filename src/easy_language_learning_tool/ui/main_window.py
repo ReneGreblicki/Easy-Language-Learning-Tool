@@ -74,8 +74,6 @@ QTabBar::tab:selected { color: #2E74B5; font-weight: 700; }
 QProgressBar { border: 1px solid #B8C4D4; border-radius: 4px; text-align: center; }
 QProgressBar::chunk { background: #2E74B5; }
 QFrame#flashcardSurface { background: white; border: 2px solid #2E74B5; border-radius: 12px; }
-QLabel#flashcardWord { font-size: 26px; font-weight: 700; }
-QLabel#flashcardSentence { font-size: 18px; }
 """
 
 DARK_THEME = """
@@ -89,8 +87,6 @@ QTabBar::tab:selected { color: #60A5FA; font-weight: 700; }
 QProgressBar { border: 1px solid #475569; border-radius: 4px; text-align: center; }
 QProgressBar::chunk { background: #3B82C4; }
 QFrame#flashcardSurface { background: #1E293B; border: 2px solid #60A5FA; border-radius: 12px; }
-QLabel#flashcardWord { font-size: 26px; font-weight: 700; }
-QLabel#flashcardSentence { font-size: 18px; }
 """
 
 VOICE_DEFAULTS: dict[Language, tuple[str, str]] = {

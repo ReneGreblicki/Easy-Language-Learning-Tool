@@ -40,11 +40,15 @@ class DeliberateWheelComboBox(QComboBox):
         super().mousePressEvent(event)
 
     def focusInEvent(self, event: QFocusEvent) -> None:  # noqa: N802 - Qt API
-        self._wheel_armed = event.reason() == Qt.FocusReason.MouseFocusReason
+        if event.reason() == Qt.FocusReason.MouseFocusReason:
+            self._wheel_armed = True
+        elif event.reason() != Qt.FocusReason.PopupFocusReason:
+            self._wheel_armed = False
         super().focusInEvent(event)
 
     def focusOutEvent(self, event: QFocusEvent) -> None:  # noqa: N802 - Qt API
-        self._wheel_armed = False
+        if event.reason() != Qt.FocusReason.PopupFocusReason:
+            self._wheel_armed = False
         super().focusOutEvent(event)
 
     def wheelEvent(self, event: QWheelEvent) -> None:  # noqa: N802 - Qt API
@@ -66,11 +70,15 @@ class DeliberateWheelSpinBox(QSpinBox):
         super().mousePressEvent(event)
 
     def focusInEvent(self, event: QFocusEvent) -> None:  # noqa: N802 - Qt API
-        self._wheel_armed = event.reason() == Qt.FocusReason.MouseFocusReason
+        if event.reason() == Qt.FocusReason.MouseFocusReason:
+            self._wheel_armed = True
+        elif event.reason() != Qt.FocusReason.PopupFocusReason:
+            self._wheel_armed = False
         super().focusInEvent(event)
 
     def focusOutEvent(self, event: QFocusEvent) -> None:  # noqa: N802 - Qt API
-        self._wheel_armed = False
+        if event.reason() != Qt.FocusReason.PopupFocusReason:
+            self._wheel_armed = False
         super().focusOutEvent(event)
 
     def wheelEvent(self, event: QWheelEvent) -> None:  # noqa: N802 - Qt API
@@ -92,11 +100,15 @@ class DeliberateWheelSlider(QSlider):
         super().mousePressEvent(event)
 
     def focusInEvent(self, event: QFocusEvent) -> None:  # noqa: N802 - Qt API
-        self._wheel_armed = event.reason() == Qt.FocusReason.MouseFocusReason
+        if event.reason() == Qt.FocusReason.MouseFocusReason:
+            self._wheel_armed = True
+        elif event.reason() != Qt.FocusReason.PopupFocusReason:
+            self._wheel_armed = False
         super().focusInEvent(event)
 
     def focusOutEvent(self, event: QFocusEvent) -> None:  # noqa: N802 - Qt API
-        self._wheel_armed = False
+        if event.reason() != Qt.FocusReason.PopupFocusReason:
+            self._wheel_armed = False
         super().focusOutEvent(event)
 
     def wheelEvent(self, event: QWheelEvent) -> None:  # noqa: N802 - Qt API
