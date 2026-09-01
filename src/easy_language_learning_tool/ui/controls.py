@@ -57,10 +57,7 @@ class DeliberateWheelComboBox(QComboBox):
         super().focusInEvent(event)
 
     def focusOutEvent(self, event: QFocusEvent) -> None:  # noqa: N802 - Qt API
-        if (
-            event.reason() != Qt.FocusReason.PopupFocusReason
-            and not self._popup_activated_by_click
-        ):
+        if event.reason() != Qt.FocusReason.PopupFocusReason and not self._popup_activated_by_click:
             self._wheel_armed = False
         super().focusOutEvent(event)
 
