@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from openpyxl import Workbook
 
 if sys.platform != "win32":
     pytest.skip("Windows desktop smoke test", allow_module_level=True)
@@ -12,6 +13,24 @@ from easy_language_learning_tool.config.paths import AppPaths  # noqa: E402
 from easy_language_learning_tool.domain.enums import Language  # noqa: E402
 from easy_language_learning_tool.persistence.database import initialize_database  # noqa: E402
 from easy_language_learning_tool.ui.main_window import MainWindow  # noqa: E402
+from easy_language_learning_tool.workbook.service import SENTENCE_HEADERS  # noqa: E402
+
+
+def make_workbook(path: Path, count: int = 4) -> None:
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Sentences"
+    sheet.append(SENTENCE_HEADERS)
+    for rank in range(1, count + 1):
+        sheet.append(
+            (
+                f"palabra {rank}",
+                f"word {rank}",
+                f"La frase número {rank}.",
+                f"Sentence number {rank}.",
+            )
+        )
+    workbook.save(path)
 
 
 def test_main_window_tabs_and_generation_limits(qtbot: object, tmp_path: Path) -> None:
@@ -21,9 +40,10 @@ def test_main_window_tabs_and_generation_limits(qtbot: object, tmp_path: Path) -
     window = MainWindow(paths)
     qtbot.addWidget(window)  # type: ignore[attr-defined]
     window.size_and_center()
-    assert window.tabs.count() == 3
-    assert [window.tabs.tabText(index) for index in range(3)] == [
+    assert window.tabs.count() == 4
+    assert [window.tabs.tabText(index) for index in range(4)] == [
         "Sentence Creation",
+        "Flashcards",
         "TTS",
         "History",
     ]
@@ -59,3 +79,42 @@ def test_main_window_tabs_and_generation_limits(qtbot: object, tmp_path: Path) -
     window.base_count.setValue(2_500)
     assert "5,000 final rows" in window.final_rows.text()
     assert "5,000 rows" in window.findChild(type(window.frequency_status), "rowLimitNotice").text()
+
+
+def test_flashcard_combined_mode_range_navigation_and_resume(qtbot: object, tmp_path: Path) -> None:
+    paths = AppPaths(tmp_path / "data", tmp_path / "cache", tmp_path / "logs", tmp_path / "history")
+    paths.create()
+    initialize_database(paths.data / "easy_language_learning_tool.sqlite3")
+    workbook = tmp_path / "cards.xlsx"
+    make_workbook(workbook)
+    window = MainWindow(paths)
+    qtbot.addWidget(window)  # type: ignore[attr-defined]
+    window._load_flashcard_workbook(workbook)
+
+    session = window._flashcard_session
+    assert session is not None
+    assert len(session.order) == 4
+    assert len(set(session.order)) == 4
+    rank = session.current_rank
+    assert window.flashcard_word.text() == f"palabra {rank}"
+    assert window.flashcard_sentence.text() == f"La frase número {rank}."
+    assert window.flashcard_word.font().bold()
+    assert window.flashcard_word.font().pointSize() > window.flashcard_sentence.font().pointSize()
+
+    window.flip_flashcard()
+    assert window.flashcard_word.text() == f"word {rank}"
+    assert window.flashcard_sentence.text() == f"Sentence number {rank}."
+    window.flashcard_selected_rows.setChecked(True)
+    window.flashcard_from_rank.setText("2")
+    window.flashcard_to_rank.setText("3")
+    window._apply_flashcard_range()
+    assert window._flashcard_session is not None
+    assert sorted(window._flashcard_session.order) == [2, 3]
+
+    restored_window = MainWindow(paths)
+    qtbot.addWidget(restored_window)  # type: ignore[attr-defined]
+    restored = restored_window._flashcard_session
+    assert restored is not None
+    assert restored.order == window._flashcard_session.order
+    assert restored.from_rank == 2
+    assert restored.to_rank == 3

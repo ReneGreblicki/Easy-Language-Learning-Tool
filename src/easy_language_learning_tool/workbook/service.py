@@ -55,6 +55,12 @@ class WorkbookRow(BaseModel):
     sentence_translation: str = Field(min_length=1)
 
 
+class RankedWorkbookRow(WorkbookRow):
+    """One visible workbook data row with its stable, header-free rank."""
+
+    rank: int = Field(ge=1, le=5_000)
+
+
 def _public_values(row: WorkbookRow) -> tuple[str, str, str, str]:
     return (
         row.foreign_word,
@@ -140,7 +146,7 @@ def export_csv(path: Path, rows: list[WorkbookRow]) -> None:
         writer.writerows(_public_values(row) for row in rows)
 
 
-def import_xlsx(path: Path, *, maximum_rows: int = 5_000) -> list[WorkbookRow]:
+def import_ranked_xlsx(path: Path, *, maximum_rows: int = 5_000) -> list[RankedWorkbookRow]:
     if path.suffix.casefold() != ".xlsx":
         raise ValueError("Only .xlsx workbooks are supported.")
     workbook = load_workbook(path, read_only=True, data_only=True, keep_links=False)
@@ -150,7 +156,7 @@ def import_xlsx(path: Path, *, maximum_rows: int = 5_000) -> list[WorkbookRow]:
     if headers[:4] not in {SENTENCE_HEADERS, PREVIOUS_HEADERS, LEGACY_HEADERS}:
         workbook.close()
         raise ValueError("Workbook headers do not match the required four-column schema.")
-    rows: list[WorkbookRow] = []
+    rows: list[RankedWorkbookRow] = []
     for values in iterator:
         first_four = tuple("" if value is None else str(value).strip() for value in values[:4])
         if not any(first_four):
@@ -159,7 +165,8 @@ def import_xlsx(path: Path, *, maximum_rows: int = 5_000) -> list[WorkbookRow]:
             workbook.close()
             raise ValueError(f"Workbook row {len(rows) + 2} contains an empty required cell.")
         rows.append(
-            WorkbookRow(
+            RankedWorkbookRow(
+                rank=len(rows) + 1,
                 foreign_word=first_four[0],
                 word_translation=first_four[1],
                 foreign_sentence=first_four[2],
@@ -173,3 +180,12 @@ def import_xlsx(path: Path, *, maximum_rows: int = 5_000) -> list[WorkbookRow]:
     if not rows:
         raise ValueError("Workbook does not contain any sentence rows.")
     return rows
+
+
+def import_xlsx(path: Path, *, maximum_rows: int = 5_000) -> list[WorkbookRow]:
+    """Import public workbook fields while retaining the historical return type."""
+
+    return [
+        WorkbookRow.model_validate(row.model_dump(exclude={"rank"}))
+        for row in import_ranked_xlsx(path, maximum_rows=maximum_rows)
+    ]

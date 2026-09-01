@@ -2,7 +2,7 @@
 
 ## Development Workflow and Test Plan
 
-Version: 3.1 (Thai and Windows identity release)
+Version: 4.0 (ranked flashcards and input-safety release candidate)
 
 Target: Windows 10/11 x64 desktop app and regular installer
 
@@ -71,9 +71,38 @@ TTS speaks all four cells in order, using the foreign voice for columns 1 and 3 
 
 History retains 20 app-owned spreadsheets and 20 audio files in application data. Rename/delete never affect external exports; delete and retention use the Recycle Bin. Regeneration preserves the original.
 
+### Ranked workbook flashcards
+
+- Flashcards load an app-generated or schema-compatible `.xlsx` workbook. The
+  source workbook is read-only from the flashcard workflow.
+- The first data row below the header is logical rank 1; ranks are continuous and
+  stored with all four public cells in the local SQLite backend.
+- Display modes are Words, Sentences, and Words and sentences. The combined mode
+  creates one card per row with the larger bold word above the sentence on both
+  sides. The learning-language cells are the front and translations are the back.
+- Selected rows only enables blank inclusive From rank and To rank fields. With
+  the option off, every workbook row is eligible.
+- Each study cycle is a random permutation of the eligible ranks, so a row cannot
+  repeat before the selection is exhausted. Previous and Next follow that stored
+  order. Shuffle again creates a new permutation, resets to its first card, and
+  avoids immediately repeating the card visible at the prior cycle boundary when
+  more than one card is eligible.
+- SQLite persists the workbook SHA-256, indexed rows, display mode, selected rank
+  range, shuffled order, current position, and visible side across restarts.
+- History can send an app-owned workbook directly to Flashcards.
+
+### Mouse-wheel input safety
+
+- A dropdown, numeric field, or slider changes from a wheel event only after that
+  exact control has been explicitly clicked.
+- Wheel events over unfocused controls remain unconsumed so the containing page
+  scroll area moves instead.
+- Losing focus disarms the field. Clicking empty page content returns focus to the
+  page. Open dropdowns and keyboard interaction continue to work normally.
+
 The PySide6 app launches centered at 50% of the available screen, supports
 resizing/maximizing, light/dark Power BI-inspired palettes, and the Sentence
-Creation, TTS, and History tabs. Branding is a globe rising from an open book.
+Creation, Flashcards, TTS, and History tabs. Branding is a globe rising from an open book.
 The same native multi-resolution icon is embedded in the executable, installer,
 window, taskbar identity, Start menu, desktop shortcut, and uninstall entry.
 
@@ -124,7 +153,14 @@ duplicates rows.
 
 ### Phase 5 — History and UI
 
-Safe local history, 20+20 retention, recycle-bin actions, three tabs, themes, accessibility, and responsive workers. Gate: path-safety and UI-state tests pass; external files are never mutated.
+Safe local history, 20+20 retention, recycle-bin actions, four tabs, themes, accessibility, and responsive workers. Gate: path-safety and UI-state tests pass; external files are never mutated.
+
+### Phase 5A — Flashcards and input safety
+
+Ranked workbook ingestion, persistent SQLite decks, three display modes, inclusive
+rank filtering, flip/navigation/shuffle controls, restart recovery, and deliberate
+wheel focus. Gate: ranking and persistence reconcile exactly; no cycle repeats an
+eligible rank; combined layout and wheel behavior pass Windows UI tests.
 
 ### Phase 6 — Packaging and release
 
@@ -134,11 +170,11 @@ Nuitka bundle, FFmpeg, Inno Setup, README, notices, release notes, checksum, pro
 
 | Layer | Mandatory measures | Run |
 |---|---|---|
-| Unit | row-limit matrix, allocation, schedules, normalization, POS/form rules, validators | Every commit |
+| Unit | row-limit matrix, allocation, schedules, normalization, POS/form rules, flashcard permutations, validators | Every commit |
 | Corpus | count/rank/key/Unicode/POS/forms/translations/licences/checksums/cross-source report | Corpus change and release |
 | Contract | all provider adapters, error mapping, usage, cancellation, secret redaction | Every pull request |
-| Integration | generation checkpoint, XLSX/CSV round-trip, SQLite/history, mocked Edge/FFmpeg | Every pull request |
-| UI | dynamic base maximum, explanation, Italian, both Thai options, native icon, tabs/themes, valid-button states, workers | Every pull request |
+| Integration | generation checkpoint, XLSX/CSV round-trip, ranked flashcard import/resume, SQLite/history, mocked Edge/FFmpeg | Every pull request |
+| UI | dynamic base maximum, flashcard modes/layout/ranges/navigation, wheel focus, Italian, both Thai options, native icon, tabs/themes, valid-button states, workers | Every pull request |
 | End-to-end | controlled multi-POS generation and TTS resume | Nightly and release |
 | Packaging | executable, installer, upgrade/uninstall, bundled files/notices | Release candidate |
 | Security/performance | dependency audit, malformed files, path escape, 5,000-row timing/memory | Pull request/release |
@@ -168,6 +204,23 @@ Nuitka bundle, FFmpeg, Inno Setup, README, notices, release notes, checksum, pro
 - UTF-8 accents and punctuation survive XLSX/CSV round trips.
 - New word headers are exact; previous verb headers import for backward compatibility.
 - Workbook XML contains no incompatible table object; Excel opens without repair.
+
+### Flashcard and wheel cases
+
+- Workbook row 2 is flashcard rank 1; blank visible rows are ignored consistently
+  with the standard workbook importer; rank order remains continuous to 5,000.
+- Words shows only word cells, Sentences only sentence cells, and combined mode
+  shows the larger bold word above the sentence on front and back.
+- Inclusive ranges accept `1–1`, subsets, and the full dataset; blanks, reversed
+  ranges, zero, and values above the workbook count fail clearly.
+- Every eligible rank appears exactly once per shuffle cycle. Previous and Next
+  preserve order, end-of-cycle Next is disabled, and Shuffle again resets without
+  an immediate boundary repeat when at least two cards exist.
+- Importing the same checksum reuses its indexed source. Mode, range, order,
+  position, and card side restore after a restart without modifying the workbook.
+- Wheel input over an unclicked dropdown, spin box, or slider leaves its value
+  unchanged and reaches the page scroll area. Direct click arms only that field;
+  focus loss disarms it.
 
 ### TTS/history/installer cases
 
