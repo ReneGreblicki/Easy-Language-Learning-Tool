@@ -52,7 +52,7 @@ class DeliberateWheelComboBox(QComboBox):
         super().focusOutEvent(event)
 
     def wheelEvent(self, event: QWheelEvent) -> None:  # noqa: N802 - Qt API
-        if self._wheel_armed and self.hasFocus():
+        if self._wheel_armed:
             super().wheelEvent(event)
         else:
             event.ignore()
@@ -82,7 +82,7 @@ class DeliberateWheelSpinBox(QSpinBox):
         super().focusOutEvent(event)
 
     def wheelEvent(self, event: QWheelEvent) -> None:  # noqa: N802 - Qt API
-        if self._wheel_armed and self.hasFocus():
+        if self._wheel_armed:
             super().wheelEvent(event)
         else:
             event.ignore()
@@ -112,7 +112,7 @@ class DeliberateWheelSlider(QSlider):
         super().focusOutEvent(event)
 
     def wheelEvent(self, event: QWheelEvent) -> None:  # noqa: N802 - Qt API
-        if self._wheel_armed and self.hasFocus():
+        if self._wheel_armed:
             super().wheelEvent(event)
         else:
             event.ignore()
