@@ -37,3 +37,9 @@ def test_combo_ignores_wheel_until_explicitly_clicked(qtbot: object) -> None:
     accepted = wheel_event(-120)
     QApplication.sendEvent(combo, accepted)
     assert combo.currentIndex() == 2
+
+    combo.clearFocus()
+    disarmed = wheel_event(120)
+    QApplication.sendEvent(combo, disarmed)
+    assert combo.currentIndex() == 2
+    assert not disarmed.isAccepted()

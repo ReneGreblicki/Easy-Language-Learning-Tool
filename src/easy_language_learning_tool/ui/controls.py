@@ -34,10 +34,20 @@ class DeliberateWheelComboBox(QComboBox):
     def __init__(self) -> None:
         super().__init__()
         self._wheel_armed = False
+        self._popup_activated_by_click = False
 
     def mousePressEvent(self, event: QMouseEvent) -> None:  # noqa: N802 - Qt API
         self._wheel_armed = True
+        self._popup_activated_by_click = True
         super().mousePressEvent(event)
+
+    def hidePopup(self) -> None:  # noqa: N802 - Qt API
+        rearm = self._popup_activated_by_click
+        super().hidePopup()
+        self._popup_activated_by_click = False
+        if rearm:
+            self.setFocus(Qt.FocusReason.MouseFocusReason)
+            self._wheel_armed = True
 
     def focusInEvent(self, event: QFocusEvent) -> None:  # noqa: N802 - Qt API
         if event.reason() == Qt.FocusReason.MouseFocusReason:
@@ -47,7 +57,10 @@ class DeliberateWheelComboBox(QComboBox):
         super().focusInEvent(event)
 
     def focusOutEvent(self, event: QFocusEvent) -> None:  # noqa: N802 - Qt API
-        if event.reason() != Qt.FocusReason.PopupFocusReason:
+        if (
+            event.reason() != Qt.FocusReason.PopupFocusReason
+            and not self._popup_activated_by_click
+        ):
             self._wheel_armed = False
         super().focusOutEvent(event)
 
