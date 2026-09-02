@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 from openpyxl import Workbook
-from PySide6.QtWidgets import QPushButton
+from PySide6.QtWidgets import QFrame, QPushButton
 
 if sys.platform != "win32":
     pytest.skip("Windows desktop smoke test", allow_module_level=True)
@@ -110,6 +110,8 @@ def test_flashcard_combined_mode_range_navigation_and_resume(qtbot: object, tmp_
     assert window.flashcard_language.text() == "ES  →  EN"
     assert window.flashcard_sound.isEnabled()
     assert window.flashcard_surface.minimumHeight() >= 300
+    assert window.flashcard_surface.findChild(QFrame, "flashcardAccent") is None
+    assert "QLabel#flashcardWord { background: transparent;" in window.styleSheet()
 
     window.flip_flashcard()
     assert window.flashcard_word.text() == f"word {rank}"

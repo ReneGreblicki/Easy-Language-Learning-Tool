@@ -27,6 +27,10 @@ class FakeAudioBackend:
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_bytes(b"|".join(item.read_bytes() for item in inputs))
 
+    def convert_to_wav(self, source: Path, output: Path) -> None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_bytes(b"wav:" + source.read_bytes())
+
     def verify(self, path: Path) -> None:
         assert path.is_file() and path.stat().st_size > 0
 
@@ -64,3 +68,18 @@ def test_lazily_caches_word_and_sentence_as_one_playback(tmp_path: Path) -> None
     assert first.read_bytes() == b"tool|The tool is useful."
     assert backend.synthesized == ["tool", "The tool is useful."]
     assert len(backend.concatenated) == 1
+
+
+def test_prepares_reusable_native_wav_for_repeated_playback(tmp_path: Path) -> None:
+    workbook = tmp_path / "cards.xlsx"
+    workbook.write_bytes(b"workbook")
+    backend = FakeAudioBackend()
+    service = FlashcardAudioService(tmp_path / "cache", backend)
+    voice = VoiceSettings(language=Language.US_ENGLISH, voice="test-voice")
+
+    first = asyncio.run(service.prepare_playback(workbook, 1, ((2, "tool"),), voice))
+    second = asyncio.run(service.prepare_playback(workbook, 1, ((2, "tool"),), voice))
+
+    assert first == second
+    assert first.suffix == ".wav"
+    assert first.read_bytes() == b"wav:tool"

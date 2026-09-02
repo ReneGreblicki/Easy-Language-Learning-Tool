@@ -2,7 +2,7 @@
 
 ## Development Workflow and Test Plan
 
-Version: 4.1 (full-card study, reusable audio, and strict input-safety release candidate)
+Version: 4.2 (uniform-card study, repeatable native audio, and strict wheel safety)
 
 Target: Windows 10/11 x64 desktop app and regular installer
 
@@ -85,14 +85,16 @@ History retains 20 app-owned spreadsheets and 20 audio files in application data
   creates one card per row with the larger bold word above the sentence on both
   sides. The learning-language cells are the front and translations are the back.
 - The card occupies the available tab area beneath a compact control strip. It
-  uses a quiet light/dark surface, a large bold word, a larger sentence, an accent
-  divider, a compact language-pair badge, progress, Previous/Reveal/Next, and
+  uses one uniform light/dark surface, a large bold word, a larger sentence, a
+  compact language-pair badge, progress, Previous/Reveal/Next, and
   Reshuffle. It does not place the content inside dark blue text bars or repeat
   “Learning language”/“Translation” labels inside the card.
 - The card sound control plays the visible side. Existing per-cell MP3 clips from
   a matching TTS workbook job are reused. Missing word or sentence clips are
   synthesized only when requested, cached persistently by text and voice, and
-  concatenated in word-then-sentence order for combined cards. Audio preparation
+  concatenated in word-then-sentence order for combined cards. Each result is
+  converted once to a cached WAV and replayed through the native Windows audio
+  service; the sound button can restart the same side repeatedly. Audio preparation
   remains off the UI thread.
 - Selected rows only enables blank inclusive From rank and To rank fields. With
   the option off, every workbook row is eligible.
@@ -107,12 +109,12 @@ History retains 20 app-owned spreadsheets and 20 audio files in application data
 
 ### Mouse-wheel input safety
 
-- A dropdown, numeric field, or slider changes from a wheel event only while that
-  exact control has been explicitly clicked and still owns focus.
-- Wheel events over unfocused controls remain unconsumed so the containing page
-  scroll area moves instead.
-- Losing focus disarms the field. Clicking empty page content returns focus to the
-  page. Open dropdowns and keyboard interaction continue to work normally.
+- Closed dropdowns, numeric fields, and sliders never change from a wheel event,
+  even when hovered, focused, or previously clicked.
+- Their ignored wheel events remain available so the containing page scroll area
+  moves instead.
+- Dropdown selection, numeric arrows, slider dragging, and keyboard interaction
+  continue to work normally.
 
 The PySide6 app launches centered at 50% of the available screen, supports
 resizing/maximizing, light/dark Power BI-inspired palettes, and the Sentence
@@ -173,8 +175,9 @@ Safe local history, 20+20 retention, recycle-bin actions, four tabs, themes, acc
 
 Ranked workbook ingestion, persistent SQLite decks, three display modes, inclusive
 rank filtering, flip/navigation/shuffle controls, restart recovery, and deliberate
-wheel focus. Gate: ranking and persistence reconcile exactly; no cycle repeats an
-eligible rank; combined layout and wheel behavior pass Windows UI tests.
+wheel safety. Gate: ranking and persistence reconcile exactly; no cycle repeats an
+eligible rank; combined layout, repeated audio, uniform styling, and wheel behavior
+pass automated and Windows UI tests.
 
 ### Phase 6 — Packaging and release
 
@@ -188,7 +191,7 @@ Nuitka bundle, FFmpeg, Inno Setup, README, notices, release notes, checksum, pro
 | Corpus | count/rank/key/Unicode/POS/forms/translations/licences/checksums/cross-source report | Corpus change and release |
 | Contract | all provider adapters, error mapping, usage, cancellation, secret redaction | Every pull request |
 | Integration | generation checkpoint, XLSX/CSV round-trip, ranked flashcard import/resume, SQLite/history, mocked Edge/FFmpeg | Every pull request |
-| UI | dynamic base maximum, flashcard modes/layout/ranges/navigation, wheel focus, Italian, both Thai options, native icon, tabs/themes, valid-button states, workers | Every pull request |
+| UI | dynamic base maximum, flashcard modes/layout/ranges/navigation, wheel safety, Italian, both Thai options, native icon, tabs/themes, valid-button states, workers | Every pull request |
 | End-to-end | controlled multi-POS generation and TTS resume | Nightly and release |
 | Packaging | executable, installer, upgrade/uninstall, bundled files/notices | Release candidate |
 | Security/performance | dependency audit, malformed files, path escape, 5,000-row timing/memory | Pull request/release |
@@ -232,7 +235,8 @@ Nuitka bundle, FFmpeg, Inno Setup, README, notices, release notes, checksum, pro
   or TTS selection unchanged.
 - A single-mode card plays one cached cell clip. Combined mode plays its word then
   sentence. A matching prior TTS clip is reused; otherwise lazy synthesis creates
-  one persistent cache entry and subsequent plays do not call the provider again.
+  one persistent cache entry. Cached native playback can restart the same side any
+  number of times without calling the provider again.
 - Inclusive ranges accept `1–1`, subsets, and the full dataset; blanks, reversed
   ranges, zero, and values above the workbook count fail clearly.
 - Every eligible rank appears exactly once per shuffle cycle. Previous and Next
@@ -240,10 +244,9 @@ Nuitka bundle, FFmpeg, Inno Setup, README, notices, release notes, checksum, pro
   an immediate boundary repeat when at least two cards exist.
 - Importing the same checksum reuses its indexed source. Mode, range, order,
   position, and card side restore after a restart without modifying the workbook.
-- Wheel input over an unclicked or merely hovered dropdown, spin box, or slider
-  leaves its value unchanged and reaches the page scroll area. Direct click arms
-  only that focused field; focus loss disarms it, including after another field or
-  the page itself is clicked.
+- Wheel input over a hovered, focused, or previously clicked dropdown, spin box,
+  or slider leaves its value unchanged and reaches the page scroll area. Values
+  change through explicit dropdown choices, arrows, dragging, or keyboard input.
 
 ### TTS/history/installer cases
 

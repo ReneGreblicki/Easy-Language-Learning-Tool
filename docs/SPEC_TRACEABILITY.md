@@ -23,7 +23,8 @@ This map is checked against both approved project artifacts at every build gate.
 | Words, Sentences, and combined flashcards | flashcard models/UI | domain and Windows UI tests |
 | Inclusive rank filtering and no-repeat shuffle cycles | flashcard session model | permutation and boundary tests |
 | Flashcard rows and study position persist across restarts | flashcard service and SQLite schema v2 | migration and resume integration tests |
-| Unfocused controls pass wheel input to page scrolling | deliberate-wheel Qt controls | Windows wheel-interaction test |
+| Selection controls never consume page-scrolling wheel input | wheel-safe Qt controls | wheel-interaction tests before and after click |
+| Visible flashcard side has repeatable native audio | cached WAV conversion and Windows playback | audio cache and replay tests |
 | Edge TTS, dual voices, four pauses, 2-row preview | TTS service/UI | mocked integration tests |
 | Pause/resume/cancel and checksum recovery | TTS manifests/service | recovery tests |
 | Latest 20 files per type and safe app-owned actions | History service/UI | file-safety tests |
@@ -50,6 +51,6 @@ This map is checked against both approved project artifacts at every build gate.
   certificate secrets are configured
 - Phase 11 — production 1.1.0 Thai expansion and Windows icon repair: complete;
   eight 5,000-entry language/script options and native executable/installer icons
-- Phase 12 — v1.2.0 ranked flashcards and mouse-wheel input safety: implemented
+- Phase 12 — v1.2.1 ranked flashcards, native replay, uniform card styling, and mouse-wheel input safety: implemented
   on an isolated release-candidate branch; Windows CI and explicit release approval
   are required before merge or publication

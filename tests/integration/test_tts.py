@@ -31,6 +31,10 @@ class FakeAudioBackend:
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_bytes(b"|".join(path.read_bytes() for path in inputs))
 
+    def convert_to_wav(self, source: Path, output: Path) -> None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_bytes(source.read_bytes())
+
     def verify(self, path: Path) -> None:
         if not path.exists() or not path.read_bytes():
             raise RuntimeError("invalid audio")

@@ -16,7 +16,7 @@ def test_release_version_is_aligned_across_project_files() -> None:
     installer = (ROOT / "installer" / "inno_setup.iss").read_text(encoding="utf-8")
     installer_match = re.search(r'^#define MyAppVersion "([^"]+)"$', installer, re.MULTILINE)
 
-    assert project_version == "1.2.0"
+    assert project_version == "1.2.1"
     assert __version__ == project_version
     assert installer_match is not None
     assert installer_match.group(1) == project_version

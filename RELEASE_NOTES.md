@@ -1,6 +1,6 @@
-# Easy Language Learning Tool 1.2.0 RC
+# Easy Language Learning Tool 1.2.1 RC
 
-Version 1.2.0 adds ranked, resumable workbook flashcards and prevents accidental
+Version 1.2.1 adds ranked, resumable workbook flashcards and prevents accidental
 mouse-wheel changes to application settings. This release candidate remains on a
 draft branch until explicit release approval; the published v1.1.0 installer is
 unchanged.
@@ -24,21 +24,22 @@ unchanged.
 - Lets a workbook in History open directly in Flashcards.
 - Redesigns the study surface around the supplied minimalist light/dark template:
   a near-full-tab card, substantially larger word and sentence text, a simple
-  accent divider, progress, compact language badge, and no side-name text bars.
+  progress, compact language badge, and no side-name text bars or contrasting
+  rectangles behind card text.
 - Adds explicit **Load from History** and **Load from Desktop** actions to both
   Flashcards and TTS.
-- Adds card audio for the visible side. It reuses matching individually generated
-  TTS cell clips, lazily creates missing clips, persists them in the local cache,
-  and plays word then sentence in combined mode without blocking the interface.
+- Adds repeatable card audio for the visible side. It reuses matching individually
+  generated TTS cell clips, lazily creates missing clips, persists them in the
+  local cache, converts each playback result to a cached WAV, and uses native
+  Windows playback so the same side can be played repeatedly.
 
 ## Mouse-wheel safety
 
-- Dropdowns, numeric fields, and sliders ignore wheel changes unless the exact
-  control was clicked and still has focus.
-- An unfocused control passes wheel input to the containing page so normal page
+- Closed dropdowns, numeric fields, and sliders always ignore wheel changes,
+  including after an earlier click or keyboard focus.
+- Ignored wheel input remains available to the containing page so normal page
   scrolling continues.
-- Clicking another control or page background disarms the previous field.
-- Open dropdowns, keyboard navigation, and explicitly focused controls remain
+- Dropdown selection, spin buttons, slider dragging, and keyboard input remain
   usable.
 
 ## Existing production capabilities

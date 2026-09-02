@@ -1,5 +1,5 @@
 #define MyAppName "Easy Language Learning Tool"
-#define MyAppVersion "1.2.0"
+#define MyAppVersion "1.2.1"
 #define MyAppPublisher "Easy Language Learning Tool"
 #define MyAppExeName "EasyLanguageLearningTool.exe"
 

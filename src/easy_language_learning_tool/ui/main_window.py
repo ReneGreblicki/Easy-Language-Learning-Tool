@@ -9,7 +9,6 @@ from typing import Any
 
 from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QAction, QDesktopServices, QIcon, QIntValidator
-from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtWidgets import (
     QCheckBox,
     QFileDialog,
@@ -40,6 +39,7 @@ from easy_language_learning_tool.domain.frequency import FrequencyRepository
 from easy_language_learning_tool.domain.models import CefrSelection, GenerationSettings
 from easy_language_learning_tool.domain.planner import build_generation_plan
 from easy_language_learning_tool.flashcards import (
+    FlashcardAudioPlayer,
     FlashcardAudioService,
     FlashcardMode,
     FlashcardService,
@@ -86,11 +86,10 @@ QProgressBar { border: 1px solid #B8C4D4; border-radius: 4px; text-align: center
 QProgressBar::chunk { background: #2E74B5; }
 QFrame#flashcardControls { background: #EEF3F9; border: 1px solid #D5DEEA; border-radius: 10px; }
 QFrame#flashcardSurface { background: white; border: 1px solid #D5DEEA; border-radius: 18px; }
-QLabel#flashcardWord { font-size: 34pt; font-weight: 700; }
-QLabel#flashcardSentence { font-size: 20pt; }
+QLabel#flashcardWord { background: transparent; font-size: 34pt; font-weight: 700; }
+QLabel#flashcardSentence { background: transparent; font-size: 20pt; }
 QLabel#flashcardLanguage { background: #E1EDF9; color: #245E96; border-radius: 14px; padding: 6px 12px; font-weight: 700; }
-QFrame#flashcardAccent { background: #2E74B5; border: 0; }
-QPushButton#flashcardSound { background: #E1EDF9; color: #245E96; border-radius: 22px; padding: 0; font-size: 18pt; }
+QPushButton#flashcardSound { background: white; color: #245E96; border: 1px solid #9CC6E8; border-radius: 22px; padding: 0; font-size: 18pt; }
 """
 
 DARK_THEME = """
@@ -105,11 +104,10 @@ QProgressBar { border: 1px solid #475569; border-radius: 4px; text-align: center
 QProgressBar::chunk { background: #3B82C4; }
 QFrame#flashcardControls { background: #172033; border: 1px solid #334155; border-radius: 10px; }
 QFrame#flashcardSurface { background: #18233B; border: 1px solid #334155; border-radius: 18px; }
-QLabel#flashcardWord { font-size: 34pt; font-weight: 700; }
-QLabel#flashcardSentence { font-size: 20pt; color: #D8E1EE; }
+QLabel#flashcardWord { background: transparent; font-size: 34pt; font-weight: 700; }
+QLabel#flashcardSentence { background: transparent; font-size: 20pt; color: #D8E1EE; }
 QLabel#flashcardLanguage { background: #203E61; color: #8BC7F5; border-radius: 14px; padding: 6px 12px; font-weight: 700; }
-QFrame#flashcardAccent { background: #4EA5E0; border: 0; }
-QPushButton#flashcardSound { background: #203E61; color: #8BC7F5; border-radius: 22px; padding: 0; font-size: 18pt; }
+QPushButton#flashcardSound { background: #18233B; color: #8BC7F5; border: 1px solid #4EA5E0; border-radius: 22px; padding: 0; font-size: 18pt; }
 """
 
 VOICE_DEFAULTS: dict[Language, tuple[str, str]] = {
@@ -194,9 +192,7 @@ class MainWindow(QMainWindow):
         self._flashcard_row_count = 0
         self._flashcard_languages = (Language.EUROPEAN_SPANISH, Language.US_ENGLISH)
         self._flashcard_audio = FlashcardAudioService(self.paths.cache, self._backend())
-        self._flashcard_audio_output = QAudioOutput(self)
-        self._flashcard_player = QMediaPlayer(self)
-        self._flashcard_player.setAudioOutput(self._flashcard_audio_output)
+        self._flashcard_player = FlashcardAudioPlayer()
         self.frequency_path = frequency_data_path()
         self.frequency_repository = FrequencyRepository.from_jsonl(self.frequency_path)
         self.frequency_is_production = self.frequency_path.parent.name == "production"
@@ -486,13 +482,8 @@ class MainWindow(QMainWindow):
         sentence_font = self.flashcard_sentence.font()
         sentence_font.setPointSize(20)
         self.flashcard_sentence.setFont(sentence_font)
-        accent = QFrame()
-        accent.setObjectName("flashcardAccent")
-        accent.setFixedSize(180, 3)
         card_layout.addWidget(self.flashcard_word)
-        card_layout.addSpacing(20)
-        card_layout.addWidget(accent, alignment=Qt.AlignmentFlag.AlignHCenter)
-        card_layout.addSpacing(20)
+        card_layout.addSpacing(28)
         card_layout.addWidget(self.flashcard_sentence)
         card_layout.addSpacing(22)
         self.flashcard_sound = QPushButton("🔊")
@@ -1145,15 +1136,17 @@ class MainWindow(QMainWindow):
         self.flashcard_sound.setText("…")
 
         async def task() -> Path:
-            return await self._flashcard_audio.prepare(
+            return await self._flashcard_audio.prepare_playback(
                 Path(session.source_path), session.current_rank, cells, voice
             )
 
         def success(path: Path) -> None:
             self.flashcard_sound.setText("🔊")
             self.flashcard_sound.setEnabled(True)
-            self._flashcard_player.setSource(QUrl.fromLocalFile(str(path)))
-            self._flashcard_player.play()
+            try:
+                self._flashcard_player.play(path)
+            except Exception as error:
+                failure(str(error))
 
         def failure(message: str) -> None:
             self.flashcard_sound.setText("🔊")

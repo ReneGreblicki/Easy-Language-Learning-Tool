@@ -24,7 +24,7 @@ def wheel_event(delta: int) -> QWheelEvent:
     )
 
 
-def test_combo_ignores_wheel_until_explicitly_clicked(qtbot: object) -> None:
+def test_combo_always_ignores_wheel_even_after_click(qtbot: object) -> None:
     combo = DeliberateWheelComboBox()
     combo.addItems(["One", "Two", "Three"])
     combo.setCurrentIndex(1)
@@ -38,18 +38,19 @@ def test_combo_ignores_wheel_until_explicitly_clicked(qtbot: object) -> None:
 
     qtbot.mouseClick(combo, Qt.MouseButton.LeftButton)  # type: ignore[attr-defined]
     combo.hidePopup()
-    accepted = wheel_event(-120)
-    QApplication.sendEvent(combo, accepted)
-    assert combo.currentIndex() == 2
+    after_click = wheel_event(-120)
+    QApplication.sendEvent(combo, after_click)
+    assert combo.currentIndex() == 1
+    assert not after_click.isAccepted()
 
     combo.clearFocus()
     disarmed = wheel_event(120)
     QApplication.sendEvent(combo, disarmed)
-    assert combo.currentIndex() == 2
+    assert combo.currentIndex() == 1
     assert not disarmed.isAccepted()
 
 
-def test_spin_box_only_accepts_wheel_while_clicked_and_focused(qtbot: object) -> None:
+def test_spin_box_always_ignores_wheel_even_after_click(qtbot: object) -> None:
     spin = DeliberateWheelSpinBox()
     spin.setRange(0, 10)
     spin.setValue(5)
@@ -64,7 +65,8 @@ def test_spin_box_only_accepts_wheel_while_clicked_and_focused(qtbot: object) ->
     qtbot.mouseClick(spin, Qt.MouseButton.LeftButton)  # type: ignore[attr-defined]
     clicked = wheel_event(120)
     QApplication.sendEvent(spin, clicked)
-    assert spin.value() > 5
+    assert spin.value() == 5
+    assert not clicked.isAccepted()
 
     clicked_value = spin.value()
     spin.clearFocus()
@@ -74,7 +76,7 @@ def test_spin_box_only_accepts_wheel_while_clicked_and_focused(qtbot: object) ->
     assert not after_focus_left.isAccepted()
 
 
-def test_slider_only_accepts_wheel_while_clicked_and_focused(qtbot: object) -> None:
+def test_slider_always_ignores_wheel_even_after_click(qtbot: object) -> None:
     slider = DeliberateWheelSlider(Qt.Orientation.Horizontal)
     slider.setRange(0, 10)
     slider.setValue(5)
@@ -89,7 +91,8 @@ def test_slider_only_accepts_wheel_while_clicked_and_focused(qtbot: object) -> N
     qtbot.mouseClick(slider, Qt.MouseButton.LeftButton)  # type: ignore[attr-defined]
     clicked = wheel_event(120)
     QApplication.sendEvent(slider, clicked)
-    assert slider.value() > 5
+    assert slider.value() == 5
+    assert not clicked.isAccepted()
 
     clicked_value = slider.value()
     slider.clearFocus()

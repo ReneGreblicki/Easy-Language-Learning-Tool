@@ -163,10 +163,12 @@ the word translation. See `docs/RELEASE_READINESS.md`.
 The interface caps the base-word control dynamically according to the available
 corpus and selected extra forms, so it never accepts a job above 5,000 final rows.
 
-The v1.2.0 release-candidate branch also prevents unfocused dropdowns, numeric
-fields, and sliders from changing under the mouse wheel. Until a field is clicked,
-wheel input scrolls its containing page. The public download button intentionally
-continues to install v1.1.0 until v1.2.0 receives release approval.
+The v1.2.1 release-candidate branch prevents dropdowns, numeric fields, and
+sliders from changing under the mouse wheel, including after a prior click. Wheel
+input over these fields remains available to scroll the containing page; values
+change only through their explicit controls or keyboard input. The public download
+button intentionally continues to install v1.1.0 until the update receives release
+approval.
 
 ## Project documentation
 

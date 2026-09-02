@@ -38,6 +38,22 @@ class FlashcardAudioService:
             self.backend.verify(output)
         return output
 
+    async def prepare_playback(
+        self,
+        workbook: Path,
+        rank: int,
+        cells: tuple[tuple[int, str], ...],
+        voice: VoiceSettings,
+    ) -> Path:
+        """Return a native-playback WAV, transcoding only once per cached clip."""
+        source = await self.prepare(workbook, rank, cells, voice)
+        digest = hashlib.sha256(source.read_bytes()).hexdigest()
+        output = self.cache_root / "flashcards" / "playback" / f"{digest}.wav"
+        if not self._usable(output):
+            self.backend.convert_to_wav(source, output)
+            self.backend.verify(output)
+        return output
+
     async def _cell_clip(
         self,
         workbook: Path,
