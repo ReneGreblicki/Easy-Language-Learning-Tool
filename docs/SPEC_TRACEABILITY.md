@@ -6,7 +6,7 @@ This map is checked against both approved project artifacts at every build gate.
 |---|---|---|
 | Windows 10/11, Python 3.12, PySide6 | `pyproject.toml`, `ui/main_window.py` | Windows CI and packaged launch smoke test |
 | Centered 50% launch; light/dark Power BI-inspired palette | `MainWindow.size_and_center()`, UI themes | Windows UI smoke test |
-| Sentence Creation, TTS, History tabs | `MainWindow` | UI smoke test |
+| Sentence Creation, Flashcards, TTS, History tabs | `MainWindow` | UI smoke test |
 | OpenAI, Anthropic, Gemini, DeepSeek, Ollama, custom endpoint | `providers/` | provider contract tests |
 | Session keys and Windows Credential Manager | `security/credentials.py` | platform-service and redaction tests |
 | Dynamic base limit; forms 0–4; `base × (1 + forms) ≤ 5,000` | domain models and UI | boundary and UI tests |
@@ -19,6 +19,11 @@ This map is checked against both approved project artifacts at every build gate.
 | Thai script and tone-marked Paiboon options | `Language`, Thai corpus builder, prompts | corpus, prompt, and UI tests |
 | Targeted retries and resumable generation | service/checkpoints | integration tests |
 | XLSX four public columns plus Metadata; legacy import | workbook service | round-trip tests |
+| Header-free workbook rank: first data row is rank 1 | ranked workbook importer | workbook and flashcard integration tests |
+| Words, Sentences, and combined flashcards | flashcard models/UI | domain and Windows UI tests |
+| Inclusive rank filtering and no-repeat shuffle cycles | flashcard session model | permutation and boundary tests |
+| Flashcard rows and study position persist across restarts | flashcard service and SQLite schema v2 | migration and resume integration tests |
+| Unfocused controls pass wheel input to page scrolling | deliberate-wheel Qt controls | Windows wheel-interaction test |
 | Edge TTS, dual voices, four pauses, 2-row preview | TTS service/UI | mocked integration tests |
 | Pause/resume/cancel and checksum recovery | TTS manifests/service | recovery tests |
 | Latest 20 files per type and safe app-owned actions | History service/UI | file-safety tests |
@@ -45,3 +50,6 @@ This map is checked against both approved project artifacts at every build gate.
   certificate secrets are configured
 - Phase 11 — production 1.1.0 Thai expansion and Windows icon repair: complete;
   eight 5,000-entry language/script options and native executable/installer icons
+- Phase 12 — v1.2.0 ranked flashcards and mouse-wheel input safety: implemented
+  on an isolated release-candidate branch; Windows CI and explicit release approval
+  are required before merge or publication

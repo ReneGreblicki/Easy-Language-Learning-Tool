@@ -4,13 +4,18 @@
 
 - Ruff formatting and lint pass.
 - Strict mypy checking passes.
-- Unit, provider-contract, workbook, History, and mocked-TTS tests pass.
+- Unit, provider-contract, workbook, ranked-flashcard, History, and mocked-TTS tests pass.
 - Subject-structure tests prove fully neutral option 0, exact 20% increments for
   options 1–4, deterministic assignments, and no consecutive pattern repetition
   for option 5 across all final rows.
-- Windows UI smoke test opens all three tabs and validates the 50% launch size.
+- Windows UI smoke test opens all four tabs and validates the 50% launch size.
 - Windows UI smoke checks European Spanish → US English defaults, unambiguous
   dataset wording, calculated-row placement, and contextual scale help.
+- Flashcard gates verify header-free continuous ranks, three display modes,
+  inclusive filtering, no repeats within a shuffle cycle, previous/next order,
+  restart persistence, History loading, and read-only source workbooks.
+- Wheel-safety gates verify that unfocused dropdowns, number fields, and sliders
+  do not change and that the same event remains available to page scrolling.
 - Windows build contains the Python/Qt runtime, application resources, FFmpeg,
   FFmpeg notices, the README, and the example workbook.
 - Inno Setup produces a normal per-user installer.
@@ -61,3 +66,8 @@ repeats the automated gates and publishes the installer, checksum, provenance,
 and portable archive. Authenticode signing remains conditional on the protected
 publisher certificate secrets because publisher identity cannot be stored in
 source control.
+
+The 1.2.0 release candidate must additionally pass database-v1 migration,
+flashcard restart recovery, and Windows mouse-wheel interaction tests. Its draft
+branch and workflow artifact are not a public release. The v1.1.0 release, README
+download target, and GitHub `main` remain unchanged until explicit approval.

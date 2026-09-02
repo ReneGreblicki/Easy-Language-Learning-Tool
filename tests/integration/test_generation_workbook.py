@@ -20,7 +20,12 @@ from easy_language_learning_tool.providers.base import (
     ProviderResponse,
     TokenUsage,
 )
-from easy_language_learning_tool.workbook.service import SENTENCE_HEADERS, export_xlsx, import_xlsx
+from easy_language_learning_tool.workbook.service import (
+    SENTENCE_HEADERS,
+    export_xlsx,
+    import_ranked_xlsx,
+    import_xlsx,
+)
 
 
 class FakeProvider(ProviderAdapter):
@@ -105,6 +110,8 @@ class GenerationWorkbookTests(unittest.TestCase):
             )
             imported = import_xlsx(output)
             self.assertEqual(len(imported), 4)
+            ranked = import_ranked_xlsx(output)
+            self.assertEqual([row.rank for row in ranked], [1, 2, 3, 4])
             workbook = load_workbook(output, data_only=True)
             self.assertEqual(workbook.sheetnames, ["Sentences", "Metadata"])
             self.assertEqual(

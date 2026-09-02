@@ -8,10 +8,10 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import Qt, QUrl
-from PySide6.QtGui import QAction, QDesktopServices, QIcon
+from PySide6.QtGui import QAction, QDesktopServices, QIcon, QIntValidator
+from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtWidgets import (
     QCheckBox,
-    QComboBox,
     QFileDialog,
     QFormLayout,
     QFrame,
@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QHeaderView,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QMainWindow,
@@ -26,8 +27,6 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QPushButton,
     QScrollArea,
-    QSlider,
-    QSpinBox,
     QTableWidget,
     QTableWidgetItem,
     QTabWidget,
@@ -40,6 +39,12 @@ from easy_language_learning_tool.domain.enums import CefrLevel, CefrMode, Langua
 from easy_language_learning_tool.domain.frequency import FrequencyRepository
 from easy_language_learning_tool.domain.models import CefrSelection, GenerationSettings
 from easy_language_learning_tool.domain.planner import build_generation_plan
+from easy_language_learning_tool.flashcards import (
+    FlashcardAudioService,
+    FlashcardMode,
+    FlashcardService,
+    FlashcardSession,
+)
 from easy_language_learning_tool.generation.service import GenerationService
 from easy_language_learning_tool.history.service import HistoryItem, HistoryService
 from easy_language_learning_tool.providers.factory import create_provider
@@ -48,8 +53,25 @@ from easy_language_learning_tool.security.credentials import CredentialStore
 from easy_language_learning_tool.tts.manifest import file_checksum, settings_checksum
 from easy_language_learning_tool.tts.models import TtsSettings, VoiceSettings
 from easy_language_learning_tool.tts.service import EdgeFfmpegBackend, TtsService, list_edge_voices
-from easy_language_learning_tool.workbook.service import export_xlsx, import_xlsx
+from easy_language_learning_tool.workbook.service import (
+    export_xlsx,
+    import_language_pair,
+    import_xlsx,
+)
 
+from .controls import (
+    ClickableFrame,
+    ScrollPage,
+)
+from .controls import (
+    DeliberateWheelComboBox as QComboBox,
+)
+from .controls import (
+    DeliberateWheelSlider as QSlider,
+)
+from .controls import (
+    DeliberateWheelSpinBox as QSpinBox,
+)
 from .task_worker import TaskThread
 
 LIGHT_THEME = """
@@ -62,6 +84,13 @@ QComboBox, QSpinBox, QLineEdit, QTableWidget { background: white; border: 1px so
 QTabBar::tab:selected { color: #2E74B5; font-weight: 700; }
 QProgressBar { border: 1px solid #B8C4D4; border-radius: 4px; text-align: center; }
 QProgressBar::chunk { background: #2E74B5; }
+QFrame#flashcardControls { background: #EEF3F9; border: 1px solid #D5DEEA; border-radius: 10px; }
+QFrame#flashcardSurface { background: white; border: 1px solid #D5DEEA; border-radius: 18px; }
+QLabel#flashcardWord { font-size: 34pt; font-weight: 700; }
+QLabel#flashcardSentence { font-size: 20pt; }
+QLabel#flashcardLanguage { background: #E1EDF9; color: #245E96; border-radius: 14px; padding: 6px 12px; font-weight: 700; }
+QFrame#flashcardAccent { background: #2E74B5; border: 0; }
+QPushButton#flashcardSound { background: #E1EDF9; color: #245E96; border-radius: 22px; padding: 0; font-size: 18pt; }
 """
 
 DARK_THEME = """
@@ -74,6 +103,13 @@ QComboBox, QSpinBox, QLineEdit, QTableWidget { background: #1E293B; border: 1px 
 QTabBar::tab:selected { color: #60A5FA; font-weight: 700; }
 QProgressBar { border: 1px solid #475569; border-radius: 4px; text-align: center; }
 QProgressBar::chunk { background: #3B82C4; }
+QFrame#flashcardControls { background: #172033; border: 1px solid #334155; border-radius: 10px; }
+QFrame#flashcardSurface { background: #18233B; border: 1px solid #334155; border-radius: 18px; }
+QLabel#flashcardWord { font-size: 34pt; font-weight: 700; }
+QLabel#flashcardSentence { font-size: 20pt; color: #D8E1EE; }
+QLabel#flashcardLanguage { background: #203E61; color: #8BC7F5; border-radius: 14px; padding: 6px 12px; font-weight: 700; }
+QFrame#flashcardAccent { background: #4EA5E0; border: 0; }
+QPushButton#flashcardSound { background: #203E61; color: #8BC7F5; border-radius: 22px; padding: 0; font-size: 18pt; }
 """
 
 VOICE_DEFAULTS: dict[Language, tuple[str, str]] = {
@@ -85,6 +121,17 @@ VOICE_DEFAULTS: dict[Language, tuple[str, str]] = {
     Language.ITALIAN: ("it-IT-ElsaNeural", "it-IT-DiegoNeural"),
     Language.THAI_SCRIPT: ("th-TH-PremwadeeNeural", "th-TH-NiwatNeural"),
     Language.THAI_PAIBOON: ("th-TH-PremwadeeNeural", "th-TH-NiwatNeural"),
+}
+
+LANGUAGE_BADGES: dict[Language, str] = {
+    Language.US_ENGLISH: "EN",
+    Language.EUROPEAN_SPANISH: "ES",
+    Language.GERMAN: "DE",
+    Language.EUROPEAN_PORTUGUESE: "PT",
+    Language.FRENCH: "FR",
+    Language.ITALIAN: "IT",
+    Language.THAI_SCRIPT: "ไทย",
+    Language.THAI_PAIBOON: "TH-PB",
 }
 
 PRONOUN_SCALE_EXPLANATIONS = {
@@ -139,6 +186,17 @@ class MainWindow(QMainWindow):
         self.history = HistoryService(
             self.paths.data / "easy_language_learning_tool.sqlite3", self.paths.history
         )
+        self.flashcard_service = FlashcardService(
+            self.paths.data / "easy_language_learning_tool.sqlite3"
+        )
+        self._flashcard_session: FlashcardSession | None = None
+        self._flashcard_source_id: int | None = None
+        self._flashcard_row_count = 0
+        self._flashcard_languages = (Language.EUROPEAN_SPANISH, Language.US_ENGLISH)
+        self._flashcard_audio = FlashcardAudioService(self.paths.cache, self._backend())
+        self._flashcard_audio_output = QAudioOutput(self)
+        self._flashcard_player = QMediaPlayer(self)
+        self._flashcard_player.setAudioOutput(self._flashcard_audio_output)
         self.frequency_path = frequency_data_path()
         self.frequency_repository = FrequencyRepository.from_jsonl(self.frequency_path)
         self.frequency_is_production = self.frequency_path.parent.name == "production"
@@ -155,11 +213,13 @@ class MainWindow(QMainWindow):
         view.addAction(theme)
         self.tabs = QTabWidget()
         self.tabs.addTab(self._sentence_tab(), "Sentence Creation")
+        self.tabs.addTab(self._flashcards_tab(), "Flashcards")
         self.tabs.addTab(self._tts_tab(), "TTS")
         self.tabs.addTab(self._history_tab(), "History")
         self.setCentralWidget(self.tabs)
         self.setStyleSheet(LIGHT_THEME)
         self.refresh_history()
+        self._resume_flashcards()
 
     def size_and_center(self) -> None:
         screen = self.screen().availableGeometry()
@@ -191,7 +251,7 @@ class MainWindow(QMainWindow):
         thread.start()
 
     def _sentence_tab(self) -> QWidget:
-        root = QWidget()
+        root = ScrollPage()
         layout = QVBoxLayout(root)
         row_limit_notice = QLabel(
             "Output is limited to 5,000 rows. Each base word creates one original row plus the "
@@ -339,18 +399,162 @@ class MainWindow(QMainWindow):
         self._provider_changed()
         return self._scroll(root)
 
-    def _tts_tab(self) -> QWidget:
+    def _flashcards_tab(self) -> QWidget:
         root = QWidget()
+        layout = QVBoxLayout(root)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(8)
+
+        controls_frame = QFrame()
+        controls_frame.setObjectName("flashcardControls")
+        controls_layout = QGridLayout(controls_frame)
+        controls_layout.setContentsMargins(10, 8, 10, 8)
+        self.flashcard_workbook = QLineEdit()
+        self.flashcard_workbook.setReadOnly(True)
+        self.flashcard_workbook.setPlaceholderText(
+            "Load an app-generated four-column .xlsx workbook"
+        )
+        load_history = QPushButton("Load from History")
+        load_history.clicked.connect(self.choose_flashcard_history)
+        browse = QPushButton("Load from Desktop")
+        browse.clicked.connect(self.choose_flashcard_workbook)
+        controls_layout.addWidget(load_history, 0, 0)
+        controls_layout.addWidget(browse, 0, 1)
+        controls_layout.addWidget(self.flashcard_workbook, 0, 2, 1, 6)
+        self.flashcard_mode = QComboBox()
+        for mode in FlashcardMode:
+            self.flashcard_mode.addItem(mode.label, mode)
+        self.flashcard_mode.setCurrentIndex(self.flashcard_mode.findData(FlashcardMode.BOTH))
+        self.flashcard_mode.currentIndexChanged.connect(self._flashcard_mode_changed)
+        self.flashcard_selected_rows = QCheckBox("Selected rows only")
+        self.flashcard_selected_rows.toggled.connect(self._flashcard_range_toggled)
+        self.flashcard_from_rank = QLineEdit()
+        self.flashcard_to_rank = QLineEdit()
+        for field, placeholder in (
+            (self.flashcard_from_rank, "From rank"),
+            (self.flashcard_to_rank, "To rank"),
+        ):
+            field.setValidator(QIntValidator(1, 5_000, field))
+            field.setPlaceholderText(placeholder)
+            field.setEnabled(False)
+        self.flashcard_apply_range = QPushButton("Apply rows")
+        self.flashcard_apply_range.setEnabled(False)
+        self.flashcard_apply_range.clicked.connect(self._apply_flashcard_range)
+        controls_layout.addWidget(QLabel("Cards"), 1, 0)
+        controls_layout.addWidget(self.flashcard_mode, 1, 1)
+        controls_layout.addWidget(self.flashcard_selected_rows, 1, 2)
+        controls_layout.addWidget(QLabel("From"), 1, 3)
+        controls_layout.addWidget(self.flashcard_from_rank, 1, 4)
+        controls_layout.addWidget(QLabel("To"), 1, 5)
+        controls_layout.addWidget(self.flashcard_to_rank, 1, 6)
+        controls_layout.addWidget(self.flashcard_apply_range, 1, 7)
+        self.flashcard_source_status = QLabel("No workbook loaded.")
+        self.flashcard_source_status.setWordWrap(True)
+        controls_layout.addWidget(self.flashcard_source_status, 2, 0, 1, 8)
+        controls_layout.setColumnStretch(2, 1)
+
+        badge_row = QHBoxLayout()
+        badge_row.addStretch()
+        self.flashcard_language = QLabel("ES  →  EN")
+        self.flashcard_language.setObjectName("flashcardLanguage")
+        self.flashcard_language.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        badge_row.addWidget(self.flashcard_language)
+
+        self.flashcard_surface = ClickableFrame()
+        self.flashcard_surface.setObjectName("flashcardSurface")
+        self.flashcard_surface.setMinimumHeight(300)
+        self.flashcard_surface.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.flashcard_surface.setToolTip("Click to flip the card")
+        self.flashcard_surface.clicked.connect(self.flip_flashcard)
+        card_layout = QVBoxLayout(self.flashcard_surface)
+        card_layout.setContentsMargins(48, 24, 48, 24)
+        card_layout.addStretch()
+        self.flashcard_word = QLabel("Load a workbook to begin")
+        self.flashcard_word.setObjectName("flashcardWord")
+        self.flashcard_word.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.flashcard_word.setWordWrap(True)
+        self.flashcard_word.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        word_font = self.flashcard_word.font()
+        word_font.setPointSize(34)
+        word_font.setBold(True)
+        self.flashcard_word.setFont(word_font)
+        self.flashcard_sentence = QLabel()
+        self.flashcard_sentence.setObjectName("flashcardSentence")
+        self.flashcard_sentence.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.flashcard_sentence.setWordWrap(True)
+        self.flashcard_sentence.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        sentence_font = self.flashcard_sentence.font()
+        sentence_font.setPointSize(20)
+        self.flashcard_sentence.setFont(sentence_font)
+        accent = QFrame()
+        accent.setObjectName("flashcardAccent")
+        accent.setFixedSize(180, 3)
+        card_layout.addWidget(self.flashcard_word)
+        card_layout.addSpacing(20)
+        card_layout.addWidget(accent, alignment=Qt.AlignmentFlag.AlignHCenter)
+        card_layout.addSpacing(20)
+        card_layout.addWidget(self.flashcard_sentence)
+        card_layout.addSpacing(22)
+        self.flashcard_sound = QPushButton("🔊")
+        self.flashcard_sound.setObjectName("flashcardSound")
+        self.flashcard_sound.setFixedSize(44, 44)
+        self.flashcard_sound.setToolTip("Play this side")
+        self.flashcard_sound.setEnabled(False)
+        self.flashcard_sound.clicked.connect(self.play_flashcard_audio)
+        card_layout.addWidget(self.flashcard_sound, alignment=Qt.AlignmentFlag.AlignHCenter)
+        card_layout.addStretch()
+
+        self.flashcard_progress = QLabel("No active deck")
+        self.flashcard_progress.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.flashcard_progress_bar = QProgressBar()
+        self.flashcard_progress_bar.setTextVisible(False)
+        self.flashcard_progress_bar.setRange(0, 1)
+        self.flashcard_progress_bar.setValue(0)
+        self.flashcard_progress_bar.setMaximumHeight(7)
+        navigation = QHBoxLayout()
+        navigation.addStretch()
+        self.flashcard_previous = QPushButton("← Previous")
+        self.flashcard_flip = QPushButton("Reveal")
+        self.flashcard_next = QPushButton("Next →")
+        self.flashcard_shuffle = QPushButton("↻  Reshuffle")
+        self.flashcard_previous.clicked.connect(self.previous_flashcard)
+        self.flashcard_flip.clicked.connect(self.flip_flashcard)
+        self.flashcard_next.clicked.connect(self.next_flashcard)
+        self.flashcard_shuffle.clicked.connect(self.shuffle_flashcards)
+        for button in (self.flashcard_previous, self.flashcard_flip, self.flashcard_next):
+            button.setEnabled(False)
+            navigation.addWidget(button)
+        navigation.addStretch()
+        self.flashcard_shuffle.setEnabled(False)
+        shuffle_row = QHBoxLayout()
+        shuffle_row.addStretch()
+        shuffle_row.addWidget(self.flashcard_shuffle)
+        shuffle_row.addStretch()
+
+        layout.addWidget(controls_frame)
+        layout.addLayout(badge_row)
+        layout.addWidget(self.flashcard_surface, 1)
+        layout.addWidget(self.flashcard_progress)
+        layout.addWidget(self.flashcard_progress_bar)
+        layout.addLayout(navigation)
+        layout.addLayout(shuffle_row)
+        return root
+
+    def _tts_tab(self) -> QWidget:
+        root = ScrollPage()
         layout = QVBoxLayout(root)
         source_group = QGroupBox("Workbook input")
         source_form = QFormLayout(source_group)
         self.tts_workbook = QLineEdit()
-        browse = QPushButton("Browse desktop…")
+        history = QPushButton("Load from History")
+        history.clicked.connect(self.choose_tts_history)
+        browse = QPushButton("Load from Desktop")
         browse.clicked.connect(self.choose_tts_workbook)
         source_widget = QWidget()
         source_row = QHBoxLayout(source_widget)
         source_row.setContentsMargins(0, 0, 0, 0)
         source_row.addWidget(self.tts_workbook)
+        source_row.addWidget(history)
         source_row.addWidget(browse)
         source_form.addRow("Four-column .xlsx", source_widget)
 
@@ -431,7 +635,7 @@ class MainWindow(QMainWindow):
         return self._scroll(root)
 
     def _history_tab(self) -> QWidget:
-        root = QWidget()
+        root = ScrollPage()
         layout = QVBoxLayout(root)
         self.history_table = QTableWidget(0, 5)
         self.history_table.setHorizontalHeaderLabels(
@@ -445,6 +649,7 @@ class MainWindow(QMainWindow):
         controls = QHBoxLayout()
         for label, callback in (
             ("Refresh", self.refresh_history),
+            ("Use in Flashcards", self.history_to_flashcards),
             ("Use in TTS", self.history_to_tts),
             ("Rename", self.rename_history),
             ("Delete to Recycle Bin", self.delete_history),
@@ -718,6 +923,254 @@ class MainWindow(QMainWindow):
         if path:
             self.output_path.setText(path)
 
+    def _choose_workbook_from_history(self, title: str) -> Path | None:
+        items = [item for item in self.history.list("workbook") if item.path.is_file()]
+        if not items:
+            self._show_error("History does not contain an available workbook yet.")
+            return None
+        labels = [f"{item.display_name}  —  {item.created_at}" for item in items]
+        selected, accepted = QInputDialog.getItem(self, title, "Workbook", labels, 0, False)
+        if not accepted:
+            return None
+        return items[labels.index(selected)].path
+
+    def choose_flashcard_history(self) -> None:
+        path = self._choose_workbook_from_history("Load flashcards from History")
+        if path is not None:
+            try:
+                self._load_flashcard_workbook(path)
+            except Exception as error:
+                self._show_error(str(error))
+
+    def choose_flashcard_workbook(self) -> None:
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Load flashcard workbook", str(Path.home()), "Excel workbook (*.xlsx)"
+        )
+        if path:
+            try:
+                self._load_flashcard_workbook(Path(path))
+            except Exception as error:
+                self._show_error(str(error))
+
+    def _load_flashcard_workbook(self, path: Path) -> None:
+        source_id, row_count = self.flashcard_service.import_workbook(path)
+        self._flashcard_languages = import_language_pair(path) or (
+            Language.EUROPEAN_SPANISH,
+            Language.US_ENGLISH,
+        )
+        self._flashcard_source_id = source_id
+        self._flashcard_row_count = row_count
+        self.flashcard_workbook.setText(str(path.expanduser().resolve()))
+        self.flashcard_selected_rows.setChecked(False)
+        self.flashcard_from_rank.clear()
+        self.flashcard_to_rank.clear()
+        self.flashcard_source_status.setText(
+            f"Loaded {row_count:,} ranked data rows. The first row below the header is rank 1."
+        )
+        self._start_flashcard_session(1, row_count)
+
+    def _resume_flashcards(self) -> None:
+        try:
+            session = self.flashcard_service.resume()
+        except Exception:
+            return
+        if session is None:
+            return
+        self._flashcard_session = session
+        self._flashcard_source_id = session.source_id
+        self._flashcard_row_count = session.source_row_count
+        self._flashcard_languages = import_language_pair(Path(session.source_path)) or (
+            Language.EUROPEAN_SPANISH,
+            Language.US_ENGLISH,
+        )
+        self.flashcard_workbook.setText(session.source_path)
+        self.flashcard_mode.blockSignals(True)
+        self.flashcard_mode.setCurrentIndex(self.flashcard_mode.findData(session.mode))
+        self.flashcard_mode.blockSignals(False)
+        restricted = session.from_rank != 1 or session.to_rank != session.source_row_count
+        self.flashcard_selected_rows.blockSignals(True)
+        self.flashcard_selected_rows.setChecked(restricted)
+        self.flashcard_selected_rows.blockSignals(False)
+        self.flashcard_from_rank.setEnabled(restricted)
+        self.flashcard_to_rank.setEnabled(restricted)
+        self.flashcard_apply_range.setEnabled(restricted)
+        if restricted:
+            self.flashcard_from_rank.setText(str(session.from_rank))
+            self.flashcard_to_rank.setText(str(session.to_rank))
+        self.flashcard_source_status.setText(
+            f"Restored {session.source_name}: {session.source_row_count:,} ranked data rows."
+        )
+        self._display_flashcard()
+
+    def _flashcard_mode_changed(self) -> None:
+        if self._flashcard_source_id is None:
+            return
+        rank_range = self._current_flashcard_range(show_errors=False)
+        if rank_range is not None:
+            self._start_flashcard_session(*rank_range)
+
+    def _flashcard_range_toggled(self, selected_only: bool) -> None:
+        self.flashcard_from_rank.setEnabled(selected_only)
+        self.flashcard_to_rank.setEnabled(selected_only)
+        self.flashcard_apply_range.setEnabled(
+            selected_only and self._flashcard_source_id is not None
+        )
+        if selected_only:
+            self.flashcard_from_rank.clear()
+            self.flashcard_to_rank.clear()
+            self.flashcard_source_status.setText(
+                "Enter an inclusive From rank and To rank, then apply the selection."
+            )
+        elif self._flashcard_source_id is not None:
+            self._start_flashcard_session(1, self._flashcard_row_count)
+
+    def _current_flashcard_range(self, *, show_errors: bool) -> tuple[int, int] | None:
+        if self._flashcard_source_id is None:
+            if show_errors:
+                self._show_error("Load a compatible .xlsx workbook first.")
+            return None
+        if not self.flashcard_selected_rows.isChecked():
+            return 1, self._flashcard_row_count
+        if not self.flashcard_from_rank.text() or not self.flashcard_to_rank.text():
+            if show_errors:
+                self._show_error("Enter both the From rank and To rank.")
+            return None
+        from_rank = int(self.flashcard_from_rank.text())
+        to_rank = int(self.flashcard_to_rank.text())
+        if not 1 <= from_rank <= to_rank <= self._flashcard_row_count:
+            if show_errors:
+                self._show_error(
+                    f"Choose an inclusive range from 1 to {self._flashcard_row_count:,}."
+                )
+            return None
+        return from_rank, to_rank
+
+    def _apply_flashcard_range(self) -> None:
+        rank_range = self._current_flashcard_range(show_errors=True)
+        if rank_range is not None:
+            self._start_flashcard_session(*rank_range)
+
+    def _start_flashcard_session(self, from_rank: int, to_rank: int) -> None:
+        assert self._flashcard_source_id is not None
+        mode = FlashcardMode(str(self.flashcard_mode.currentData()))
+        self._flashcard_session = self.flashcard_service.start_session(
+            self._flashcard_source_id, mode, from_rank, to_rank
+        )
+        self.flashcard_source_status.setText(
+            f"Studying ranks {from_rank:,}–{to_rank:,}. Cards will not repeat before this shuffled selection is exhausted."
+        )
+        self._display_flashcard()
+
+    def _display_flashcard(self) -> None:
+        session = self._flashcard_session
+        if session is None:
+            return
+        self._flashcard_player.stop()
+        row = session.current_row
+        back = session.showing_back
+        mode = session.mode
+        word = row.word_translation if back else row.foreign_word
+        sentence = row.sentence_translation if back else row.foreign_sentence
+        self.flashcard_word.setText(
+            word if mode in {FlashcardMode.WORDS, FlashcardMode.BOTH} else ""
+        )
+        self.flashcard_sentence.setText(
+            sentence if mode in {FlashcardMode.SENTENCES, FlashcardMode.BOTH} else ""
+        )
+        self.flashcard_word.setVisible(mode in {FlashcardMode.WORDS, FlashcardMode.BOTH})
+        self.flashcard_sentence.setVisible(mode in {FlashcardMode.SENTENCES, FlashcardMode.BOTH})
+        self.flashcard_progress.setText(
+            f"Workbook rank {session.current_rank:,}  •  Card {session.position + 1:,} of "
+            f"{len(session.order):,}  •  {'Back' if back else 'Front'}"
+        )
+        learning, translation = self._flashcard_languages
+        self.flashcard_language.setText(
+            f"{LANGUAGE_BADGES[learning]}  →  {LANGUAGE_BADGES[translation]}"
+        )
+        self.flashcard_progress_bar.setRange(0, len(session.order))
+        self.flashcard_progress_bar.setValue(session.position + 1)
+        self.flashcard_previous.setEnabled(session.can_previous)
+        self.flashcard_next.setEnabled(session.can_next)
+        self.flashcard_flip.setEnabled(True)
+        self.flashcard_shuffle.setEnabled(True)
+        self.flashcard_sound.setEnabled(True)
+        self.flashcard_flip.setText("Show learning side" if back else "Reveal")
+
+    def previous_flashcard(self) -> None:
+        if self._flashcard_session and self._flashcard_session.previous():
+            self.flashcard_service.save(self._flashcard_session)
+            self._display_flashcard()
+
+    def next_flashcard(self) -> None:
+        if self._flashcard_session and self._flashcard_session.next():
+            self.flashcard_service.save(self._flashcard_session)
+            self._display_flashcard()
+
+    def flip_flashcard(self) -> None:
+        if self._flashcard_session is None:
+            return
+        self._flashcard_session.flip()
+        self.flashcard_service.save(self._flashcard_session)
+        self._display_flashcard()
+
+    def shuffle_flashcards(self) -> None:
+        if self._flashcard_session is None:
+            return
+        self._flashcard_session.shuffle_again()
+        self.flashcard_service.save(self._flashcard_session)
+        self._display_flashcard()
+
+    def play_flashcard_audio(self) -> None:
+        session = self._flashcard_session
+        if session is None:
+            return
+        row = session.current_row
+        back = session.showing_back
+        mode = session.mode
+        if back:
+            language = self._flashcard_languages[1]
+            values = ((2, row.word_translation), (4, row.sentence_translation))
+        else:
+            language = self._flashcard_languages[0]
+            values = ((1, row.foreign_word), (3, row.foreign_sentence))
+        cells: tuple[tuple[int, str], ...]
+        if mode is FlashcardMode.WORDS:
+            cells = (values[0],)
+        elif mode is FlashcardMode.SENTENCES:
+            cells = (values[1],)
+        else:
+            cells = values
+        voice = VoiceSettings(language=language, voice=VOICE_DEFAULTS[language][0])
+        self.flashcard_sound.setEnabled(False)
+        self.flashcard_sound.setText("…")
+
+        async def task() -> Path:
+            return await self._flashcard_audio.prepare(
+                Path(session.source_path), session.current_rank, cells, voice
+            )
+
+        def success(path: Path) -> None:
+            self.flashcard_sound.setText("🔊")
+            self.flashcard_sound.setEnabled(True)
+            self._flashcard_player.setSource(QUrl.fromLocalFile(str(path)))
+            self._flashcard_player.play()
+
+        def failure(message: str) -> None:
+            self.flashcard_sound.setText("🔊")
+            self.flashcard_sound.setEnabled(True)
+            self._show_error(message)
+
+        self._start_task(task, success, failure)
+
+    def choose_tts_history(self) -> None:
+        path = self._choose_workbook_from_history("Load TTS workbook from History")
+        if path is not None:
+            try:
+                import_xlsx(path)
+                self.tts_workbook.setText(str(path))
+            except Exception as error:
+                self._show_error(str(error))
+
     def choose_tts_workbook(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self, "Choose workbook", str(Path.home()), "Excel workbook (*.xlsx)"
@@ -868,7 +1321,18 @@ class MainWindow(QMainWindow):
         item = self._selected_history()
         if item and item.file_type == "workbook":
             self.tts_workbook.setText(str(item.path))
-            self.tabs.setCurrentIndex(1)
+            self.tabs.setCurrentIndex(2)
+        elif item:
+            self._show_error("Select a workbook History item.")
+
+    def history_to_flashcards(self) -> None:
+        item = self._selected_history()
+        if item and item.file_type == "workbook":
+            try:
+                self._load_flashcard_workbook(item.path)
+                self.tabs.setCurrentIndex(1)
+            except Exception as error:
+                self._show_error(str(error))
         elif item:
             self._show_error("Select a workbook History item.")
 
