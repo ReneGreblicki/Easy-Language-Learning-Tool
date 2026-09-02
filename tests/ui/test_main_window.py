@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 from openpyxl import Workbook
+from PySide6.QtWidgets import QPushButton
 
 if sys.platform != "win32":
     pytest.skip("Windows desktop smoke test", allow_module_level=True)
@@ -79,6 +80,9 @@ def test_main_window_tabs_and_generation_limits(qtbot: object, tmp_path: Path) -
     window.base_count.setValue(2_500)
     assert "5,000 final rows" in window.final_rows.text()
     assert "5,000 rows" in window.findChild(type(window.frequency_status), "rowLimitNotice").text()
+    button_labels = [button.text() for button in window.findChildren(QPushButton)]
+    assert button_labels.count("Load from History") == 2
+    assert button_labels.count("Load from Desktop") == 2
 
 
 def test_flashcard_combined_mode_range_navigation_and_resume(qtbot: object, tmp_path: Path) -> None:
@@ -100,6 +104,12 @@ def test_flashcard_combined_mode_range_navigation_and_resume(qtbot: object, tmp_
     assert window.flashcard_sentence.text() == f"La frase número {rank}."
     assert window.flashcard_word.font().bold()
     assert window.flashcard_word.font().pointSize() > window.flashcard_sentence.font().pointSize()
+    assert window.flashcard_word.font().pointSize() >= 34
+    assert window.flashcard_sentence.font().pointSize() >= 20
+    assert not hasattr(window, "flashcard_side")
+    assert window.flashcard_language.text() == "ES  →  EN"
+    assert window.flashcard_sound.isEnabled()
+    assert window.flashcard_surface.minimumHeight() >= 300
 
     window.flip_flashcard()
     assert window.flashcard_word.text() == f"word {rank}"

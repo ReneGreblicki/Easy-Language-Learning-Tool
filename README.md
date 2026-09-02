@@ -39,6 +39,10 @@ into one natural-sounding, resumable MP3.
   the source file.
 - Studies Words, Sentences, or one combined card per row. Combined cards display
   the larger bold word above the sentence on the learning side and translation side.
+- Uses a near-full-tab card with large uncluttered text, a compact language-pair
+  badge, progress, and responsive light/dark styling.
+- Loads from app History or Desktop and plays the visible word, sentence, or both.
+  Matching TTS cell clips are reused; missing clips are generated on demand and cached.
 - Ranks the first data row below the header as 1 and stores the ranked rows locally
   in SQLite.
 - Supports an inclusive From rank / To rank filter through **Selected rows only**.
@@ -49,7 +53,8 @@ into one natural-sounding, resumable MP3.
 
 ### Text to Speech
 
-- Imports an app History workbook or any compatible `.xlsx` file.
+- Provides separate **Load from History** and **Load from Desktop** actions for
+  app-owned or compatible `.xlsx` workbooks.
 - Uses Microsoft Edge neural voices for the foreign columns and a separate voice
   for the translation columns.
 - Supports voice, speed, pitch, volume, and four 1–10 second break controls.

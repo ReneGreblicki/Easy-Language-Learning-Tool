@@ -2,7 +2,7 @@
 
 ## Development Workflow and Test Plan
 
-Version: 4.0 (ranked flashcards and input-safety release candidate)
+Version: 4.1 (full-card study, reusable audio, and strict input-safety release candidate)
 
 Target: Windows 10/11 x64 desktop app and regular installer
 
@@ -69,6 +69,10 @@ The canonical `.xlsx` `Sentences` sheet has exactly:
 
 TTS speaks all four cells in order, using the foreign voice for columns 1 and 3 and translation voice for columns 2 and 4. It produces one MP3 with voice, speed, pitch, volume, four 1–10 second pauses, two-row preview, pause/resume/cancel, partial export, and checksum-safe continuation.
 
+TTS and Flashcards each expose two explicit workbook entry points: **Load from
+History** for app-owned workbooks and **Load from Desktop** for any compatible
+external workbook. Both paths run the same schema validation.
+
 History retains 20 app-owned spreadsheets and 20 audio files in application data. Rename/delete never affect external exports; delete and retention use the Recycle Bin. Regeneration preserves the original.
 
 ### Ranked workbook flashcards
@@ -80,6 +84,16 @@ History retains 20 app-owned spreadsheets and 20 audio files in application data
 - Display modes are Words, Sentences, and Words and sentences. The combined mode
   creates one card per row with the larger bold word above the sentence on both
   sides. The learning-language cells are the front and translations are the back.
+- The card occupies the available tab area beneath a compact control strip. It
+  uses a quiet light/dark surface, a large bold word, a larger sentence, an accent
+  divider, a compact language-pair badge, progress, Previous/Reveal/Next, and
+  Reshuffle. It does not place the content inside dark blue text bars or repeat
+  “Learning language”/“Translation” labels inside the card.
+- The card sound control plays the visible side. Existing per-cell MP3 clips from
+  a matching TTS workbook job are reused. Missing word or sentence clips are
+  synthesized only when requested, cached persistently by text and voice, and
+  concatenated in word-then-sentence order for combined cards. Audio preparation
+  remains off the UI thread.
 - Selected rows only enables blank inclusive From rank and To rank fields. With
   the option off, every workbook row is eligible.
 - Each study cycle is a random permutation of the eligible ranks, so a row cannot
@@ -93,8 +107,8 @@ History retains 20 app-owned spreadsheets and 20 audio files in application data
 
 ### Mouse-wheel input safety
 
-- A dropdown, numeric field, or slider changes from a wheel event only after that
-  exact control has been explicitly clicked.
+- A dropdown, numeric field, or slider changes from a wheel event only while that
+  exact control has been explicitly clicked and still owns focus.
 - Wheel events over unfocused controls remain unconsumed so the containing page
   scroll area moves instead.
 - Losing focus disarms the field. Clicking empty page content returns focus to the
@@ -211,6 +225,14 @@ Nuitka bundle, FFmpeg, Inno Setup, README, notices, release notes, checksum, pro
   with the standard workbook importer; rank order remains continuous to 5,000.
 - Words shows only word cells, Sentences only sentence cells, and combined mode
   shows the larger bold word above the sentence on front and back.
+- The card expands with the tab, contains no side-name text bars, shows a compact
+  workbook language pair, and retains usable navigation at the minimum window size.
+- History/Desktop loaders on both Flashcards and TTS validate the same workbook
+  contract. History cancellation and an empty History list leave the current deck
+  or TTS selection unchanged.
+- A single-mode card plays one cached cell clip. Combined mode plays its word then
+  sentence. A matching prior TTS clip is reused; otherwise lazy synthesis creates
+  one persistent cache entry and subsequent plays do not call the provider again.
 - Inclusive ranges accept `1–1`, subsets, and the full dataset; blanks, reversed
   ranges, zero, and values above the workbook count fail clearly.
 - Every eligible rank appears exactly once per shuffle cycle. Previous and Next
@@ -218,9 +240,10 @@ Nuitka bundle, FFmpeg, Inno Setup, README, notices, release notes, checksum, pro
   an immediate boundary repeat when at least two cards exist.
 - Importing the same checksum reuses its indexed source. Mode, range, order,
   position, and card side restore after a restart without modifying the workbook.
-- Wheel input over an unclicked dropdown, spin box, or slider leaves its value
-  unchanged and reaches the page scroll area. Direct click arms only that field;
-  focus loss disarms it.
+- Wheel input over an unclicked or merely hovered dropdown, spin box, or slider
+  leaves its value unchanged and reaches the page scroll area. Direct click arms
+  only that focused field; focus loss disarms it, including after another field or
+  the page itself is clicked.
 
 ### TTS/history/installer cases
 

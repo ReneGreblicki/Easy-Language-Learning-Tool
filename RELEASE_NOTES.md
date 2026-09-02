@@ -22,11 +22,19 @@ unchanged.
 - Persists the workbook checksum, indexed rows, mode, selected range, shuffled
   order, current position, and visible side across application restarts.
 - Lets a workbook in History open directly in Flashcards.
+- Redesigns the study surface around the supplied minimalist light/dark template:
+  a near-full-tab card, substantially larger word and sentence text, a simple
+  accent divider, progress, compact language badge, and no side-name text bars.
+- Adds explicit **Load from History** and **Load from Desktop** actions to both
+  Flashcards and TTS.
+- Adds card audio for the visible side. It reuses matching individually generated
+  TTS cell clips, lazily creates missing clips, persists them in the local cache,
+  and plays word then sentence in combined mode without blocking the interface.
 
 ## Mouse-wheel safety
 
-- Dropdowns, numeric fields, and sliders ignore wheel changes until the exact
-  control has been clicked.
+- Dropdowns, numeric fields, and sliders ignore wheel changes unless the exact
+  control was clicked and still has focus.
 - An unfocused control passes wheel input to the containing page so normal page
   scrolling continues.
 - Clicking another control or page background disarms the previous field.
