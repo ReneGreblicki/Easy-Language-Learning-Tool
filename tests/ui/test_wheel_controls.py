@@ -63,9 +63,10 @@ def test_spin_box_always_ignores_wheel_even_after_click(qtbot: object) -> None:
     assert not hovered.isAccepted()
 
     qtbot.mouseClick(spin, Qt.MouseButton.LeftButton)  # type: ignore[attr-defined]
+    value_after_click = spin.value()
     clicked = wheel_event(120)
     QApplication.sendEvent(spin, clicked)
-    assert spin.value() == 5
+    assert spin.value() == value_after_click
     assert not clicked.isAccepted()
 
     clicked_value = spin.value()
@@ -89,9 +90,10 @@ def test_slider_always_ignores_wheel_even_after_click(qtbot: object) -> None:
     assert not hovered.isAccepted()
 
     qtbot.mouseClick(slider, Qt.MouseButton.LeftButton)  # type: ignore[attr-defined]
+    value_after_click = slider.value()
     clicked = wheel_event(120)
     QApplication.sendEvent(slider, clicked)
-    assert slider.value() == 5
+    assert slider.value() == value_after_click
     assert not clicked.isAccepted()
 
     clicked_value = slider.value()
