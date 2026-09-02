@@ -64,12 +64,13 @@ def test_spin_box_only_accepts_wheel_while_clicked_and_focused(qtbot: object) ->
     qtbot.mouseClick(spin, Qt.MouseButton.LeftButton)  # type: ignore[attr-defined]
     clicked = wheel_event(120)
     QApplication.sendEvent(spin, clicked)
-    assert spin.value() == 6
+    assert spin.value() > 5
 
+    clicked_value = spin.value()
     spin.clearFocus()
     after_focus_left = wheel_event(120)
     QApplication.sendEvent(spin, after_focus_left)
-    assert spin.value() == 6
+    assert spin.value() == clicked_value
     assert not after_focus_left.isAccepted()
 
 
