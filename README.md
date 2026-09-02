@@ -33,9 +33,28 @@ into one natural-sounding, resumable MP3.
   audit-ready `Metadata` sheet. Optional CSV export is supported by the core API.
 - Checkpoints long AI jobs and retries only rejected or missing rows.
 
+### Flashcards
+
+- Loads an app-generated or schema-compatible `.xlsx` workbook without changing
+  the source file.
+- Studies Words, Sentences, or one combined card per row. Combined cards display
+  the larger bold word above the sentence on the learning side and translation side.
+- Uses a near-full-tab card with large uncluttered text, a compact language-pair
+  badge, progress, and responsive light/dark styling.
+- Loads from app History or Desktop and plays the visible word, sentence, or both.
+  Matching TTS cell clips are reused; missing clips are generated on demand and cached.
+- Ranks the first data row below the header as 1 and stores the ranked rows locally
+  in SQLite.
+- Supports an inclusive From rank / To rank filter through **Selected rows only**.
+- Randomizes eligible rows without repetition until the selection is exhausted;
+  Previous and Next preserve that order, while Shuffle again starts a new cycle.
+- Restores the last workbook, display mode, selected ranks, shuffled order,
+  position, and card side after restarting the app.
+
 ### Text to Speech
 
-- Imports an app History workbook or any compatible `.xlsx` file.
+- Provides separate **Load from History** and **Load from Desktop** actions for
+  app-owned or compatible `.xlsx` workbooks.
 - Uses Microsoft Edge neural voices for the foreign columns and a separate voice
   for the translation columns.
 - Supports voice, speed, pitch, volume, and four 1–10 second break controls.
@@ -61,7 +80,9 @@ into one natural-sounding, resumable MP3.
    - Local/free: install Ollama, run `ollama pull qwen3:8b`, then select Ollama and
      test `http://localhost:11434`.
 5. Select languages and generation controls, choose a workbook location, and generate.
-6. Open TTS, import a workbook, choose Language 1 for the foreign columns and
+6. Open Flashcards to load a workbook, choose Words, Sentences, or both, optionally
+   restrict the inclusive rank range, then flip and navigate the shuffled cards.
+7. Open TTS, import a workbook, choose Language 1 for the foreign columns and
    Language 2 for the translation columns, preview two rows, then create the MP3.
 
 The installed cloud-provider workflow requires no separate Python, Qt, FFmpeg,
@@ -141,6 +162,13 @@ the word translation. See `docs/RELEASE_READINESS.md`.
 
 The interface caps the base-word control dynamically according to the available
 corpus and selected extra forms, so it never accepts a job above 5,000 final rows.
+
+The v1.2.1 release-candidate branch prevents dropdowns, numeric fields, and
+sliders from changing under the mouse wheel, including after a prior click. Wheel
+input over these fields remains available to scroll the containing page; values
+change only through their explicit controls or keyboard input. The public download
+button intentionally continues to install v1.1.0 until the update receives release
+approval.
 
 ## Project documentation
 
