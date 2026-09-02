@@ -163,7 +163,8 @@ the word translation. See `docs/RELEASE_READINESS.md`.
 The interface caps the base-word control dynamically according to the available
 corpus and selected extra forms, so it never accepts a job above 5,000 final rows.
 
-The v1.2.1 release-candidate branch prevents dropdowns, numeric fields, and
+The v1.3.0 release-candidate branch adds an offline Information tab after History
+with the complete numbered operating guide. It also prevents dropdowns, numeric fields, and
 sliders from changing under the mouse wheel, including after a prior click. Wheel
 input over these fields remains available to scroll the containing page; values
 change only through their explicit controls or keyboard input. The public download
@@ -172,6 +173,7 @@ approval.
 
 ## Project documentation
 
+- `resources/USER_MANUAL.md` is the offline guide shown by the Information tab.
 - `docs/SPEC_TRACEABILITY.md` maps every approved requirement to code and tests.
 - `docs/RELEASE_READINESS.md` defines automated and external release gates.
 - Third-party notices are under `resources/licences` and `LICENSES`.

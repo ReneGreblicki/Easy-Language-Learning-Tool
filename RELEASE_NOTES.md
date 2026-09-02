@@ -1,9 +1,20 @@
-# Easy Language Learning Tool 1.2.1 RC
+# Easy Language Learning Tool 1.3.0 RC
 
-Version 1.2.1 adds ranked, resumable workbook flashcards and prevents accidental
-mouse-wheel changes to application settings. This release candidate remains on a
-draft branch until explicit release approval; the published v1.1.0 installer is
-unchanged.
+Version 1.3.0 adds an in-app Information page containing the complete operating
+guide. The page appears immediately after History, supports clickable external
+links, and numbers its feature sections from 1. This release candidate also
+contains the ranked flashcards and mouse-wheel safety work from v1.2.1. It remains
+on a draft branch until explicit release approval; the published v1.1.0 installer
+is unchanged.
+
+## Information
+
+- Adds the Information tab after History.
+- Embeds the complete Sentence Creation, Flashcards, TTS, History, connectivity,
+  and troubleshooting guide in the standalone application and installer.
+- Starts the embedded guide at section 1 and continues through section 6.
+- Opens external documentation links in the system browser while keeping the
+  manual itself available offline.
 
 ## Flashcards
 

@@ -256,6 +256,9 @@ Nuitka bundle, FFmpeg, Inno Setup, README, notices, release notes, checksum, pro
 - Retention is independent per file type; path traversal, symlink/junction escape, collision, and rollback cases are covered.
 - CI tests silent install into a path with spaces/Unicode, launch, in-place upgrade/repair, uninstall, bundled FFmpeg/resources, and preserved app-owned data.
 - Final clean Windows 10 and Windows 11 client machines verify interactive install, shortcuts, SmartScreen/Defender behaviour, upgrade, repair, uninstall, and preserved exports.
+- The Information tab appears immediately after History, loads the bundled manual
+  without network access, begins at section 1, includes every section through
+  Common problems, and opens external links through the system browser.
 
 Performance targets: cold launch ≤5 seconds; local UI response ≤200 ms; 5,000-row import ≤3 seconds; peak workbook handling ≤750 MB; 40-item history load ≤1 second. Network and FFmpeg work never block the UI thread.
 

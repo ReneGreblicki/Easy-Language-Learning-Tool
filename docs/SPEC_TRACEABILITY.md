@@ -6,7 +6,8 @@ This map is checked against both approved project artifacts at every build gate.
 |---|---|---|
 | Windows 10/11, Python 3.12, PySide6 | `pyproject.toml`, `ui/main_window.py` | Windows CI and packaged launch smoke test |
 | Centered 50% launch; light/dark Power BI-inspired palette | `MainWindow.size_and_center()`, UI themes | Windows UI smoke test |
-| Sentence Creation, Flashcards, TTS, History tabs | `MainWindow` | UI smoke test |
+| Sentence Creation, Flashcards, TTS, History, Information tabs | `MainWindow` | UI smoke test |
+| Offline numbered operating guide after History | `resources/USER_MANUAL.md`, `MainWindow` | UI and packaging tests |
 | OpenAI, Anthropic, Gemini, DeepSeek, Ollama, custom endpoint | `providers/` | provider contract tests |
 | Session keys and Windows Credential Manager | `security/credentials.py` | platform-service and redaction tests |
 | Dynamic base limit; forms 0–4; `base × (1 + forms) ≤ 5,000` | domain models and UI | boundary and UI tests |
@@ -54,3 +55,6 @@ This map is checked against both approved project artifacts at every build gate.
 - Phase 12 — v1.2.1 ranked flashcards, native replay, uniform card styling, and mouse-wheel input safety: implemented
   on an isolated release-candidate branch; Windows CI and explicit release approval
   are required before merge or publication
+- Phase 13 — v1.3.0 in-app Information guide: implemented on an isolated
+  release-candidate branch; Windows CI and explicit release approval are required
+  before merge or publication

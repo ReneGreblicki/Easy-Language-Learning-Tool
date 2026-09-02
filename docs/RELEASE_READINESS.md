@@ -70,7 +70,8 @@ and portable archive. Authenticode signing remains conditional on the protected
 publisher certificate secrets because publisher identity cannot be stored in
 source control.
 
-The 1.2.1 release candidate must additionally pass database-v1 migration,
-flashcard restart recovery, and Windows mouse-wheel interaction tests. Its draft
+The 1.3.0 release candidate must additionally pass database-v1 migration,
+flashcard restart recovery, Windows mouse-wheel interaction tests, and packaged
+Information-guide availability and numbering checks. Its draft
 branch and workflow artifact are not a public release. The v1.1.0 release, README
 download target, and GitHub `main` remain unchanged until explicit approval.

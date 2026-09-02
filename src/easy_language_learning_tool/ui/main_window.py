@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QTabWidget,
+    QTextBrowser,
     QVBoxLayout,
     QWidget,
 )
@@ -212,6 +213,7 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self._flashcards_tab(), "Flashcards")
         self.tabs.addTab(self._tts_tab(), "TTS")
         self.tabs.addTab(self._history_tab(), "History")
+        self.tabs.addTab(self._information_tab(), "Information")
         self.setCentralWidget(self.tabs)
         self.setStyleSheet(LIGHT_THEME)
         self.refresh_history()
@@ -656,6 +658,15 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.history_table)
         layout.addLayout(controls)
         return self._scroll(root)
+
+    def _information_tab(self) -> QWidget:
+        browser = QTextBrowser()
+        browser.setObjectName("informationBrowser")
+        browser.setOpenExternalLinks(True)
+        manual = resource_path("resources", "USER_MANUAL.md").read_text(encoding="utf-8")
+        browser.setMarkdown(manual)
+        browser.document().setDocumentMargin(24)
+        return browser
 
     def _provider_changed(self) -> None:
         provider = Provider(str(self.provider_combo.currentData()))
