@@ -2,9 +2,9 @@
 
 ## Development Workflow and Test Plan
 
-Version: 4.2 (uniform-card study, repeatable native audio, and strict wheel safety)
+Version: 5.0 (native Windows and macOS distribution)
 
-Target: Windows 10/11 x64 desktop app and regular installer
+Target: Windows 10/11 x64 plus native Intel and Apple Silicon macOS apps
 
 Interface language: US English
 
@@ -93,8 +93,8 @@ History retains 20 app-owned spreadsheets and 20 audio files in application data
   a matching TTS workbook job are reused. Missing word or sentence clips are
   synthesized only when requested, cached persistently by text and voice, and
   concatenated in word-then-sentence order for combined cards. Each result is
-  converted once to a cached WAV and replayed through the native Windows audio
-  service; the sound button can restart the same side repeatedly. Audio preparation
+  converted once to a cached WAV and replayed through the native Windows or macOS
+  audio service; the sound button can restart the same side repeatedly. Audio preparation
   remains off the UI thread.
 - Selected rows only enables blank inclusive From rank and To rank fields. With
   the option off, every workbook row is eligible.
@@ -181,7 +181,7 @@ pass automated and Windows UI tests.
 
 ### Phase 6 — Packaging and release
 
-Nuitka bundle, FFmpeg, Inno Setup, README, notices, release notes, checksum, provenance, Windows acceptance, Defender scan, and optional Authenticode signing. Gate: CI silently installs into a Unicode path, launches, upgrades/repairs, verifies bundled resources, uninstalls, and preserves user data; clean Windows 10/11 client installs require no separate Python/Qt/FFmpeg downloads; Ollama remains optional.
+Nuitka bundles, FFmpeg, Inno Setup, native macOS DMGs, README, notices, release notes, checksums, provenance, Windows acceptance, macOS launch acceptance, Defender scan, and optional publisher signing. Gate: CI validates Windows install/upgrade/uninstall plus separate Intel and Apple Silicon macOS bundles; clean installations require no separate Python/Qt/FFmpeg downloads; Ollama remains optional.
 
 ## 4. Test measures during development
 
@@ -259,6 +259,9 @@ Nuitka bundle, FFmpeg, Inno Setup, README, notices, release notes, checksum, pro
 - The Information tab appears immediately after History, loads the bundled manual
   without network access, begins at section 1, includes every section through
   Common problems, and opens external links through the system browser.
+- macOS CI builds separate Intel and Apple Silicon DMGs, bundles FFmpeg/FFprobe,
+  verifies the app bundle and architecture, launches the packaged application,
+  and publishes checksums and provenance.
 
 Performance targets: cold launch ≤5 seconds; local UI response ≤200 ms; 5,000-row import ≤3 seconds; peak workbook handling ≤750 MB; 40-item history load ≤1 second. Network and FFmpeg work never block the UI thread.
 
@@ -286,10 +289,11 @@ are configured.
 - [x] Word workbook, legacy import, TTS recovery, and history safety pass.
 - [x] App launches centered at 50% with usable light/dark themes.
 - [x] Clean Windows installer needs no separate Python, Qt, or FFmpeg download.
+- [x] Intel and Apple Silicon macOS DMGs bundle Python, Qt, FFmpeg, and FFprobe.
 - [x] Production signing and provenance automation is configured.
 - [x] README, notices, source manifest, release notes, and checksum are included.
 - [x] No critical/high defect or required-check failure remains.
 
 ## 6. Definition of done
 
-A change is done only when its acceptance criteria, automated tests, error/cancellation/recovery paths, user text, README, source/licence notices, and applicable packaged-Windows verification are complete. `main` remains releasable; feature branches use pull requests; production data changes include a reproducible source manifest and corpus audit.
+A change is done only when its acceptance criteria, automated tests, error/cancellation/recovery paths, user text, README, source/licence notices, and applicable packaged Windows/macOS verification are complete. `main` remains releasable; feature branches use pull requests; production data changes include a reproducible source manifest and corpus audit.

@@ -16,10 +16,12 @@ def test_release_version_is_aligned_across_project_files() -> None:
     installer = (ROOT / "installer" / "inno_setup.iss").read_text(encoding="utf-8")
     installer_match = re.search(r'^#define MyAppVersion "([^"]+)"$', installer, re.MULTILINE)
 
-    assert project_version == "1.3.0"
+    assert project_version == "1.4.0"
     assert __version__ == project_version
     assert installer_match is not None
     assert installer_match.group(1) == project_version
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "releases/download/v1.3.0/EasyLanguageLearningTool-Setup-1.3.0.exe" in readme
+    assert "releases/download/v1.4.0/EasyLanguageLearningTool-Setup-1.4.0.exe" in readme
+    assert "EasyLanguageLearningTool-1.4.0-Apple-Silicon.dmg" in readme
+    assert "EasyLanguageLearningTool-1.4.0-Intel.dmg" in readme
     assert f"Tool {project_version}" in (ROOT / "RELEASE_NOTES.md").read_text(encoding="utf-8")

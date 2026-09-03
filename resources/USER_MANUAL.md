@@ -15,7 +15,7 @@ Choose one of the following:
 
 1.  Select the provider. 
 2.  Paste your API key. 
-3.  Optionally enable **Remember securely in Windows Credential Manager**. 
+3.  Optionally enable **Remember securely in Credential Manager or macOS Keychain**.
 4.  Click **Test connection and load models**. 
 5.  Select a model from the **Model** dropdown. 
 
@@ -336,7 +336,7 @@ Four pauses can be set from 1 to 10 seconds:
 
 Click **Preview 2 rows**.
 
-The app generates audio for exactly the first two workbook rows and opens the preview in the default Windows audio player.
+The app generates audio for exactly the first two workbook rows and opens the preview in the default system audio player.
 
 ## 3.7 Create the complete MP3
 
@@ -390,7 +390,7 @@ Select one row before using an action.
 - **Use in Flashcards:** Opens a selected workbook in Flashcards. 
 - **Use in TTS:** Opens a selected workbook in TTS. 
 - **Rename:** Renames the app-owned History file. 
-- **Delete to Recycle Bin:** Removes the app-owned copy safely. 
+- **Delete to Recycle Bin / Trash:** Removes the app-owned copy safely.
 - **Re-export:** Copies the file to another location. 
 - **Regenerate:** Restores the original workbook-generation settings. 
 
@@ -398,7 +398,7 @@ Regenerate does not overwrite the original. It creates a new output path and use
 
 Files exported outside History are not renamed or deleted when their History copies are changed.
 
-When more than 20 files of one type exist, the oldest app-owned items are moved to the Recycle Bin.
+When more than 20 files of one type exist, the oldest app-owned items are moved to the Recycle Bin or Trash.
 
 ---
 
@@ -457,7 +457,7 @@ Confirm:
 
 -  Wait for the first on-demand generation. 
 -  Confirm internet access for uncached cards. 
--  Check Windows volume and output-device settings. 
+-  Check system volume and output-device settings.
 -  Try the speaker button again; repeated playback is supported. 
 -  Confirm the workbook cells contain valid text. 
 

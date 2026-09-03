@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
 
 SERVICE_NAME = "Easy Language Learning Tool"
 
 
+def secure_store_name() -> str:
+    return "macOS Keychain" if sys.platform == "darwin" else "Windows Credential Manager"
+
+
 @dataclass
 class CredentialStore:
-    """Windows Credential Manager through keyring, with session-only fallback."""
+    """Native credential storage through keyring, with session-only fallback."""
 
     session_values: dict[str, str] = field(default_factory=dict)
 
@@ -23,7 +28,7 @@ class CredentialStore:
                 keyring.set_password(SERVICE_NAME, provider, api_key)
             except Exception as error:
                 raise RuntimeError(
-                    "The API key could not be saved to Windows Credential Manager."
+                    f"The API key could not be saved to {secure_store_name()}."
                 ) from error
 
     def get(self, provider: str) -> str | None:

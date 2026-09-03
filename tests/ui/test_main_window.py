@@ -7,8 +7,8 @@ import pytest
 from openpyxl import Workbook
 from PySide6.QtWidgets import QFrame, QPushButton, QTextBrowser
 
-if sys.platform != "win32":
-    pytest.skip("Windows desktop smoke test", allow_module_level=True)
+if sys.platform not in {"win32", "darwin"}:
+    pytest.skip("Windows/macOS desktop smoke test", allow_module_level=True)
 
 from easy_language_learning_tool.config.paths import AppPaths  # noqa: E402
 from easy_language_learning_tool.domain.enums import Language  # noqa: E402

@@ -30,3 +30,34 @@ def test_player_restarts_same_side_every_time(tmp_path: Path) -> None:
     stops = [call for call in sound_api.calls if call[0] is None]
     assert len(plays) == 2
     assert len(stops) == 2
+
+
+class FakeProcess:
+    def __init__(self) -> None:
+        self.terminated = False
+
+    def poll(self) -> None:
+        return None
+
+    def terminate(self) -> None:
+        self.terminated = True
+
+
+def test_macos_player_restarts_afplay(tmp_path: Path) -> None:
+    clip = tmp_path / "clip.wav"
+    clip.write_bytes(b"RIFF-test")
+    calls: list[tuple[list[str], FakeProcess]] = []
+
+    def create(command: list[str], **_kwargs: object) -> FakeProcess:
+        process = FakeProcess()
+        calls.append((command, process))
+        return process
+
+    player = FlashcardAudioPlayer(process_factory=create, platform_name="darwin")
+    player.play(clip)
+    first = calls[0][1]
+    player.play(clip)
+
+    assert calls[0][0] == ["/usr/bin/afplay", str(clip)]
+    assert first.terminated
+    assert len(calls) == 2

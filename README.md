@@ -1,13 +1,16 @@
 # Easy Language Learning Tool
 
-[![Download for Windows](https://img.shields.io/badge/Download_for_Windows-v1.3.0-0078D4?logo=windows&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.3.0/EasyLanguageLearningTool-Setup-1.3.0.exe)
+[![Download for Windows](https://img.shields.io/badge/Download_for_Windows-v1.4.0-0078D4?logo=windows&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.0/EasyLanguageLearningTool-Setup-1.4.0.exe)
+[![Download for Apple Silicon](https://img.shields.io/badge/macOS-Apple_Silicon-000000?logo=apple&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.0/EasyLanguageLearningTool-1.4.0-Apple-Silicon.dmg)
+[![Download for Intel Mac](https://img.shields.io/badge/macOS-Intel-555555?logo=apple&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.0/EasyLanguageLearningTool-1.4.0-Intel.dmg)
 
-**Windows users only need the `.exe` installer; the workflow ZIP is not required.**  
-[Release notes, checksum, and build provenance](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/tag/v1.3.0)
+**Windows users need the `.exe`; Mac users need the `.dmg` matching their processor.**
+[Release notes, checksums, and build provenance](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/tag/v1.4.0)
 
 > The installer is not yet Authenticode-signed, so Windows may display an Unknown Publisher or SmartScreen warning.
+> The macOS apps are ad-hoc signed but not Apple-notarized, so Gatekeeper may require **Open** from the app's context menu on first launch.
 
-Easy Language Learning Tool is a Windows desktop application for creating
+Easy Language Learning Tool is a Windows and macOS desktop application for creating
 structured language-learning sentence workbooks and turning those workbooks
 into one natural-sounding, resumable MP3.
 
@@ -67,13 +70,16 @@ into one natural-sounding, resumable MP3.
 
 - Retains the latest 20 app-owned spreadsheets and 20 app-owned MP3 files.
 - Renames app-owned files, exports safe copies, restores generation settings, and
-  moves deletions to the Windows Recycle Bin.
+  moves deletions to the Windows Recycle Bin or macOS Trash.
 - Never renames or deletes a file exported outside the app-owned History folder.
 
 ## End-user setup
 
-1. Run `EasyLanguageLearningTool-Setup-1.3.0.exe`.
-2. Accept the default per-user installation folder and optional desktop shortcut.
+1. Windows: run `EasyLanguageLearningTool-Setup-1.4.0.exe` and accept the default
+   per-user installation folder and optional desktop shortcut.
+2. macOS: open the DMG for your processor and drag **Easy Language Learning Tool**
+   to **Applications**. On first launch, use **Open** from the context menu if
+   Gatekeeper identifies the unnotarized build.
 3. Launch the app. It opens centered at 50% of the screen; resize or maximize it normally.
 4. In Sentence Creation, choose a provider:
    - Cloud: paste your own API key, test the connection, and select a model.
@@ -90,7 +96,7 @@ or other runtime download. Ollama itself is optional and separately installed
 only when the user chooses local generation.
 
 API keys are session-only by default. **Remember securely** stores a key in the
-current Windows account's Credential Manager. Keys are never written to SQLite,
+current operating-system account's Credential Manager or macOS Keychain. Keys are never written to SQLite,
 logs, workbooks, checkpoints, or exported settings.
 
 ## Example workbook
@@ -151,6 +157,15 @@ and `WINDOWS_SIGNING_CERTIFICATE_PASSWORD`. Both must be configured together.
 Pull-request builds remain deliberately unsigned; signed builds verify the
 standalone executable and installer before artifact publication.
 
+## macOS build and installer
+
+The macOS workflow builds separate native application bundles and DMG installers
+for Apple Silicon and Intel Macs. Each build bundles Python, Qt, application data,
+FFmpeg, and FFprobe; validates the app bundle and architecture; runs a launch smoke
+test; and publishes a SHA-256 checksum and provenance record. The apps are ad-hoc
+signed. Apple Developer ID signing and notarization can be added when publisher
+credentials are available.
+
 ## Data and release status
 
 The repository includes exactly 5,000 ranked entries for each of eight language/
@@ -163,11 +178,9 @@ the word translation. See `docs/RELEASE_READINESS.md`.
 The interface caps the base-word control dynamically according to the available
 corpus and selected extra forms, so it never accepts a job above 5,000 final rows.
 
-The v1.3.0 release-candidate branch adds an offline Information tab after History
-with the complete numbered operating guide. It also prevents dropdowns, numeric fields, and
-sliders from changing under the mouse wheel, including after a prior click. Wheel
-input over these fields remains available to scroll the containing page; values
-change only through their explicit controls or keyboard input. The public download button installs the current v1.3.0 production release.
+Version 1.4.0 adds native Intel and Apple Silicon macOS packages while preserving
+the complete Information guide, hardened flashcard audio, uniform card surface,
+and mouse-wheel protections introduced in v1.3.0.
 
 ## Project documentation
 
@@ -199,7 +212,7 @@ Choose one of the following:
 
 1.  Select the provider. 
 2.  Paste your API key. 
-3.  Optionally enable **Remember securely in Windows Credential Manager**. 
+3.  Optionally enable **Remember securely in Credential Manager or macOS Keychain**.
 4.  Click **Test connection and load models**. 
 5.  Select a model from the **Model** dropdown. 
 
@@ -520,7 +533,7 @@ Four pauses can be set from 1 to 10 seconds:
 
 Click **Preview 2 rows**.
 
-The app generates audio for exactly the first two workbook rows and opens the preview in the default Windows audio player.
+The app generates audio for exactly the first two workbook rows and opens the preview in the default system audio player.
 
 ## 3.7 Create the complete MP3
 
@@ -574,7 +587,7 @@ Select one row before using an action.
 - **Use in Flashcards:** Opens a selected workbook in Flashcards. 
 - **Use in TTS:** Opens a selected workbook in TTS. 
 - **Rename:** Renames the app-owned History file. 
-- **Delete to Recycle Bin:** Removes the app-owned copy safely. 
+- **Delete to Recycle Bin / Trash:** Removes the app-owned copy safely.
 - **Re-export:** Copies the file to another location. 
 - **Regenerate:** Restores the original workbook-generation settings. 
 
@@ -582,7 +595,7 @@ Regenerate does not overwrite the original. It creates a new output path and use
 
 Files exported outside History are not renamed or deleted when their History copies are changed.
 
-When more than 20 files of one type exist, the oldest app-owned items are moved to the Recycle Bin.
+When more than 20 files of one type exist, the oldest app-owned items are moved to the Recycle Bin or Trash.
 
 ---
 
@@ -641,7 +654,7 @@ Confirm:
 
 -  Wait for the first on-demand generation. 
 -  Confirm internet access for uncached cards. 
--  Check Windows volume and output-device settings. 
+-  Check system volume and output-device settings.
 -  Try the speaker button again; repeated playback is supported. 
 -  Confirm the workbook cells contain valid text. 
 

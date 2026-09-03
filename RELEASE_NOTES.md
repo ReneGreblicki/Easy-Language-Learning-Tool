@@ -1,11 +1,21 @@
-# Easy Language Learning Tool 1.3.0 RC
+# Easy Language Learning Tool 1.4.0 RC
 
-Version 1.3.0 adds an in-app Information page containing the complete operating
-guide. The page appears immediately after History, supports clickable external
-links, and numbers its feature sections from 1. This release candidate also
-contains the ranked flashcards and mouse-wheel safety work from v1.2.1. It remains
-on a draft branch until explicit release approval; the published v1.1.0 installer
-is unchanged.
+Version 1.4.0 adds native macOS application bundles and DMG installers for Apple
+Silicon and Intel Macs while preserving the Windows edition and every v1.3.0
+feature. Flashcard audio uses macOS `afplay`, bundled FFmpeg supports TTS without
+a separate installation, credentials use macOS Keychain, and file deletion uses
+Trash terminology. The Mac applications are ad-hoc signed and require Apple
+Developer ID signing and notarization to remove the first-launch Gatekeeper warning.
+
+## macOS
+
+- Adds separate Apple Silicon and Intel DMG installers.
+- Bundles Python, Qt, application resources, FFmpeg, and FFprobe.
+- Adds native repeatable flashcard playback through `/usr/bin/afplay`.
+- Uses macOS Keychain through the existing secure credential service.
+- Uses platform-correct Trash labels and macOS application icons.
+- Adds macOS build, bundle validation, launch smoke testing, checksum, and
+  provenance gates to GitHub Actions and production releases.
 
 ## Information
 

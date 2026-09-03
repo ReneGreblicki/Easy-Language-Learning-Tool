@@ -50,7 +50,7 @@ from easy_language_learning_tool.generation.service import GenerationService
 from easy_language_learning_tool.history.service import HistoryItem, HistoryService
 from easy_language_learning_tool.providers.factory import create_provider
 from easy_language_learning_tool.providers.pricing import PricingRegistry
-from easy_language_learning_tool.security.credentials import CredentialStore
+from easy_language_learning_tool.security.credentials import CredentialStore, secure_store_name
 from easy_language_learning_tool.tts.manifest import file_checksum, settings_checksum
 from easy_language_learning_tool.tts.models import TtsSettings, VoiceSettings
 from easy_language_learning_tool.tts.service import EdgeFfmpegBackend, TtsService, list_edge_voices
@@ -163,8 +163,9 @@ PRONOUN_SCALE_EXPLANATIONS = {
 
 def resource_path(*parts: str) -> Path:
     packaged = Path(sys.argv[0]).resolve().parent
-    if packaged.joinpath(parts[0]).exists():
-        return packaged.joinpath(*parts)
+    for root in (packaged, packaged.parent / "Resources"):
+        if root.joinpath(parts[0]).exists():
+            return root.joinpath(*parts)
     return Path(__file__).resolve().parents[3].joinpath(*parts)
 
 
@@ -174,6 +175,10 @@ def frequency_data_path() -> Path:
         if production.is_file():
             return production
     return resource_path("resources", "frequency_data", "demo", "words.jsonl")
+
+
+def trash_name() -> str:
+    return "Trash" if sys.platform == "darwin" else "Recycle Bin"
 
 
 class MainWindow(QMainWindow):
@@ -202,7 +207,8 @@ class MainWindow(QMainWindow):
         self._tts_service: TtsService | None = None
         self._generation_resume: tuple[GenerationSettings, Path, Path, str, str] | None = None
         self.setWindowTitle("Easy Language Learning Tool")
-        self.setWindowIcon(QIcon(str(resource_path("assets", "icons", "logo.ico"))))
+        icon_name = "logo.png" if sys.platform == "darwin" else "logo.ico"
+        self.setWindowIcon(QIcon(str(resource_path("assets", "icons", icon_name))))
         self.setMinimumSize(720, 405)
         view = self.menuBar().addMenu("View")
         theme = QAction("Use dark theme", self, checkable=True)
@@ -268,7 +274,7 @@ class MainWindow(QMainWindow):
         self.api_key = QLineEdit()
         self.api_key.setEchoMode(QLineEdit.EchoMode.Password)
         self.api_key.setPlaceholderText("Not required for Ollama")
-        self.remember_key = QCheckBox("Remember securely in Windows Credential Manager")
+        self.remember_key = QCheckBox(f"Remember securely in {secure_store_name()}")
         self.endpoint = QLineEdit()
         self.endpoint.setPlaceholderText("Required only for custom endpoints")
         self.model_combo = QComboBox()
@@ -645,7 +651,7 @@ class MainWindow(QMainWindow):
             ("Use in Flashcards", self.history_to_flashcards),
             ("Use in TTS", self.history_to_tts),
             ("Rename", self.rename_history),
-            ("Delete to Recycle Bin", self.delete_history),
+            (f"Delete to {trash_name()}", self.delete_history),
             ("Re-export", self.export_history),
             ("Regenerate", self.regenerate_history),
         ):
@@ -707,7 +713,7 @@ class MainWindow(QMainWindow):
             self,
             "Provider setup",
             "Choose OpenAI, Anthropic, Google Gemini, DeepSeek, Ollama, or a custom OpenAI-compatible endpoint. "
-            "Cloud providers require your own API key. Remembered keys use Windows Credential Manager.\n\n"
+            f"Cloud providers require your own API key. Remembered keys use {secure_store_name()}.\n\n"
             "No cloud key? Install Ollama, run ‘ollama pull qwen3:8b’, keep http://localhost:11434, and test the connection.",
         )
 
@@ -1210,7 +1216,8 @@ class MainWindow(QMainWindow):
 
     def _backend(self) -> EdgeFfmpegBackend:
         bundled = resource_path("installer", "bundled", "ffmpeg")
-        ffmpeg, ffprobe = bundled / "ffmpeg.exe", bundled / "ffprobe.exe"
+        suffix = ".exe" if sys.platform == "win32" else ""
+        ffmpeg, ffprobe = bundled / f"ffmpeg{suffix}", bundled / f"ffprobe{suffix}"
         return EdgeFfmpegBackend(
             str(ffmpeg) if ffmpeg.exists() else "ffmpeg",
             str(ffprobe) if ffprobe.exists() else "ffprobe",
@@ -1362,8 +1369,8 @@ class MainWindow(QMainWindow):
             item
             and QMessageBox.question(
                 self,
-                "Move to Recycle Bin",
-                f"Move this app-owned file to the Recycle Bin?\n{item.display_name}",
+                f"Move to {trash_name()}",
+                f"Move this app-owned file to the {trash_name()}?\n{item.display_name}",
             )
             == QMessageBox.StandardButton.Yes
         ):
