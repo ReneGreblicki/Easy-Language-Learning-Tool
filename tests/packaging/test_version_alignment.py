@@ -21,5 +21,5 @@ def test_release_version_is_aligned_across_project_files() -> None:
     assert installer_match is not None
     assert installer_match.group(1) == project_version
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "releases/download/v1.1.0/EasyLanguageLearningTool-Setup-1.1.0.exe" in readme
+    assert "releases/download/v1.3.0/EasyLanguageLearningTool-Setup-1.3.0.exe" in readme
     assert f"Tool {project_version}" in (ROOT / "RELEASE_NOTES.md").read_text(encoding="utf-8")
