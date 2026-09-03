@@ -19,11 +19,17 @@ def test_release_support_files_are_present() -> None:
         root / "resources" / "licences" / "WORDFREQ_NOTICE.md",
         root / "resources" / "licences" / "WIKTIONARY_NOTICE.md",
         root / "resources" / "licences" / "THAI_DATA_NOTICE.md",
+        root / "resources" / "USER_MANUAL.md",
         root / "resources" / "frequency_data" / "README.md",
         root / "resources" / "frequency_data" / "THAI_SOURCE_MANIFEST.json",
         root / "resources" / "frequency_data" / "production" / "words.jsonl.gz",
     )
     assert all(path.is_file() for path in required)
+
+    manual = (root / "resources" / "USER_MANUAL.md").read_text(encoding="utf-8")
+    assert manual.startswith("# 1. Sentence Creation")
+    assert "# 6. Common problems" in manual
+    assert "# 3. Sentence Creation" not in manual
 
 
 def test_windows_workflow_runs_installer_acceptance_and_supports_signing() -> None:

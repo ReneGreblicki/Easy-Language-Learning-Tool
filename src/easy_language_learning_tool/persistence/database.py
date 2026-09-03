@@ -5,7 +5,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 @contextmanager
@@ -54,10 +54,41 @@ def initialize_database(path: Path) -> None:
                 manifest_path TEXT,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
+            CREATE TABLE IF NOT EXISTS flashcard_sources (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                file_checksum TEXT NOT NULL UNIQUE,
+                source_path TEXT NOT NULL,
+                display_name TEXT NOT NULL,
+                row_count INTEGER NOT NULL CHECK(row_count BETWEEN 1 AND 5000),
+                imported_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS flashcard_rows (
+                source_id INTEGER NOT NULL REFERENCES flashcard_sources(id) ON DELETE CASCADE,
+                rank INTEGER NOT NULL CHECK(rank BETWEEN 1 AND 5000),
+                foreign_word TEXT NOT NULL,
+                word_translation TEXT NOT NULL,
+                foreign_sentence TEXT NOT NULL,
+                sentence_translation TEXT NOT NULL,
+                PRIMARY KEY(source_id, rank)
+            );
+            CREATE TABLE IF NOT EXISTS flashcard_sessions (
+                id INTEGER PRIMARY KEY CHECK(id = 1),
+                source_id INTEGER NOT NULL REFERENCES flashcard_sources(id) ON DELETE CASCADE,
+                mode TEXT NOT NULL CHECK(mode IN ('words', 'sentences', 'both')),
+                from_rank INTEGER NOT NULL CHECK(from_rank BETWEEN 1 AND 5000),
+                to_rank INTEGER NOT NULL CHECK(to_rank BETWEEN 1 AND 5000),
+                order_json TEXT NOT NULL,
+                position INTEGER NOT NULL DEFAULT 0,
+                showing_back INTEGER NOT NULL DEFAULT 0 CHECK(showing_back IN (0, 1)),
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                CHECK(from_rank <= to_rank)
+            );
             """
         )
         row = connection.execute("SELECT version FROM schema_version LIMIT 1").fetchone()
         if row is None:
             connection.execute("INSERT INTO schema_version(version) VALUES (?)", (SCHEMA_VERSION,))
+        elif row[0] == 1:
+            connection.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))
         elif row[0] != SCHEMA_VERSION:
             raise RuntimeError(f"Unsupported database schema version: {row[0]}")

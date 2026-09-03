@@ -1,47 +1,67 @@
-# Easy Language Learning Tool 1.1.0
+# Easy Language Learning Tool 1.3.0 RC
 
-Version 1.1.0 adds complete Thai support and repairs Windows application identity
-and icon packaging.
+Version 1.3.0 adds an in-app Information page containing the complete operating
+guide. The page appears immediately after History, supports clickable external
+links, and numbers its feature sections from 1. This release candidate also
+contains the ranked flashcards and mouse-wheel safety work from v1.2.1. It remains
+on a draft branch until explicit release approval; the published v1.1.0 installer
+is unchanged.
 
-## Thai support
+## Information
 
-- Adds Thai as the seventh supported spoken language.
-- Adds two explicit learning and translation options:
-  - Thai (Thai script)
-  - Thai (Paiboon romanization)
-- Includes 5,000 ranked, validated entries for each Thai option, bringing the
-  production corpus to 40,000 records across eight language/script options.
-- Uses the CC BY-SA OpenSubtitles 2018 ranking, the CC0 Phupha 2026 frequency
-  dataset, and Kaikki/Wiktionary lexical and tone-marked romanization data.
-- Uses Thai Microsoft Edge neural voices for both Thai options.
-- Locks prompts so the Thai-script option stays in Thai script and the Paiboon
-  option stays in tone-marked Latin romanization.
+- Adds the Information tab after History.
+- Embeds the complete Sentence Creation, Flashcards, TTS, History, connectivity,
+  and troubleshooting guide in the standalone application and installer.
+- Starts the embedded guide at section 1 and continues through section 6.
+- Opens external documentation links in the system browser while keeping the
+  manual itself available offline.
 
-The supplied Lenguia and 1000MostCommonWords.com pages remain comparison sources
-because they do not grant redistribution rights. The supplied Scribd list is
-marked All Rights Reserved and is not bundled.
+## Flashcards
 
-## Windows identity and branding
+- Adds a dedicated Flashcards tab for app-generated or schema-compatible `.xlsx`
+  workbooks.
+- Supports Words, Sentences, and combined Words and sentences modes. Combined
+  cards show the larger bold word above the sentence on both sides.
+- Uses the learning-language cells on the front and their translations on the
+  back; the card surface and button both flip the card.
+- Assigns rank 1 to the first data row below the header and stores every ranked
+  row in the local SQLite backend without modifying the workbook.
+- Supports inclusive From rank and To rank filtering through Selected rows only.
+- Builds a random permutation with no repeated row before the eligible selection
+  is exhausted. Previous and Next preserve the generated order; Shuffle again
+  starts a fresh cycle without immediately repeating the current row.
+- Persists the workbook checksum, indexed rows, mode, selected range, shuffled
+  order, current position, and visible side across application restarts.
+- Lets a workbook in History open directly in Flashcards.
+- Redesigns the study surface around the supplied minimalist light/dark template:
+  a near-full-tab card, substantially larger word and sentence text, a simple
+  progress, compact language badge, and no side-name text bars or contrasting
+  rectangles behind card text.
+- Adds explicit **Load from History** and **Load from Desktop** actions to both
+  Flashcards and TTS.
+- Adds repeatable card audio for the visible side. It reuses matching individually
+  generated TTS cell clips, lazily creates missing clips, persists them in the
+  local cache, converts each playback result to a cached WAV, and uses native
+  Windows playback so the same side can be played repeatedly.
 
-- Replaces the previous logo with a globe rising from an open book.
-- Adds a native multi-resolution Windows `.ico` and matching high-resolution PNG.
-- Embeds the icon directly into the Nuitka executable.
-- Applies the icon to the running Qt application, title bar, taskbar card,
-  installer, Start menu shortcut, desktop shortcut, and uninstall entry.
-- Sets an explicit Windows AppUserModelID so the taskbar groups the running app
-  under the installed application identity instead of displaying a generic icon.
+## Mouse-wheel safety
+
+- Closed dropdowns, numeric fields, and sliders always ignore wheel changes,
+  including after an earlier click or keyboard focus.
+- Ignored wheel input remains available to the containing page so normal page
+  scrolling continues.
+- Dropdown selection, spin buttons, slider dragging, and keyboard input remain
+  usable.
 
 ## Existing production capabilities
 
-- Deterministic 5,000-word selection, CEFR planning, exact question allocation,
-  neutral/personal subject controls, and part-of-speech-aware extra forms.
-- OpenAI, Anthropic, Gemini, DeepSeek, Ollama, and custom compatible providers.
-- Excel-safe workbooks, checkpointed generation, resumable Edge TTS, safe local
-  History, bundled FFmpeg, and per-user Windows installation.
-- Automated formatting, linting, strict typing, corpus validation, Windows UI,
-  packaged launch, install, upgrade/repair, uninstall, checksum, and provenance
-  gates.
+- Seven spoken languages and eight language/script options, including Thai
+  script and tone-marked Paiboon romanization.
+- 40,000 ranked production records, deterministic CEFR/form/subject planning,
+  provider-based generation, Excel-safe workbooks, resumable TTS, and safe local
+  History.
+- Globe-and-open-book Windows identity, bundled runtime and FFmpeg, Inno Setup
+  packaging, checksum/provenance generation, and optional Authenticode signing.
 
-Authenticode signing remains automatic when both protected publisher-certificate
-secrets are configured. Unsigned builds may display a Windows Unknown Publisher
-warning.
+The published v1.1.0 installer remains the public download until this release
+candidate passes automated Windows acceptance and receives explicit approval.

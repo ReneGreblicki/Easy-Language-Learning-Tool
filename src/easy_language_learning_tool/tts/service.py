@@ -39,6 +39,8 @@ class AudioBackend(Protocol):
 
     def concatenate(self, inputs: list[Path], output: Path) -> None: ...
 
+    def convert_to_wav(self, source: Path, output: Path) -> None: ...
+
     def verify(self, path: Path) -> None: ...
 
 
@@ -110,6 +112,25 @@ class EdgeFfmpegBackend:
             )
         finally:
             list_path.unlink(missing_ok=True)
+
+    def convert_to_wav(self, source: Path, output: Path) -> None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        self._run(
+            [
+                self.ffmpeg,
+                "-y",
+                "-i",
+                str(source),
+                "-vn",
+                "-acodec",
+                "pcm_s16le",
+                "-ar",
+                "44100",
+                "-ac",
+                "1",
+                str(output),
+            ]
+        )
 
     def verify(self, path: Path) -> None:
         self._run(

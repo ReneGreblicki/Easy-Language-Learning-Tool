@@ -2,7 +2,7 @@
 
 ## Development Workflow and Test Plan
 
-Version: 3.1 (Thai and Windows identity release)
+Version: 4.2 (uniform-card study, repeatable native audio, and strict wheel safety)
 
 Target: Windows 10/11 x64 desktop app and regular installer
 
@@ -69,11 +69,56 @@ The canonical `.xlsx` `Sentences` sheet has exactly:
 
 TTS speaks all four cells in order, using the foreign voice for columns 1 and 3 and translation voice for columns 2 and 4. It produces one MP3 with voice, speed, pitch, volume, four 1–10 second pauses, two-row preview, pause/resume/cancel, partial export, and checksum-safe continuation.
 
+TTS and Flashcards each expose two explicit workbook entry points: **Load from
+History** for app-owned workbooks and **Load from Desktop** for any compatible
+external workbook. Both paths run the same schema validation.
+
 History retains 20 app-owned spreadsheets and 20 audio files in application data. Rename/delete never affect external exports; delete and retention use the Recycle Bin. Regeneration preserves the original.
+
+### Ranked workbook flashcards
+
+- Flashcards load an app-generated or schema-compatible `.xlsx` workbook. The
+  source workbook is read-only from the flashcard workflow.
+- The first data row below the header is logical rank 1; ranks are continuous and
+  stored with all four public cells in the local SQLite backend.
+- Display modes are Words, Sentences, and Words and sentences. The combined mode
+  creates one card per row with the larger bold word above the sentence on both
+  sides. The learning-language cells are the front and translations are the back.
+- The card occupies the available tab area beneath a compact control strip. It
+  uses one uniform light/dark surface, a large bold word, a larger sentence, a
+  compact language-pair badge, progress, Previous/Reveal/Next, and
+  Reshuffle. It does not place the content inside dark blue text bars or repeat
+  “Learning language”/“Translation” labels inside the card.
+- The card sound control plays the visible side. Existing per-cell MP3 clips from
+  a matching TTS workbook job are reused. Missing word or sentence clips are
+  synthesized only when requested, cached persistently by text and voice, and
+  concatenated in word-then-sentence order for combined cards. Each result is
+  converted once to a cached WAV and replayed through the native Windows audio
+  service; the sound button can restart the same side repeatedly. Audio preparation
+  remains off the UI thread.
+- Selected rows only enables blank inclusive From rank and To rank fields. With
+  the option off, every workbook row is eligible.
+- Each study cycle is a random permutation of the eligible ranks, so a row cannot
+  repeat before the selection is exhausted. Previous and Next follow that stored
+  order. Shuffle again creates a new permutation, resets to its first card, and
+  avoids immediately repeating the card visible at the prior cycle boundary when
+  more than one card is eligible.
+- SQLite persists the workbook SHA-256, indexed rows, display mode, selected rank
+  range, shuffled order, current position, and visible side across restarts.
+- History can send an app-owned workbook directly to Flashcards.
+
+### Mouse-wheel input safety
+
+- Closed dropdowns, numeric fields, and sliders never change from a wheel event,
+  even when hovered, focused, or previously clicked.
+- Their ignored wheel events remain available so the containing page scroll area
+  moves instead.
+- Dropdown selection, numeric arrows, slider dragging, and keyboard interaction
+  continue to work normally.
 
 The PySide6 app launches centered at 50% of the available screen, supports
 resizing/maximizing, light/dark Power BI-inspired palettes, and the Sentence
-Creation, TTS, and History tabs. Branding is a globe rising from an open book.
+Creation, Flashcards, TTS, and History tabs. Branding is a globe rising from an open book.
 The same native multi-resolution icon is embedded in the executable, installer,
 window, taskbar identity, Start menu, desktop shortcut, and uninstall entry.
 
@@ -124,7 +169,15 @@ duplicates rows.
 
 ### Phase 5 — History and UI
 
-Safe local history, 20+20 retention, recycle-bin actions, three tabs, themes, accessibility, and responsive workers. Gate: path-safety and UI-state tests pass; external files are never mutated.
+Safe local history, 20+20 retention, recycle-bin actions, four tabs, themes, accessibility, and responsive workers. Gate: path-safety and UI-state tests pass; external files are never mutated.
+
+### Phase 5A — Flashcards and input safety
+
+Ranked workbook ingestion, persistent SQLite decks, three display modes, inclusive
+rank filtering, flip/navigation/shuffle controls, restart recovery, and deliberate
+wheel safety. Gate: ranking and persistence reconcile exactly; no cycle repeats an
+eligible rank; combined layout, repeated audio, uniform styling, and wheel behavior
+pass automated and Windows UI tests.
 
 ### Phase 6 — Packaging and release
 
@@ -134,11 +187,11 @@ Nuitka bundle, FFmpeg, Inno Setup, README, notices, release notes, checksum, pro
 
 | Layer | Mandatory measures | Run |
 |---|---|---|
-| Unit | row-limit matrix, allocation, schedules, normalization, POS/form rules, validators | Every commit |
+| Unit | row-limit matrix, allocation, schedules, normalization, POS/form rules, flashcard permutations, validators | Every commit |
 | Corpus | count/rank/key/Unicode/POS/forms/translations/licences/checksums/cross-source report | Corpus change and release |
 | Contract | all provider adapters, error mapping, usage, cancellation, secret redaction | Every pull request |
-| Integration | generation checkpoint, XLSX/CSV round-trip, SQLite/history, mocked Edge/FFmpeg | Every pull request |
-| UI | dynamic base maximum, explanation, Italian, both Thai options, native icon, tabs/themes, valid-button states, workers | Every pull request |
+| Integration | generation checkpoint, XLSX/CSV round-trip, ranked flashcard import/resume, SQLite/history, mocked Edge/FFmpeg | Every pull request |
+| UI | dynamic base maximum, flashcard modes/layout/ranges/navigation, wheel safety, Italian, both Thai options, native icon, tabs/themes, valid-button states, workers | Every pull request |
 | End-to-end | controlled multi-POS generation and TTS resume | Nightly and release |
 | Packaging | executable, installer, upgrade/uninstall, bundled files/notices | Release candidate |
 | Security/performance | dependency audit, malformed files, path escape, 5,000-row timing/memory | Pull request/release |
@@ -169,6 +222,32 @@ Nuitka bundle, FFmpeg, Inno Setup, README, notices, release notes, checksum, pro
 - New word headers are exact; previous verb headers import for backward compatibility.
 - Workbook XML contains no incompatible table object; Excel opens without repair.
 
+### Flashcard and wheel cases
+
+- Workbook row 2 is flashcard rank 1; blank visible rows are ignored consistently
+  with the standard workbook importer; rank order remains continuous to 5,000.
+- Words shows only word cells, Sentences only sentence cells, and combined mode
+  shows the larger bold word above the sentence on front and back.
+- The card expands with the tab, contains no side-name text bars, shows a compact
+  workbook language pair, and retains usable navigation at the minimum window size.
+- History/Desktop loaders on both Flashcards and TTS validate the same workbook
+  contract. History cancellation and an empty History list leave the current deck
+  or TTS selection unchanged.
+- A single-mode card plays one cached cell clip. Combined mode plays its word then
+  sentence. A matching prior TTS clip is reused; otherwise lazy synthesis creates
+  one persistent cache entry. Cached native playback can restart the same side any
+  number of times without calling the provider again.
+- Inclusive ranges accept `1–1`, subsets, and the full dataset; blanks, reversed
+  ranges, zero, and values above the workbook count fail clearly.
+- Every eligible rank appears exactly once per shuffle cycle. Previous and Next
+  preserve order, end-of-cycle Next is disabled, and Shuffle again resets without
+  an immediate boundary repeat when at least two cards exist.
+- Importing the same checksum reuses its indexed source. Mode, range, order,
+  position, and card side restore after a restart without modifying the workbook.
+- Wheel input over a hovered, focused, or previously clicked dropdown, spin box,
+  or slider leaves its value unchanged and reaches the page scroll area. Values
+  change through explicit dropdown choices, arrows, dragging, or keyboard input.
+
 ### TTS/history/installer cases
 
 - Eight-option Edge voice filtering, including the shared `th-TH` voice locale,
@@ -177,6 +256,9 @@ Nuitka bundle, FFmpeg, Inno Setup, README, notices, release notes, checksum, pro
 - Retention is independent per file type; path traversal, symlink/junction escape, collision, and rollback cases are covered.
 - CI tests silent install into a path with spaces/Unicode, launch, in-place upgrade/repair, uninstall, bundled FFmpeg/resources, and preserved app-owned data.
 - Final clean Windows 10 and Windows 11 client machines verify interactive install, shortcuts, SmartScreen/Defender behaviour, upgrade, repair, uninstall, and preserved exports.
+- The Information tab appears immediately after History, loads the bundled manual
+  without network access, begins at section 1, includes every section through
+  Common problems, and opens external links through the system browser.
 
 Performance targets: cold launch ≤5 seconds; local UI response ≤200 ms; 5,000-row import ≤3 seconds; peak workbook handling ≤750 MB; 40-item history load ≤1 second. Network and FFmpeg work never block the UI thread.
 
