@@ -18,7 +18,7 @@ Future<void> main() async {
   }
   await Supabase.initialize(
     url: config.supabaseUrl,
-    anonKey: config.publishableKey,
+    publishableKey: config.publishableKey,
   );
   final client = Supabase.instance.client;
   runApp(
