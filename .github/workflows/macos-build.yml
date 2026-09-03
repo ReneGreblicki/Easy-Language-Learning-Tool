@@ -1,0 +1,122 @@
+name: macOS build
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "release/v1.4.0-rc"
+  pull_request:
+    paths:
+      - "src/**"
+      - "resources/**"
+      - "assets/**"
+      - "examples/**"
+      - "pyproject.toml"
+      - "installer/**"
+      - ".github/workflows/macos-build.yml"
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15-intel
+            architecture: Intel
+          - runner: macos-15
+            architecture: Apple-Silicon
+    runs-on: ${{ matrix.runner }}
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true
+      - name: Install locked build dependencies
+        run: uv sync --locked --extra dev --extra build
+      - name: Install macOS packaging dependencies
+        run: brew install ffmpeg dylibbundler
+      - name: Run quality and macOS tests
+        run: |
+          uv run ruff format --check .
+          uv run ruff check .
+          uv run mypy src
+          uv run pytest --cov=easy_language_learning_tool --cov-report=term-missing --cov-fail-under=85
+      - name: Create macOS application icon
+        run: |
+          mkdir -p build/AppIcon.iconset
+          sips -z 16 16 assets/icons/logo.png --out build/AppIcon.iconset/icon_16x16.png
+          sips -z 32 32 assets/icons/logo.png --out build/AppIcon.iconset/icon_16x16@2x.png
+          sips -z 32 32 assets/icons/logo.png --out build/AppIcon.iconset/icon_32x32.png
+          sips -z 64 64 assets/icons/logo.png --out build/AppIcon.iconset/icon_32x32@2x.png
+          sips -z 128 128 assets/icons/logo.png --out build/AppIcon.iconset/icon_128x128.png
+          sips -z 256 256 assets/icons/logo.png --out build/AppIcon.iconset/icon_128x128@2x.png
+          sips -z 256 256 assets/icons/logo.png --out build/AppIcon.iconset/icon_256x256.png
+          sips -z 512 512 assets/icons/logo.png --out build/AppIcon.iconset/icon_256x256@2x.png
+          sips -z 512 512 assets/icons/logo.png --out build/AppIcon.iconset/icon_512x512.png
+          sips -z 1024 1024 assets/icons/logo.png --out build/AppIcon.iconset/icon_512x512@2x.png
+          iconutil -c icns build/AppIcon.iconset -o build/AppIcon.icns
+      - name: Build standalone macOS application
+        run: |
+          uv run python -m nuitka --standalone --enable-plugin=pyside6 \
+            --macos-create-app-bundle --macos-app-name="Easy Language Learning Tool" \
+            --macos-app-version=1.4.0 --macos-app-icon=build/AppIcon.icns \
+            --output-dir=dist --output-filename=EasyLanguageLearningTool \
+            --include-data-dir=resources=resources \
+            --include-data-dir=assets=assets \
+            --include-data-dir=examples=examples \
+            --include-data-files=README.md=README.md \
+            --include-data-files=RELEASE_NOTES.md=RELEASE_NOTES.md \
+            src/easy_language_learning_tool/app.py
+          app_path=$(find dist -maxdepth 1 -name '*.app' -print -quit)
+          test -n "$app_path"
+          mv "$app_path" "dist/Easy Language Learning Tool.app"
+      - name: Bundle FFmpeg and native libraries
+        run: |
+          app_path="dist/Easy Language Learning Tool.app"
+          target="$app_path/Contents/Resources/installer/bundled/ffmpeg"
+          mkdir -p "$target" "$app_path/Contents/Frameworks"
+          cp "$(brew --prefix ffmpeg)/bin/ffmpeg" "$target/ffmpeg"
+          cp "$(brew --prefix ffmpeg)/bin/ffprobe" "$target/ffprobe"
+          chmod +x "$target/ffmpeg" "$target/ffprobe"
+          dylibbundler -od -b \
+            -x "$target/ffmpeg" -x "$target/ffprobe" \
+            -d "$app_path/Contents/Frameworks" \
+            -p "@executable_path/../Frameworks/"
+          codesign --force --deep --sign - "$app_path"
+      - name: Validate application bundle
+        run: |
+          app_path="dist/Easy Language Learning Tool.app"
+          plutil -lint "$app_path/Contents/Info.plist"
+          codesign --verify --deep --strict "$app_path"
+          test -x "$app_path/Contents/Resources/installer/bundled/ffmpeg/ffmpeg"
+          test -x "$app_path/Contents/Resources/installer/bundled/ffmpeg/ffprobe"
+          executable=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app_path/Contents/Info.plist")
+          file "$app_path/Contents/MacOS/$executable"
+          QT_QPA_PLATFORM=offscreen "$app_path/Contents/MacOS/$executable" &
+          pid=$!
+          sleep 8
+          kill "$pid"
+          wait "$pid" || true
+      - name: Create DMG, checksum, and provenance
+        run: |
+          mkdir -p dist/dmg-root dist/release
+          cp -R "dist/Easy Language Learning Tool.app" dist/dmg-root/
+          ln -s /Applications dist/dmg-root/Applications
+          dmg="dist/release/EasyLanguageLearningTool-1.4.0-${{ matrix.architecture }}.dmg"
+          hdiutil create -volname "Easy Language Learning Tool" \
+            -srcfolder dist/dmg-root -ov -format UDZO "$dmg"
+          shasum -a 256 "$dmg" > "dist/release/SHA256SUMS-${{ matrix.architecture }}.txt"
+          printf 'version=1.4.0\ncommit=%s\nworkflow_run=%s\nbuilt_utc=%s\narchitecture=%s\ncodesign=ad-hoc\nnotarized=false\n' \
+            "${{ github.event.pull_request.head.sha || github.sha }}" \
+            "${{ github.run_id }}" \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            "${{ matrix.architecture }}" \
+            > "dist/release/BUILD_PROVENANCE-${{ matrix.architecture }}.txt"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: Easy-Language-Learning-Tool-macOS-${{ matrix.architecture }}
+          path: dist/release/*

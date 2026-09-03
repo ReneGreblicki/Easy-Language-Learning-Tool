@@ -49,3 +49,20 @@ def test_windows_workflow_runs_installer_acceptance_and_supports_signing() -> No
     installer = (root / "installer" / "inno_setup.iss").read_text(encoding="utf-8")
     assert "SetupIconFile=..\\assets\\icons\\logo.ico" in installer
     assert "UninstallDisplayIcon={app}\\{#MyAppExeName}" in installer
+
+
+def test_macos_workflow_builds_both_architectures_and_bundles_runtime() -> None:
+    root = Path(__file__).resolve().parents[2]
+    workflow = (root / ".github" / "workflows" / "macos-build.yml").read_text(encoding="utf-8")
+    assert "macos-15-intel" in workflow
+    assert "macos-15" in workflow
+    assert "--macos-create-app-bundle" in workflow
+    assert "dylibbundler" in workflow
+    assert "hdiutil create" in workflow
+    assert "EasyLanguageLearningTool-1.4.0-${{ matrix.architecture }}.dmg" in workflow
+    assert "codesign --verify --deep --strict" in workflow
+
+    release = (root / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    assert "uses: ./.github/workflows/macos-build.yml" in release
+    assert "Easy-Language-Learning-Tool-macOS-*" in release
+    assert "release-artifacts\\\\macos\\\\*.dmg" in release
