@@ -18,6 +18,25 @@ class Flashcard {
   final String foreignSentence;
   final String sentenceTranslation;
   final StudyRating rating;
+
+  factory Flashcard.fromJson(Map<String, dynamic> json) => Flashcard(
+        id: json['id'] as String,
+        rank: json['rank'] as int,
+        foreignWord: json['foreign_word'] as String,
+        wordTranslation: json['word_translation'] as String,
+        foreignSentence: json['foreign_sentence'] as String,
+        sentenceTranslation: json['sentence_translation'] as String,
+      );
+
+  Map<String, Object?> toJson() => {
+        'id': id,
+        'rank': rank,
+        'foreign_word': foreignWord,
+        'word_translation': wordTranslation,
+        'foreign_sentence': foreignSentence,
+        'sentence_translation': sentenceTranslation,
+        'rating': rating.name,
+      };
 }
 
 class Deck {
@@ -38,6 +57,29 @@ class Deck {
   final List<Flashcard> cards;
   final bool isDownloaded;
   final DateTime? deletedAt;
+
+  factory Deck.fromJson(Map<String, dynamic> json) => Deck(
+        id: json['id'] as String,
+        title: json['title'] as String,
+        sourceLanguage: json['source_language'] as String,
+        translationLanguage: json['translation_language'] as String,
+        cards: ((json['cards'] as List<dynamic>?) ?? const [])
+            .map((item) => Flashcard.fromJson(item as Map<String, dynamic>))
+            .toList(growable: false),
+        deletedAt: json['deleted_at'] == null
+            ? null
+            : DateTime.parse(json['deleted_at'] as String),
+      );
+
+  Map<String, Object?> toJson() => {
+        'id': id,
+        'title': title,
+        'source_language': sourceLanguage,
+        'translation_language': translationLanguage,
+        'cards': cards.map((card) => card.toJson()).toList(growable: false),
+        'is_downloaded': isDownloaded ? 1 : 0,
+        'deleted_at': deletedAt?.toIso8601String(),
+      };
 
   Deck copyWith({bool? isDownloaded, DateTime? deletedAt}) => Deck(
         id: id,

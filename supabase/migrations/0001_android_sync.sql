@@ -11,6 +11,28 @@ create table public.profiles (
     updated_at timestamptz not null default now()
 );
 
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = ''
+as $$
+begin
+    insert into public.profiles(user_id, username)
+    values (
+        new.id,
+        coalesce(
+            nullif(new.raw_user_meta_data ->> 'username', ''),
+            'user_' || left(replace(new.id::text, '-', ''), 12)
+        )
+    );
+    return new;
+end;
+$$;
+
+create trigger on_auth_user_created
+    after insert on auth.users
+    for each row execute procedure public.handle_new_user();
+
 create table public.devices (
     id uuid primary key default gen_random_uuid(),
     user_id uuid not null references auth.users(id) on delete cascade,
