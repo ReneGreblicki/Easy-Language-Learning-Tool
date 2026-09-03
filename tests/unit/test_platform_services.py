@@ -67,7 +67,7 @@ class PlatformServiceTests(unittest.TestCase):
         fake = types.SimpleNamespace(set_password=fail)
         with (
             patch.dict(sys.modules, {"keyring": fake}),
-            self.assertRaisesRegex(RuntimeError, "Credential Manager"),
+            self.assertRaisesRegex(RuntimeError, "Credential Manager|macOS Keychain"),
         ):
             CredentialStore().set("OpenAI", "secret", remember=True)
 

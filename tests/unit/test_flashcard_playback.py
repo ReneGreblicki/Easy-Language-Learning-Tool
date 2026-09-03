@@ -21,7 +21,7 @@ def test_player_restarts_same_side_every_time(tmp_path: Path) -> None:
     clip = tmp_path / "clip.wav"
     clip.write_bytes(b"RIFF-test")
     sound_api = FakeSoundApi()
-    player = FlashcardAudioPlayer(sound_api)
+    player = FlashcardAudioPlayer(sound_api, platform_name="win32")
 
     player.play(clip)
     player.play(clip)
