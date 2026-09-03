@@ -1,5 +1,9 @@
 # Easy Language Learning Tool
 
+> **Android companion in development:** The planned flashcard-only Android app will
+> synchronize desktop-generated decks for offline study. See the
+> [complete Android project plan and workflow](docs/ANDROID_PROJECT_PLAN.md).
+
 [![Download for Windows](https://img.shields.io/badge/Download_for_Windows-v1.4.0-0078D4?logo=windows&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.0/EasyLanguageLearningTool-Setup-1.4.0.exe)
 [![Download for Apple Silicon](https://img.shields.io/badge/macOS-Apple_Silicon-000000?logo=apple&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.0/EasyLanguageLearningTool-1.4.0-Apple-Silicon.dmg)
 [![Download for Intel Mac](https://img.shields.io/badge/macOS-Intel-555555?logo=apple&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.0/EasyLanguageLearningTool-1.4.0-Intel.dmg)

@@ -1,5 +1,10 @@
 # Easy Language Learning Tool
 
+> Android companion development is governed by
+> [Android Flashcards and Cross-Device Sync](../docs/ANDROID_PROJECT_PLAN.md).
+> Its locked deletion rule is that **Remove download** affects only the Android
+> installation; it never changes, archives, or deletes the desktop or cloud copy.
+
 ## Development Workflow and Test Plan
 
 Version: 5.0 (native Windows and macOS distribution)
