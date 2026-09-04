@@ -2,7 +2,8 @@
 
 ## Development build
 
-The Supabase publishable key is intentionally not committed. Supply configuration at build time:
+The Supabase publishable key is bundled with the client, as intended for Supabase public client
+keys. It may be overridden at build time:
 
 ```bash
 flutter run \
@@ -10,7 +11,7 @@ flutter run \
   --dart-define=SUPABASE_PUBLISHABLE_KEY=your_publishable_key
 ```
 
-The publishable key is designed for client applications. Database security depends on the
+The publishable key is not a service-role secret. Database security depends on the
 row-level security policies in `../supabase/migrations/0001_android_sync.sql`, not on hiding
 the publishable key.
 

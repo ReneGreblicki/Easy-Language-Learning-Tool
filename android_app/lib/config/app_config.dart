@@ -2,6 +2,8 @@ class AppConfig {
   const AppConfig({required this.supabaseUrl, required this.publishableKey});
 
   static const projectUrl = 'https://jmnsrikmqopdhmnkjmah.supabase.co';
+  static const projectPublishableKey =
+      'sb_publishable_CtsilxSEQHVULSCmAgdGSg_6BZVtqmE';
 
   final String supabaseUrl;
   final String publishableKey;
@@ -13,6 +15,9 @@ class AppConfig {
       'SUPABASE_URL',
       defaultValue: projectUrl,
     ),
-    publishableKey: String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY'),
+    publishableKey: String.fromEnvironment(
+      'SUPABASE_PUBLISHABLE_KEY',
+      defaultValue: projectPublishableKey,
+    ),
   );
 }
