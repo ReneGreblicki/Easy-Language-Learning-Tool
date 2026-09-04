@@ -32,4 +32,19 @@ class SupabaseDeckSource {
         })
         .eq('id', deckId);
   }
+
+  Future<void> saveProgress(String cardId, StudyRating rating) async {
+    final userId = client.auth.currentUser?.id;
+    if (userId == null) throw const AuthException('Sign in is required.');
+    await client.from('study_progress').upsert(
+      {
+        'user_id': userId,
+        'card_id': cardId,
+        'rating': rating == StudyRating.newCard ? 'new' : rating.name,
+        'review_count': 1,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      },
+      onConflict: 'user_id,card_id',
+    );
+  }
 }

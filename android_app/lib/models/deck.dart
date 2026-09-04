@@ -9,6 +9,8 @@ class Flashcard {
     required this.foreignSentence,
     required this.sentenceTranslation,
     this.rating = StudyRating.newCard,
+    this.wordAudioUrl,
+    this.sentenceAudioUrl,
   });
 
   final String id;
@@ -18,6 +20,8 @@ class Flashcard {
   final String foreignSentence;
   final String sentenceTranslation;
   final StudyRating rating;
+  final String? wordAudioUrl;
+  final String? sentenceAudioUrl;
 
   factory Flashcard.fromJson(Map<String, dynamic> json) => Flashcard(
         id: json['id'] as String,
@@ -26,6 +30,12 @@ class Flashcard {
         wordTranslation: json['word_translation'] as String,
         foreignSentence: json['foreign_sentence'] as String,
         sentenceTranslation: json['sentence_translation'] as String,
+        rating: StudyRating.values.firstWhere(
+          (value) => value.name == json['rating'],
+          orElse: () => StudyRating.newCard,
+        ),
+        wordAudioUrl: json['word_audio_url'] as String?,
+        sentenceAudioUrl: json['sentence_audio_url'] as String?,
       );
 
   Map<String, Object?> toJson() => {
@@ -36,7 +46,21 @@ class Flashcard {
         'foreign_sentence': foreignSentence,
         'sentence_translation': sentenceTranslation,
         'rating': rating.name,
+        'word_audio_url': wordAudioUrl,
+        'sentence_audio_url': sentenceAudioUrl,
       };
+
+  Flashcard copyWith({StudyRating? rating}) => Flashcard(
+        id: id,
+        rank: rank,
+        foreignWord: foreignWord,
+        wordTranslation: wordTranslation,
+        foreignSentence: foreignSentence,
+        sentenceTranslation: sentenceTranslation,
+        rating: rating ?? this.rating,
+        wordAudioUrl: wordAudioUrl,
+        sentenceAudioUrl: sentenceAudioUrl,
+      );
 }
 
 class Deck {

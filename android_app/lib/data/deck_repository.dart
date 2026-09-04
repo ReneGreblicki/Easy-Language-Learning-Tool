@@ -11,6 +11,7 @@ abstract interface class DeckRepository {
   Future<void> removeDownload(String deckId);
 
   Future<void> deleteEverywhere(String deckId);
+  Future<void> saveProgress(String cardId, StudyRating rating);
 }
 
 class MemoryDeckRepository implements DeckRepository {
@@ -39,6 +40,28 @@ class MemoryDeckRepository implements DeckRepository {
   @override
   Future<void> deleteEverywhere(String deckId) async {
     _replace(deckId, (deck) => deck.copyWith(deletedAt: DateTime.now().toUtc()));
+  }
+
+  @override
+  Future<void> saveProgress(String cardId, StudyRating rating) async {
+    for (var deckIndex = 0; deckIndex < _decks.length; deckIndex++) {
+      final deck = _decks[deckIndex];
+      final cardIndex = deck.cards.indexWhere((card) => card.id == cardId);
+      if (cardIndex < 0) continue;
+      final cards = List<Flashcard>.from(deck.cards);
+      cards[cardIndex] = cards[cardIndex].copyWith(rating: rating);
+      _decks[deckIndex] = Deck(
+        id: deck.id,
+        title: deck.title,
+        sourceLanguage: deck.sourceLanguage,
+        translationLanguage: deck.translationLanguage,
+        cards: cards,
+        isDownloaded: deck.isDownloaded,
+        deletedAt: deck.deletedAt,
+      );
+      return;
+    }
+    throw StateError('Card not found: $cardId');
   }
 
   void _replace(String deckId, Deck Function(Deck) update) {

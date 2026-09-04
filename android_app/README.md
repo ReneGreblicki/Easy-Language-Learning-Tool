@@ -23,3 +23,12 @@ tables, account-profile trigger, private audio bucket, indexes and row-level sec
 - **Remove download** deletes only this Android installation's cached deck and audio.
 - The cloud and desktop copies remain unchanged.
 - **Delete everywhere** is a separate cloud operation and is not exposed without confirmation.
+
+## Implemented study behavior
+
+- Four sides in order: foreign word, word translation, foreign sentence, sentence translation
+- Tap the card to advance between sides
+- Previous and next navigation
+- Known, Learning and Difficult ratings
+- Local-first progress persistence
+- Repeatable audio playback when an audio URL is available

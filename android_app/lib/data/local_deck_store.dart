@@ -82,4 +82,30 @@ class LocalDeckStore {
     final db = await database;
     await db.delete('downloaded_decks', where: 'id = ?', whereArgs: [deckId]);
   }
+
+  Future<void> saveProgress(String cardId, StudyRating rating) async {
+    final db = await database;
+    await db.rawInsert(
+      '''
+      INSERT INTO local_progress(card_id, rating, review_count, updated_at, sync_state)
+      VALUES (?, ?, 1, ?, 'pending')
+      ON CONFLICT(card_id) DO UPDATE SET
+        rating = excluded.rating,
+        review_count = local_progress.review_count + 1,
+        updated_at = excluded.updated_at,
+        sync_state = 'pending'
+      ''',
+      [cardId, rating.name, DateTime.now().toUtc().toIso8601String()],
+    );
+  }
+
+  Future<void> markProgressSynced(String cardId) async {
+    final db = await database;
+    await db.update(
+      'local_progress',
+      {'sync_state': 'synced'},
+      where: 'card_id = ?',
+      whereArgs: [cardId],
+    );
+  }
 }

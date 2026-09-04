@@ -8,6 +8,7 @@ import 'data/local_deck_store.dart';
 import 'data/supabase_deck_source.dart';
 import 'data/sync_deck_repository.dart';
 import 'models/deck.dart';
+import 'study/study_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -117,6 +118,85 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _register() async {
+    final username = TextEditingController();
+    final email = TextEditingController(text: _email.text);
+    final password = TextEditingController();
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Create account'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: username,
+                decoration: const InputDecoration(labelText: 'Username'),
+              ),
+              TextField(
+                controller: email,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(labelText: 'Email'),
+              ),
+              TextField(
+                controller: password,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Password'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+    if (accepted != true) return;
+    try {
+      await widget.authService.register(
+        username: username.text,
+        email: email.text,
+        password: password.text,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Check your email to confirm the account.')),
+        );
+      }
+    } on AuthException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } finally {
+      username.dispose();
+      email.dispose();
+      password.dispose();
+    }
+  }
+
+  Future<void> _resetPassword() async {
+    if (_email.text.trim().isEmpty) {
+      setState(() => _error = 'Enter your email address first.');
+      return;
+    }
+    try {
+      await widget.authService.resetPassword(_email.text);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Password-reset email sent.')),
+        );
+      }
+    } on AuthException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    }
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('Sign in')),
@@ -147,6 +227,14 @@ class _LoginScreenState extends State<LoginScreen> {
             FilledButton(
               onPressed: _busy ? null : _signIn,
               child: Text(_busy ? 'Signing in…' : 'Sign in'),
+            ),
+            TextButton(
+              onPressed: _busy ? null : _register,
+              child: const Text('Create account'),
+            ),
+            TextButton(
+              onPressed: _busy ? null : _resetPassword,
+              child: const Text('Forgot password?'),
             ),
           ],
         ),
@@ -186,6 +274,69 @@ class _DeckLibraryState extends State<DeckLibrary> {
     setState(_refresh);
   }
 
+  Future<void> _confirmRemoveDownload(Deck deck) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Remove download?'),
+        content: const Text(
+          'This removes only the files stored on this phone. '
+          'The desktop and cloud copies remain unchanged.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Remove download'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await _removeDownload(deck);
+  }
+
+  Future<void> _confirmDeleteEverywhere(Deck deck) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete everywhere?'),
+        content: const Text(
+          'This moves the cloud deck and connected desktop copy to Trash. '
+          'It can be restored for 30 days.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete everywhere'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await widget.repository.deleteEverywhere(deck.id);
+    if (mounted) setState(_refresh);
+  }
+
+  Future<void> _openDeck(Deck deck) async {
+    if (!deck.isDownloaded) {
+      await widget.repository.download(deck.id);
+    }
+    if (!mounted) return;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => StudyScreen(deck: deck, repository: widget.repository),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
@@ -223,6 +374,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
                 itemBuilder: (context, index) {
                   final deck = decks[index];
                   return ListTile(
+                    onTap: () => _openDeck(deck),
                     title: Text(deck.title),
                     subtitle: Text(
                       '${deck.sourceLanguage} → ${deck.translationLanguage} · '
@@ -231,14 +383,22 @@ class _DeckLibraryState extends State<DeckLibrary> {
                     trailing: deck.isDownloaded
                         ? PopupMenuButton<String>(
                             onSelected: (value) {
-                              if (value == 'remove') _removeDownload(deck);
+                              if (value == 'remove') {
+                                _confirmRemoveDownload(deck);
+                              } else if (value == 'delete_everywhere') {
+                                _confirmDeleteEverywhere(deck);
+                              }
                             },
                             itemBuilder: (_) => const [
-                              PopupMenuItem(
-                                value: 'remove',
-                                child: Text('Remove download'),
-                              ),
-                            ],
+                                  PopupMenuItem(
+                                    value: 'remove',
+                                    child: Text('Remove download'),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'delete_everywhere',
+                                    child: Text('Delete everywhere'),
+                                  ),
+                                ],
                           )
                         : IconButton(
                             tooltip: 'Download',

@@ -35,4 +35,30 @@ void main() {
 
     expect(await repository.cloudLibrary(), isEmpty);
   });
+
+  test('study rating is stored without deleting the deck', () async {
+    const card = Flashcard(
+      id: 'card-1',
+      rank: 1,
+      foreignWord: 'lernen',
+      wordTranslation: 'to learn',
+      foreignSentence: 'Ich lerne jeden Tag.',
+      sentenceTranslation: 'I learn every day.',
+    );
+    final repository = MemoryDeckRepository([
+      const Deck(
+        id: 'deck-1',
+        title: 'German A1',
+        sourceLanguage: 'German',
+        translationLanguage: 'US English',
+        cards: [card],
+      ),
+    ]);
+
+    await repository.saveProgress(card.id, StudyRating.known);
+
+    final saved = (await repository.cloudLibrary()).single.cards.single;
+    expect(saved.rating, StudyRating.known);
+    expect(await repository.cloudLibrary(), hasLength(1));
+  });
 }

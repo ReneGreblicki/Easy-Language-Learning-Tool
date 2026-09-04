@@ -10,7 +10,16 @@ class SyncDeckRepository implements DeckRepository {
   final SupabaseDeckSource cloud;
 
   @override
-  Future<List<Deck>> cloudLibrary() => cloud.fetchLibrary();
+  Future<List<Deck>> cloudLibrary() async {
+    final remote = await cloud.fetchLibrary();
+    final downloaded = await local.downloadedDecks();
+    final downloadedIds = downloaded.map((deck) => deck.id).toSet();
+    return remote
+        .map(
+          (deck) => deck.copyWith(isDownloaded: downloadedIds.contains(deck.id)),
+        )
+        .toList(growable: false);
+  }
 
   @override
   Future<List<Deck>> downloadedDecks() => local.downloadedDecks();
@@ -30,5 +39,16 @@ class SyncDeckRepository implements DeckRepository {
   Future<void> deleteEverywhere(String deckId) async {
     await cloud.deleteEverywhere(deckId);
     await local.removeDownload(deckId);
+  }
+
+  @override
+  Future<void> saveProgress(String cardId, StudyRating rating) async {
+    await local.saveProgress(cardId, rating);
+    try {
+      await cloud.saveProgress(cardId, rating);
+      await local.markProgressSynced(cardId);
+    } on Exception {
+      // The pending local row is retried by the synchronization worker.
+    }
   }
 }
