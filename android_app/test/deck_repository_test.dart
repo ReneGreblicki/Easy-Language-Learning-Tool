@@ -21,6 +21,25 @@ void main() {
     expect((await repository.cloudLibrary()).single.deletedAt, isNull);
   });
 
+  test('remove download never archives or deletes the desktop-origin deck', () async {
+    final original = Deck(
+      id: 'deck-1',
+      title: 'Desktop workbook',
+      sourceLanguage: 'German',
+      translationLanguage: 'US English',
+      cards: const [],
+      isDownloaded: true,
+    );
+    final repository = MemoryDeckRepository([original]);
+
+    await repository.removeDownload(original.id);
+
+    final cloudDeck = (await repository.cloudLibrary()).single;
+    expect(cloudDeck.title, original.title);
+    expect(cloudDeck.deletedAt, isNull);
+    expect(cloudDeck.isDownloaded, isFalse);
+  });
+
   test('delete everywhere hides cloud deck', () async {
     final deck = Deck(
       id: 'deck-1',

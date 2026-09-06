@@ -200,9 +200,7 @@ class MainWindow(QMainWindow):
         self._database_path = self.paths.data / "easy_language_learning_tool.sqlite3"
         self.history = HistoryService(self._database_path, self.paths.history)
         self.flashcard_service = FlashcardService(self._database_path)
-        self._sync_client = SupabaseSyncClient(
-            SUPABASE_PROJECT_URL, SUPABASE_PUBLISHABLE_KEY
-        )
+        self._sync_client = SupabaseSyncClient(SUPABASE_PROJECT_URL, SUPABASE_PUBLISHABLE_KEY)
         self._sync_service = DesktopSyncService(self._database_path, self._sync_client)
         self._cloud_session: CloudSession | None = None
         self._flashcard_session: FlashcardSession | None = None

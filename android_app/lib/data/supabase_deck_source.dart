@@ -20,6 +20,13 @@ class SupabaseDeckSource {
     final audioRows = await client
         .from('card_audio')
         .select('card_id,side,storage_path');
+    final progressRows = await client
+        .from('study_progress')
+        .select('card_id,rating');
+    final ratings = <String, String>{
+      for (final progress in progressRows)
+        progress['card_id'] as String: progress['rating'] as String,
+    };
     final audioUrls = <String, Map<String, String>>{};
     for (final audio in audioRows) {
       final cardId = audio['card_id'] as String;
@@ -39,6 +46,7 @@ class SupabaseDeckSource {
                 final urls = audioUrls[card['id'] as String];
                 card['word_audio_url'] = urls?['foreign_word'];
                 card['sentence_audio_url'] = urls?['foreign_sentence'];
+                card['rating'] = ratings[card['id'] as String] ?? 'newCard';
                 return card;
               })
               .toList(growable: false);

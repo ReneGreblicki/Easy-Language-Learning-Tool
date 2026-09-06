@@ -41,7 +41,8 @@ def test_main_window_tabs_and_generation_limits(qtbot: object, tmp_path: Path) -
     window = MainWindow(paths)
     qtbot.addWidget(window)  # type: ignore[attr-defined]
     window.size_and_center()
-    assert window.tabs.count() == 5
+    assert window.tabs.count() == 6
+    assert window.tabs.tabText(4) == "Sync"
     assert [window.tabs.tabText(index) for index in range(5)] == [
         "Sentence Creation",
         "Flashcards",

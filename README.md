@@ -1,7 +1,7 @@
 # Easy Language Learning Tool
 
-> **Android companion in development:** The planned flashcard-only Android app will
-> synchronize desktop-generated decks for offline study. See the
+> **Android companion preview:** The flashcard-only Android app synchronizes
+> desktop-generated decks for offline study. See the
 > [complete Android project plan and workflow](docs/ANDROID_PROJECT_PLAN.md).
 
 [![Download for Windows](https://img.shields.io/badge/Download_for_Windows-v1.4.0-0078D4?logo=windows&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.0/EasyLanguageLearningTool-Setup-1.4.0.exe)
@@ -603,7 +603,67 @@ When more than 20 files of one type exist, the oldest app-owned items are moved 
 
 ---
 
-# 5. Offline and internet requirements
+# 5. Desktop cloud synchronization
+
+## 5.1 Account setup
+
+Open **Sync**, enter the same email address and password used by the Android app,
+and select **Sign in**. **Keep me signed in** stores only the renewable session in
+Windows Credential Manager or macOS Keychain; the password is never stored.
+
+Create an account in the Android app first if you do not already have one. Email
+confirmation may be required before the first sign-in.
+
+## 5.2 Upload a deck
+
+1. Load the workbook in **Flashcards**.
+2. Open **Sync** and sign in.
+3. Select **Upload current deck**.
+4. Sign in to the Android app with the same account and refresh **My decks**.
+5. Download the deck once to keep its cards and available audio on the phone.
+
+Deck and card identifiers remain stable when the same workbook is uploaded again.
+Interrupted uploads remain in a durable queue; use **Retry pending uploads** after
+the connection returns. Uploading never relocates, edits, archives, or deletes the
+desktop workbook.
+
+---
+
+# 6. Android flashcard companion
+
+The Android companion is flashcard-only. It does not generate workbooks; decks are
+generated and uploaded by the Windows or macOS desktop application.
+
+## 6.1 Sign in and download
+
+Sign in with the same account as the desktop app. The cloud library lists your
+active decks. Select the download icon or open a deck to store it in the phone's
+private application storage. A downloaded deck remains available after the app is
+closed and works without an internet connection. Available word and sentence audio
+is downloaded with the deck and played from local storage.
+
+## 6.2 Study and progress
+
+Tap a card to move through its four sides: learning-language word, translation,
+learning-language sentence, and sentence translation. Use **Difficult**,
+**Learning**, or **Known** to save a rating. Ratings are saved locally first, so
+studying remains reliable offline. Pending ratings retry during later ratings and
+library refreshes, and the current rating is restored on other signed-in devices.
+
+## 6.3 Phone-only removal
+
+Choose **Remove download** to erase only that Android installation's cached deck
+and audio. The synchronized cloud deck, the desktop database, and every desktop
+workbook remain unchanged—not deleted and not archived. The deck can be downloaded
+again later.
+
+**Delete everywhere** soft-deletes only the synchronized cloud copy and removes the
+phone download. The original desktop workbook and desktop files remain unchanged.
+The cloud copy has a 30-day recovery period before permanent removal.
+
+---
+
+# 7. Offline and internet requirements
 
 | Feature | Internet required? |
 |---|:---:|
@@ -616,12 +676,17 @@ When more than 20 files of one type exist, the oldest app-owned items are moved 
 | Refresh Edge voices | Yes |
 | Generate TTS audio | Yes |
 | History management | No |
+| Sign in or synchronize a deck | Yes |
+| Download an Android deck and audio | Yes |
+| Study an already downloaded Android deck | No |
+| Save an Android rating locally | No |
+| Send pending ratings to other devices | Yes |
 
 Cloud generation sends the necessary prompt content to the selected AI provider. Edge TTS sends the text required for speech synthesis to Microsoft’s service.
 
 ---
 
-# 6. Common problems
+# 8. Common problems
 
 ## Generate workbook is disabled
 
@@ -665,3 +730,15 @@ Confirm:
 ## TTS job stops
 
 The completed portion is preserved. Keep the same workbook and settings, then run **Create MP3** again to resume safely.
+
+## A desktop deck does not appear on Android
+
+- Confirm both apps use the same account.
+- In desktop **Sync**, select **Retry pending uploads**.
+- Refresh **My decks** on Android while online.
+- If the saved desktop session expired, sign in again and retry.
+
+## An Android rating has not appeared on another device
+
+The rating remains safely queued on the phone. Reconnect to the internet and refresh
+the library or save another rating to retry pending progress.
