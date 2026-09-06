@@ -191,6 +191,7 @@ and mouse-wheel protections introduced in v1.3.0.
 - `resources/USER_MANUAL.md` is the offline guide shown by the Information tab.
 - `docs/SPEC_TRACEABILITY.md` maps every approved requirement to code and tests.
 - `docs/RELEASE_READINESS.md` defines automated and external release gates.
+- `docs/ANDROID_DEVICE_VERIFICATION.md` is the final real-phone acceptance checklist.
 - Third-party notices are under `resources/licences` and `LICENSES`.
 
 Never commit API keys or provider responses containing secrets.
