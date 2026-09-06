@@ -7,6 +7,9 @@ import httpx
 
 from easy_language_learning_tool.sync.models import DeckPayload, SyncOperation
 
+SUPABASE_PROJECT_URL = "https://jmnsrikmqopdhmnkjmah.supabase.co"
+SUPABASE_PUBLISHABLE_KEY = "sb_publishable_CtsilxSEQHVULSCmAgdGSg_6BZVtqmE"
+
 
 class SyncClientError(RuntimeError):
     """Normalized cloud authentication or synchronization failure."""
@@ -47,6 +50,23 @@ class SupabaseSyncClient:
             )
         except (KeyError, TypeError) as error:
             raise SyncClientError("The authentication response was incomplete.") from error
+
+    def refresh_session(self, refresh_token: str) -> CloudSession:
+        response = self._http.post(
+            f"{self.project_url}/auth/v1/token",
+            params={"grant_type": "refresh_token"},
+            headers=self._public_headers(),
+            json={"refresh_token": refresh_token},
+        )
+        data = self._json_or_error(response, "Session refresh failed")
+        try:
+            return CloudSession(
+                access_token=str(data["access_token"]),
+                refresh_token=str(data["refresh_token"]),
+                user_id=str(data["user"]["id"]),
+            )
+        except (KeyError, TypeError) as error:
+            raise SyncClientError("The refreshed session was incomplete.") from error
 
     def upload(self, operation: SyncOperation, session: CloudSession) -> None:
         if operation.operation.value != "upsert" or operation.entity_type != "deck":

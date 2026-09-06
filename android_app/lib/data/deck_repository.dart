@@ -12,6 +12,7 @@ abstract interface class DeckRepository {
 
   Future<void> deleteEverywhere(String deckId);
   Future<void> saveProgress(String cardId, StudyRating rating);
+  Future<void> synchronizePendingProgress();
 }
 
 class MemoryDeckRepository implements DeckRepository {
@@ -63,6 +64,9 @@ class MemoryDeckRepository implements DeckRepository {
     }
     throw StateError('Card not found: $cardId');
   }
+
+  @override
+  Future<void> synchronizePendingProgress() async {}
 
   void _replace(String deckId, Deck Function(Deck) update) {
     final index = _decks.indexWhere((deck) => deck.id == deckId);

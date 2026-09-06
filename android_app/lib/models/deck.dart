@@ -50,7 +50,11 @@ class Flashcard {
         'sentence_audio_url': sentenceAudioUrl,
       };
 
-  Flashcard copyWith({StudyRating? rating}) => Flashcard(
+  Flashcard copyWith({
+    StudyRating? rating,
+    String? wordAudioUrl,
+    String? sentenceAudioUrl,
+  }) => Flashcard(
         id: id,
         rank: rank,
         foreignWord: foreignWord,
@@ -58,8 +62,8 @@ class Flashcard {
         foreignSentence: foreignSentence,
         sentenceTranslation: sentenceTranslation,
         rating: rating ?? this.rating,
-        wordAudioUrl: wordAudioUrl,
-        sentenceAudioUrl: sentenceAudioUrl,
+        wordAudioUrl: wordAudioUrl ?? this.wordAudioUrl,
+        sentenceAudioUrl: sentenceAudioUrl ?? this.sentenceAudioUrl,
       );
 }
 

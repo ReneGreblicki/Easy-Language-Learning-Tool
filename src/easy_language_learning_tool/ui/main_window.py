@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import random
 import sys
 import uuid
@@ -51,6 +52,13 @@ from easy_language_learning_tool.history.service import HistoryItem, HistoryServ
 from easy_language_learning_tool.providers.factory import create_provider
 from easy_language_learning_tool.providers.pricing import PricingRegistry
 from easy_language_learning_tool.security.credentials import CredentialStore, secure_store_name
+from easy_language_learning_tool.sync.client import (
+    SUPABASE_PROJECT_URL,
+    SUPABASE_PUBLISHABLE_KEY,
+    CloudSession,
+    SupabaseSyncClient,
+)
+from easy_language_learning_tool.sync.service import DesktopSyncService
 from easy_language_learning_tool.tts.manifest import file_checksum, settings_checksum
 from easy_language_learning_tool.tts.models import TtsSettings, VoiceSettings
 from easy_language_learning_tool.tts.service import EdgeFfmpegBackend, TtsService, list_edge_voices
@@ -182,17 +190,21 @@ def trash_name() -> str:
 
 
 class MainWindow(QMainWindow):
+    SYNC_CREDENTIAL_KEY = "Cloud sync session"
+
     def __init__(self, paths: AppPaths | None = None) -> None:
         super().__init__()
         self.paths = paths or resolve_app_paths()
         self.paths.create()
         self.credentials = CredentialStore()
-        self.history = HistoryService(
-            self.paths.data / "easy_language_learning_tool.sqlite3", self.paths.history
+        self._database_path = self.paths.data / "easy_language_learning_tool.sqlite3"
+        self.history = HistoryService(self._database_path, self.paths.history)
+        self.flashcard_service = FlashcardService(self._database_path)
+        self._sync_client = SupabaseSyncClient(
+            SUPABASE_PROJECT_URL, SUPABASE_PUBLISHABLE_KEY
         )
-        self.flashcard_service = FlashcardService(
-            self.paths.data / "easy_language_learning_tool.sqlite3"
-        )
+        self._sync_service = DesktopSyncService(self._database_path, self._sync_client)
+        self._cloud_session: CloudSession | None = None
         self._flashcard_session: FlashcardSession | None = None
         self._flashcard_source_id: int | None = None
         self._flashcard_row_count = 0
@@ -219,11 +231,13 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self._flashcards_tab(), "Flashcards")
         self.tabs.addTab(self._tts_tab(), "TTS")
         self.tabs.addTab(self._history_tab(), "History")
+        self.tabs.addTab(self._sync_tab(), "Sync")
         self.tabs.addTab(self._information_tab(), "Information")
         self.setCentralWidget(self.tabs)
         self.setStyleSheet(LIGHT_THEME)
         self.refresh_history()
         self._resume_flashcards()
+        self._restore_sync_session()
 
     def size_and_center(self) -> None:
         screen = self.screen().availableGeometry()
@@ -674,6 +688,190 @@ class MainWindow(QMainWindow):
         browser.document().setDocumentMargin(24)
         return browser
 
+    def _sync_tab(self) -> QWidget:
+        root = QWidget()
+        layout = QVBoxLayout(root)
+        account = QGroupBox("Cloud account")
+        form = QFormLayout(account)
+        self.sync_email = QLineEdit()
+        self.sync_email.setPlaceholderText("Email address")
+        self.sync_password = QLineEdit()
+        self.sync_password.setEchoMode(QLineEdit.EchoMode.Password)
+        self.sync_password.setPlaceholderText("Password")
+        self.sync_remember = QCheckBox(f"Keep me signed in using {secure_store_name()}")
+        self.sync_remember.setChecked(True)
+        account_buttons = QHBoxLayout()
+        self.sync_sign_in_button = QPushButton("Sign in")
+        self.sync_sign_in_button.clicked.connect(self.sign_in_sync)
+        self.sync_sign_out_button = QPushButton("Sign out")
+        self.sync_sign_out_button.clicked.connect(self.sign_out_sync)
+        account_buttons.addWidget(self.sync_sign_in_button)
+        account_buttons.addWidget(self.sync_sign_out_button)
+        form.addRow("Email", self.sync_email)
+        form.addRow("Password", self.sync_password)
+        form.addRow("", self.sync_remember)
+        form.addRow("", account_buttons)
+        layout.addWidget(account)
+
+        deck = QGroupBox("Android flashcard synchronization")
+        deck_layout = QVBoxLayout(deck)
+        explanation = QLabel(
+            "Upload the currently loaded flashcard workbook to your private phone library. "
+            "Removing a download on the phone only clears that phone's copy; it never changes "
+            "or archives the desktop workbook."
+        )
+        explanation.setWordWrap(True)
+        deck_layout.addWidget(explanation)
+        deck_buttons = QHBoxLayout()
+        self.sync_upload_button = QPushButton("Upload current deck")
+        self.sync_upload_button.clicked.connect(self.sync_current_deck)
+        self.sync_retry_button = QPushButton("Retry pending uploads")
+        self.sync_retry_button.clicked.connect(self.retry_sync)
+        deck_buttons.addWidget(self.sync_upload_button)
+        deck_buttons.addWidget(self.sync_retry_button)
+        deck_layout.addLayout(deck_buttons)
+        layout.addWidget(deck)
+
+        self.sync_status = QLabel("Sign in to synchronize decks with the Android app.")
+        self.sync_status.setWordWrap(True)
+        layout.addWidget(self.sync_status)
+        layout.addStretch()
+        self._refresh_sync_controls()
+        return self._scroll(root)
+
+    def _refresh_sync_controls(self) -> None:
+        signed_in = self._cloud_session is not None
+        self.sync_sign_in_button.setEnabled(not signed_in)
+        self.sync_sign_out_button.setEnabled(signed_in)
+        self.sync_email.setEnabled(not signed_in)
+        self.sync_password.setEnabled(not signed_in)
+        self.sync_upload_button.setEnabled(signed_in and self._flashcard_source_id is not None)
+        self.sync_retry_button.setEnabled(signed_in)
+
+    def sign_in_sync(self) -> None:
+        email = self.sync_email.text().strip()
+        password = self.sync_password.text()
+        if not email or not password:
+            self._show_error("Enter the email address and password for your cloud account.")
+            return
+        self.sync_sign_in_button.setEnabled(False)
+        self.sync_status.setText("Signing in…")
+
+        def success(session: CloudSession) -> None:
+            self._cloud_session = session
+            self.sync_password.clear()
+            if self.sync_remember.isChecked():
+                saved = json.dumps(
+                    {"email": email, "refresh_token": session.refresh_token},
+                    separators=(",", ":"),
+                )
+                self.credentials.set(self.SYNC_CREDENTIAL_KEY, saved, remember=True)
+            else:
+                self.credentials.delete(self.SYNC_CREDENTIAL_KEY)
+            self.sync_status.setText(f"Signed in as {email}.")
+            self._refresh_sync_controls()
+
+        def failure(message: str) -> None:
+            self.sync_status.setText("Sign-in failed.")
+            self._refresh_sync_controls()
+            self._show_error(message)
+
+        self._start_task(lambda: self._sync_client.sign_in(email, password), success, failure)
+
+    def sign_out_sync(self) -> None:
+        self._cloud_session = None
+        self.credentials.delete(self.SYNC_CREDENTIAL_KEY)
+        self.sync_status.setText("Signed out. Local workbooks and phone downloads are unchanged.")
+        self._refresh_sync_controls()
+
+    def _restore_sync_session(self) -> None:
+        saved = self.credentials.get(self.SYNC_CREDENTIAL_KEY)
+        if not saved:
+            return
+        try:
+            payload = json.loads(saved)
+            email = str(payload["email"])
+            refresh_token = str(payload["refresh_token"])
+        except (KeyError, TypeError, ValueError):
+            self.credentials.delete(self.SYNC_CREDENTIAL_KEY)
+            return
+        self.sync_email.setText(email)
+        self.sync_status.setText("Restoring cloud session…")
+        self.sync_sign_in_button.setEnabled(False)
+
+        def success(session: CloudSession) -> None:
+            self._cloud_session = session
+            self.credentials.set(
+                self.SYNC_CREDENTIAL_KEY,
+                json.dumps(
+                    {"email": email, "refresh_token": session.refresh_token},
+                    separators=(",", ":"),
+                ),
+                remember=True,
+            )
+            self.sync_status.setText(f"Signed in as {email}.")
+            self._refresh_sync_controls()
+
+        def failure(_message: str) -> None:
+            self.credentials.delete(self.SYNC_CREDENTIAL_KEY)
+            self.sync_status.setText("Saved session expired. Sign in again.")
+            self._refresh_sync_controls()
+
+        self._start_task(lambda: self._sync_client.refresh_session(refresh_token), success, failure)
+
+    def sync_current_deck(self) -> None:
+        if self._cloud_session is None:
+            self._show_error("Sign in before uploading a deck.")
+            return
+        if self._flashcard_source_id is None:
+            self._show_error("Load a compatible flashcard workbook first.")
+            return
+        source_id = self._flashcard_source_id
+        source_language, translation_language = self._flashcard_languages
+        session = self._cloud_session
+        self.sync_upload_button.setEnabled(False)
+        self.sync_status.setText("Preparing and uploading the current deck…")
+
+        def task() -> tuple[int, int]:
+            self._sync_service.queue_source(
+                source_id,
+                source_language=source_language.label,
+                translation_language=translation_language.label,
+            )
+            return self._sync_service.flush(session)
+
+        self._start_task(task, self._sync_finished, self._sync_failed)
+
+    def retry_sync(self) -> None:
+        if self._cloud_session is None:
+            self._show_error("Sign in before retrying synchronization.")
+            return
+        session = self._cloud_session
+        self.sync_retry_button.setEnabled(False)
+        self.sync_status.setText("Retrying pending uploads…")
+        self._start_task(
+            lambda: self._sync_service.flush(session),
+            self._sync_finished,
+            self._sync_failed,
+        )
+
+    def _sync_finished(self, result: tuple[int, int]) -> None:
+        completed, failed = result
+        if failed:
+            self.sync_status.setText(
+                f"Uploaded {completed} deck(s); {failed} remain queued for retry."
+            )
+        elif completed:
+            self.sync_status.setText(f"Uploaded {completed} deck(s) successfully.")
+        else:
+            self.sync_status.setText("Everything is synchronized; no upload was pending.")
+        self._refresh_sync_controls()
+
+    def _sync_failed(self, message: str) -> None:
+        self.sync_status.setText("Synchronization stopped; pending work was kept for retry.")
+        self._refresh_sync_controls()
+        self._show_error(message)
+
     def _provider_changed(self) -> None:
         provider = Provider(str(self.provider_combo.currentData()))
         self.api_key.setText(self.credentials.get(provider.value) or "")
@@ -975,6 +1173,7 @@ class MainWindow(QMainWindow):
         self.flashcard_source_status.setText(
             f"Loaded {row_count:,} ranked data rows. The first row below the header is rank 1."
         )
+        self._refresh_sync_controls()
         self._start_flashcard_session(1, row_count)
 
     def _resume_flashcards(self) -> None:
@@ -1008,6 +1207,7 @@ class MainWindow(QMainWindow):
         self.flashcard_source_status.setText(
             f"Restored {session.source_name}: {session.source_row_count:,} ranked data rows."
         )
+        self._refresh_sync_controls()
         self._display_flashcard()
 
     def _flashcard_mode_changed(self) -> None:

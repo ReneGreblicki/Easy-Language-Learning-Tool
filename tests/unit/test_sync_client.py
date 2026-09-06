@@ -39,6 +39,32 @@ def test_sign_in_normalizes_supabase_session() -> None:
     )
 
 
+def test_refresh_session_normalizes_supabase_session() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.params["grant_type"] == "refresh_token"
+        assert json.loads(request.content) == {"refresh_token": "refresh-old"}
+        return httpx.Response(
+            200,
+            json={
+                "access_token": "access-new",
+                "refresh_token": "refresh-new",
+                "user": {"id": "user-id"},
+            },
+        )
+
+    client = SupabaseSyncClient(
+        "https://project.supabase.co",
+        "publishable",
+        http_client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+
+    assert client.refresh_session("refresh-old") == CloudSession(
+        access_token="access-new",
+        refresh_token="refresh-new",
+        user_id="user-id",
+    )
+
+
 def test_desktop_service_queues_and_uploads_complete_deck(tmp_path: Path) -> None:
     database = tmp_path / "app.sqlite3"
     initialize_database(database)

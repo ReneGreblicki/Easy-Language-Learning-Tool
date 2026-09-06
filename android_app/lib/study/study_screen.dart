@@ -60,7 +60,11 @@ class _StudyScreenState extends State<StudyScreen> {
     final url = _audioUrl;
     if (url == null) return;
     await _audio.stop();
-    await _audio.setUrl(url);
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      await _audio.setUrl(url);
+    } else {
+      await _audio.setFilePath(url);
+    }
     await _audio.seek(Duration.zero);
     await _audio.play();
   }

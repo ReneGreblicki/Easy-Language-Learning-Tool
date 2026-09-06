@@ -304,8 +304,9 @@ class _DeckLibraryState extends State<DeckLibrary> {
       builder: (context) => AlertDialog(
         title: const Text('Delete everywhere?'),
         content: const Text(
-          'This moves the cloud deck and connected desktop copy to Trash. '
-          'It can be restored for 30 days.',
+          'This removes the synchronized cloud copy and this phone’s download. '
+          'The original workbook and all desktop files remain unchanged. '
+          'The cloud copy can be restored for 30 days.',
         ),
         actions: [
           TextButton(

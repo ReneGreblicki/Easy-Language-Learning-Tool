@@ -11,6 +11,7 @@ class SyncDeckRepository implements DeckRepository {
 
   @override
   Future<List<Deck>> cloudLibrary() async {
+    await synchronizePendingProgress();
     final remote = await cloud.fetchLibrary();
     final downloaded = await local.downloadedDecks();
     final downloadedIds = downloaded.map((deck) => deck.id).toSet();
@@ -44,11 +45,23 @@ class SyncDeckRepository implements DeckRepository {
   @override
   Future<void> saveProgress(String cardId, StudyRating rating) async {
     await local.saveProgress(cardId, rating);
-    try {
-      await cloud.saveProgress(cardId, rating);
-      await local.markProgressSynced(cardId);
-    } on Exception {
-      // The pending local row is retried by the synchronization worker.
+    await synchronizePendingProgress();
+  }
+
+  @override
+  Future<void> synchronizePendingProgress() async {
+    for (final progress in await local.pendingProgress()) {
+      try {
+        await cloud.saveProgress(
+          progress.cardId,
+          progress.rating,
+          reviewCount: progress.reviewCount,
+          updatedAt: progress.updatedAt,
+        );
+        await local.markProgressSynced(progress.cardId);
+      } on Exception {
+        // Keep this row pending. A refresh, app restart, or later rating retries it.
+      }
     }
   }
 }
