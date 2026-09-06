@@ -55,6 +55,24 @@ void main() {
     expect(await repository.cloudLibrary(), isEmpty);
   });
 
+  test('soft-deleted cloud deck can be restored without changing desktop files', () async {
+    final deck = Deck(
+      id: 'deck-1',
+      title: 'Desktop workbook',
+      sourceLanguage: 'German',
+      translationLanguage: 'US English',
+      cards: const [],
+    );
+    final repository = MemoryDeckRepository([deck]);
+
+    await repository.deleteEverywhere(deck.id);
+    expect(await repository.trashedDecks(), hasLength(1));
+
+    await repository.restore(deck.id);
+    expect(await repository.trashedDecks(), isEmpty);
+    expect((await repository.cloudLibrary()).single.title, 'Desktop workbook');
+  });
+
   test('study rating is stored without deleting the deck', () async {
     const card = Flashcard(
       id: 'card-1',

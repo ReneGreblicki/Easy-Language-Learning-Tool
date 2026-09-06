@@ -3,6 +3,7 @@ import '../models/deck.dart';
 abstract interface class DeckRepository {
   Future<List<Deck>> cloudLibrary();
   Future<List<Deck>> downloadedDecks();
+  Future<List<Deck>> trashedDecks();
   Future<void> download(String deckId);
 
   /// Removes only this Android installation's cached cards and audio.
@@ -11,6 +12,7 @@ abstract interface class DeckRepository {
   Future<void> removeDownload(String deckId);
 
   Future<void> deleteEverywhere(String deckId);
+  Future<void> restore(String deckId);
   Future<void> saveProgress(String cardId, StudyRating rating);
   Future<void> synchronizePendingProgress();
 }
@@ -29,6 +31,10 @@ class MemoryDeckRepository implements DeckRepository {
       List.unmodifiable(_decks.where((deck) => deck.isDownloaded && deck.deletedAt == null));
 
   @override
+  Future<List<Deck>> trashedDecks() async =>
+      List.unmodifiable(_decks.where((deck) => deck.deletedAt != null));
+
+  @override
   Future<void> download(String deckId) async {
     _replace(deckId, (deck) => deck.copyWith(isDownloaded: true));
   }
@@ -41,6 +47,21 @@ class MemoryDeckRepository implements DeckRepository {
   @override
   Future<void> deleteEverywhere(String deckId) async {
     _replace(deckId, (deck) => deck.copyWith(deletedAt: DateTime.now().toUtc()));
+  }
+
+  @override
+  Future<void> restore(String deckId) async {
+    final index = _decks.indexWhere((deck) => deck.id == deckId);
+    if (index < 0) throw StateError('Deck not found: $deckId');
+    final deck = _decks[index];
+    _decks[index] = Deck(
+      id: deck.id,
+      title: deck.title,
+      sourceLanguage: deck.sourceLanguage,
+      translationLanguage: deck.translationLanguage,
+      cards: deck.cards,
+      isDownloaded: deck.isDownloaded,
+    );
   }
 
   @override

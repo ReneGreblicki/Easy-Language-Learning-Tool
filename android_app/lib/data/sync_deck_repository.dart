@@ -29,6 +29,9 @@ class SyncDeckRepository implements DeckRepository {
   Future<List<Deck>> downloadedDecks() => local.downloadedDecks();
 
   @override
+  Future<List<Deck>> trashedDecks() => cloud.fetchTrash();
+
+  @override
   Future<void> download(String deckId) async {
     final decks = await cloud.fetchLibrary();
     final deck = decks.where((candidate) => candidate.id == deckId).firstOrNull;
@@ -44,6 +47,9 @@ class SyncDeckRepository implements DeckRepository {
     await cloud.deleteEverywhere(deckId);
     await local.removeDownload(deckId);
   }
+
+  @override
+  Future<void> restore(String deckId) => cloud.restore(deckId);
 
   @override
   Future<void> saveProgress(String cardId, StudyRating rating) async {

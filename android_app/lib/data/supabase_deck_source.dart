@@ -55,6 +55,19 @@ class SupabaseDeckSource {
         .toList(growable: false);
   }
 
+  Future<List<Deck>> fetchTrash() async {
+    final response = await client
+        .from('decks')
+        .select(
+          'id,title,source_language,translation_language,deleted_at,'
+          'cards(id,rank,foreign_word,word_translation,foreign_sentence,'
+          'sentence_translation)',
+        )
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', ascending: false);
+    return response.map((row) => Deck.fromJson(row)).toList(growable: false);
+  }
+
   Future<void> deleteEverywhere(String deckId) async {
     final deletedAt = DateTime.now().toUtc();
     await client
@@ -63,6 +76,13 @@ class SupabaseDeckSource {
           'deleted_at': deletedAt.toIso8601String(),
           'purge_after': deletedAt.add(const Duration(days: 30)).toIso8601String(),
         })
+        .eq('id', deckId);
+  }
+
+  Future<void> restore(String deckId) async {
+    await client
+        .from('decks')
+        .update({'deleted_at': null, 'purge_after': null})
         .eq('id', deckId);
   }
 

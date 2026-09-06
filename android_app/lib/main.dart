@@ -340,11 +340,57 @@ class _DeckLibraryState extends State<DeckLibrary> {
     );
   }
 
+  Future<void> _showTrash() async {
+    final trashed = await widget.repository.trashedDecks();
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Cloud Trash'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: trashed.isEmpty
+              ? const Text('Trash is empty.')
+              : ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: trashed.length,
+                  itemBuilder: (_, index) {
+                    final deck = trashed[index];
+                    return ListTile(
+                      title: Text(deck.title),
+                      subtitle: const Text('Recoverable for 30 days'),
+                      trailing: TextButton(
+                        onPressed: () async {
+                          await widget.repository.restore(deck.id);
+                          if (dialogContext.mounted) Navigator.pop(dialogContext);
+                          if (mounted) setState(_refresh);
+                        },
+                        child: const Text('Restore'),
+                      ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
           title: const Text('My decks'),
           actions: [
+            IconButton(
+              tooltip: 'Cloud Trash',
+              onPressed: _showTrash,
+              icon: const Icon(Icons.restore_from_trash_outlined),
+            ),
             if (widget.authService != null)
               IconButton(
                 tooltip: 'Sign out',
