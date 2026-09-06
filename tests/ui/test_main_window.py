@@ -43,18 +43,19 @@ def test_main_window_tabs_and_generation_limits(qtbot: object, tmp_path: Path) -
     window.size_and_center()
     assert window.tabs.count() == 6
     assert window.tabs.tabText(4) == "Sync"
-    assert [window.tabs.tabText(index) for index in range(5)] == [
+    assert [window.tabs.tabText(index) for index in range(6)] == [
         "Sentence Creation",
         "Flashcards",
         "TTS",
         "History",
+        "Sync",
         "Information",
     ]
     information = window.findChild(QTextBrowser, "informationBrowser")
     assert information is not None
     assert "1. Sentence Creation" in information.toPlainText()
     assert "3. Sentence Creation" not in information.toPlainText()
-    assert "6. Common problems" in information.toPlainText()
+    assert "8. Common problems" in information.toPlainText()
     assert window.base_count.maximum() == 5_000
     assert window.learning.currentData() == Language.EUROPEAN_SPANISH
     assert window.translation.currentData() == Language.US_ENGLISH

@@ -661,6 +661,10 @@ again later.
 phone download. The original desktop workbook and desktop files remain unchanged.
 The cloud copy has a 30-day recovery period before permanent removal.
 
+To recover it, select the **Cloud Trash** icon in **My decks**, find the deck, and
+select **Restore**. Restoration recreates the cloud-library entry; download it again
+on any phone that needs an offline copy.
+
 ---
 
 # 7. Offline and internet requirements

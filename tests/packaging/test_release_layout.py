@@ -28,7 +28,7 @@ def test_release_support_files_are_present() -> None:
 
     manual = (root / "resources" / "USER_MANUAL.md").read_text(encoding="utf-8")
     assert manual.startswith("# 1. Sentence Creation")
-    assert "# 6. Common problems" in manual
+    assert "# 8. Common problems" in manual
     assert "# 3. Sentence Creation" not in manual
 
 
