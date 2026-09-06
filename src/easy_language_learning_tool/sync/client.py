@@ -8,7 +8,7 @@ import httpx
 from easy_language_learning_tool.sync.models import DeckPayload, SyncOperation
 
 SUPABASE_PROJECT_URL = "https://jmnsrikmqopdhmnkjmah.supabase.co"
-SUPABASE_PUBLISHABLE_KEY = "sb_publishable_CtsilxSEQHVULSCmAgdGSg_6BZVtqmE"
+SUPABASE_PUBLIC_CLIENT_CONFIG = "sb_publishable_CtsilxSEQHVULSCmAgdGSg_6BZVtqmE"
 
 
 class SyncClientError(RuntimeError):

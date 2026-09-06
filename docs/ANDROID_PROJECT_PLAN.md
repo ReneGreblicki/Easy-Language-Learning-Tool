@@ -16,7 +16,8 @@ offline, plays downloaded audio, records study progress, and synchronizes that p
 6. Removing a phone download never deletes the cloud recovery copy.
 7. **Delete everywhere** is a separate, explicit, confirmed operation.
 8. Delete everywhere soft-deletes the cloud copy for 30 days before permanent removal.
-9. Desktop Trash applies only to desktop-originated deletion or Delete everywhere.
+9. Desktop Trash applies only to deletion initiated in the desktop app. Phone actions never
+   modify, archive, move, or delete desktop files.
 10. Passwords are handled only by the authentication provider and are never stored by either app.
 
 ## 3. Architecture
@@ -24,7 +25,7 @@ offline, plays downloaded audio, records study progress, and synchronizes that p
 | Layer | Technology | Responsibility |
 |---|---|---|
 | Desktop | Python, PySide6, SQLite | Generate decks and enqueue synchronization |
-| Android | Flutter, Drift/SQLite | Offline study, audio, progress, device-local removal |
+| Android | Flutter, SQLite | Offline study, audio, progress, device-local removal |
 | Identity | Supabase Auth | Email/password authentication and recovery |
 | Cloud data | Supabase PostgreSQL | User-owned decks, cards, progress and sync metadata |
 | Cloud files | Supabase Storage | User-owned flashcard audio |
@@ -86,13 +87,18 @@ Android database under the device installation ID.
 
 1. Require explicit confirmation.
 2. Set cloud `deleted_at` and create a deletion marker.
-3. Move the desktop item to Trash when desktop receives the event.
+3. Leave the original desktop workbook and desktop records unchanged.
 4. Hide/remove downloaded copies on connected phones.
 5. Permit restoration for 30 days.
 6. Permanently remove records and audio after retention expires.
 7. Retain a tombstone long enough to stop stale offline devices recreating the deck.
 
 ## 6. Delivery phases
+
+Current implementation status: Phases A–C and the offline progress outbox from Phase D are
+implemented on the draft release branch. Automated Windows, macOS, Python, and Android gates
+run for every checkpoint. Release signing, store publication, and physical-device verification
+remain human-gated Phase E work.
 
 ### Phase A — Contracts and cloud foundation
 

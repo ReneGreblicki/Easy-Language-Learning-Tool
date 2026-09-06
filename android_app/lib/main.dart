@@ -329,11 +329,13 @@ class _DeckLibraryState extends State<DeckLibrary> {
     if (!deck.isDownloaded) {
       await widget.repository.download(deck.id);
     }
+    final localDecks = await widget.repository.downloadedDecks();
+    final studyDeck = localDecks.where((candidate) => candidate.id == deck.id).firstOrNull;
     if (!mounted) return;
     await Navigator.push<void>(
       context,
       MaterialPageRoute(
-        builder: (_) => StudyScreen(deck: deck, repository: widget.repository),
+        builder: (_) => StudyScreen(deck: studyDeck ?? deck, repository: widget.repository),
       ),
     );
   }

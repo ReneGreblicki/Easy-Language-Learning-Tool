@@ -12,14 +12,17 @@ class SyncDeckRepository implements DeckRepository {
   @override
   Future<List<Deck>> cloudLibrary() async {
     await synchronizePendingProgress();
-    final remote = await cloud.fetchLibrary();
     final downloaded = await local.downloadedDecks();
-    final downloadedIds = downloaded.map((deck) => deck.id).toSet();
-    return remote
-        .map(
-          (deck) => deck.copyWith(isDownloaded: downloadedIds.contains(deck.id)),
-        )
-        .toList(growable: false);
+    try {
+      final remote = await cloud.fetchLibrary();
+      final localById = {for (final deck in downloaded) deck.id: deck};
+      return remote
+          .map((deck) => localById[deck.id] ?? deck)
+          .toList(growable: false);
+    } on Exception {
+      if (downloaded.isNotEmpty) return downloaded;
+      rethrow;
+    }
   }
 
   @override
