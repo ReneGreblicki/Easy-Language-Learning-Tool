@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../data/deck_repository.dart';
@@ -36,6 +37,7 @@ class StudyScreen extends StatefulWidget {
 
 class _StudyScreenState extends State<StudyScreen> {
   final AudioPlayer _audio = AudioPlayer();
+  final FlutterTts _tts = FlutterTts();
   late List<Flashcard> _cards;
   var _cardIndex = 0;
   var _showingBack = false;
@@ -52,6 +54,7 @@ class _StudyScreenState extends State<StudyScreen> {
   @override
   void dispose() {
     _audio.dispose();
+    _tts.stop().catchError((_) => 0);
     super.dispose();
   }
 
@@ -67,6 +70,26 @@ class _StudyScreenState extends State<StudyScreen> {
       StudyContentMode.both =>
         [_card.wordAudioUrl, _card.sentenceAudioUrl].nonNulls.toList(),
     };
+  }
+
+  List<String> get _spokenText => switch (widget.mode) {
+        StudyContentMode.words => [_word],
+        StudyContentMode.sentences => [_sentence],
+        StudyContentMode.both => [_word, _sentence],
+      };
+
+  String get _speechLanguage {
+    final language = (_showingBack
+            ? widget.deck.translationLanguage
+            : widget.deck.sourceLanguage)
+        .toLowerCase();
+    if (language.contains('spanish')) return 'es-ES';
+    if (language.contains('german')) return 'de-DE';
+    if (language.contains('portuguese')) return 'pt-PT';
+    if (language.contains('french')) return 'fr-FR';
+    if (language.contains('italian')) return 'it-IT';
+    if (language.contains('thai')) return 'th-TH';
+    return 'en-US';
   }
 
   void _flip() => setState(() => _showingBack = !_showingBack);
@@ -93,18 +116,32 @@ class _StudyScreenState extends State<StudyScreen> {
   }
 
   Future<void> _play() async {
-    if (_audioUrls.isEmpty || _playing) return;
+    if (_playing) return;
     setState(() => _playing = true);
     try {
       await _audio.stop();
-      for (final url in _audioUrls) {
-        if (url.startsWith('http://') || url.startsWith('https://')) {
-          await _audio.setUrl(url);
-        } else {
-          await _audio.setFilePath(url);
+      var playedDownloadedAudio = false;
+      if (_audioUrls.isNotEmpty) {
+        try {
+          for (final url in _audioUrls) {
+            if (url.startsWith('http://') || url.startsWith('https://')) {
+              await _audio.setUrl(url);
+            } else {
+              await _audio.setFilePath(url);
+            }
+            await _audio.seek(Duration.zero);
+            await _audio.play();
+          }
+          playedDownloadedAudio = true;
+        } catch (_) {
+          await _audio.stop();
         }
-        await _audio.seek(Duration.zero);
-        await _audio.play();
+      }
+      if (!playedDownloadedAudio) {
+        await _tts.awaitSpeakCompletion(true);
+        await _tts.setLanguage(_speechLanguage);
+        await _tts.setSpeechRate(0.42);
+        await _tts.speak(_spokenText.where((text) => text.trim().isNotEmpty).join('. '));
       }
     } finally {
       if (mounted) setState(() => _playing = false);
@@ -159,47 +196,76 @@ class _StudyScreenState extends State<StudyScreen> {
                     side: BorderSide(color: borderColor),
                   ),
                   clipBehavior: Clip.antiAlias,
-                  child: InkWell(
-                    key: const Key('flashcard-surface'),
-                    onTap: _flip,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 20),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          if (widget.mode != StudyContentMode.sentences)
-                            Text(
-                              _word,
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                          if (widget.mode == StudyContentMode.both)
-                            const SizedBox(height: 28),
-                          if (widget.mode != StudyContentMode.words)
-                            Text(
-                              _sentence,
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.headlineSmall,
-                            ),
-                          const SizedBox(height: 22),
-                          IconButton(
-                            key: const Key('sound-button'),
-                            tooltip: 'Play this side',
-                            onPressed: _audioUrls.isEmpty || _playing ? null : _play,
-                            style: IconButton.styleFrom(
-                              backgroundColor: cardColor,
-                              foregroundColor:
-                                  dark ? const Color(0xFF8BC7F5) : const Color(0xFF245E96),
-                              side: BorderSide(
-                                color: dark ? const Color(0xFF4EA5E0) : const Color(0xFF9CC6E8),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) => Stack(
+                      children: [
+                        Positioned.fill(
+                          child: InkWell(
+                            key: const Key('flashcard-surface'),
+                            onTap: _flip,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(26, 20, 26, 150),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  if (widget.mode != StudyContentMode.sentences)
+                                    Text(
+                                      _word,
+                                      textAlign: TextAlign.center,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .headlineLarge
+                                          ?.copyWith(fontWeight: FontWeight.bold),
+                                    ),
+                                  if (widget.mode == StudyContentMode.both)
+                                    const SizedBox(height: 28),
+                                  if (widget.mode != StudyContentMode.words)
+                                    Text(
+                                      _sentence,
+                                      textAlign: TextAlign.center,
+                                      style: Theme.of(context).textTheme.headlineSmall,
+                                    ),
+                                ],
                               ),
                             ),
-                            icon: Icon(_playing ? Icons.more_horiz : Icons.volume_up),
                           ),
-                        ],
-                      ),
+                        ),
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          top: constraints.maxHeight * 0.75,
+                          child: Divider(height: 1, thickness: 1, color: borderColor),
+                        ),
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          top: constraints.maxHeight * 0.75 - 34,
+                          child: Center(
+                            child: SizedBox.square(
+                              dimension: 68,
+                              child: IconButton(
+                                key: const Key('sound-button'),
+                                tooltip: 'Play this side',
+                                onPressed: _playing ? null : _play,
+                                style: IconButton.styleFrom(
+                                  backgroundColor: cardColor,
+                                  foregroundColor: dark
+                                      ? const Color(0xFF8BC7F5)
+                                      : const Color(0xFF245E96),
+                                  side: BorderSide(
+                                    width: 2,
+                                    color: dark
+                                        ? const Color(0xFF4EA5E0)
+                                        : const Color(0xFF9CC6E8),
+                                  ),
+                                ),
+                                iconSize: 34,
+                                icon: Icon(_playing ? Icons.more_horiz : Icons.volume_up),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -228,7 +294,7 @@ class _StudyScreenState extends State<StudyScreen> {
                   Expanded(
                     child: FilledButton(
                       onPressed: _flip,
-                      child: Text(_showingBack ? 'Show learning side' : 'Reveal'),
+                      child: const Text('Turn'),
                     ),
                   ),
                   const SizedBox(width: 8),
