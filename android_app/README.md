@@ -15,9 +15,16 @@ The publishable key is not a service-role secret. Database security depends on t
 row-level security policies in `../supabase/migrations/0001_android_sync.sql`, not on hiding
 the publishable key.
 
-Before connecting the app, execute
-`../supabase/migrations/0001_android_sync.sql` in the Supabase SQL editor. This creates the
-tables, account-profile trigger, private audio bucket, indexes and row-level security policies.
+Before connecting the app, execute every file in `../supabase/migrations` in numeric order in
+the Supabase SQL editor. Then open **Authentication → URL Configuration** and add this redirect
+URL:
+
+```text
+com.renegreblicki.easylanguageflashcards://login-callback/**
+```
+
+Confirmation and password-recovery emails then reopen the Android app instead of redirecting
+to `localhost`.
 
 ## Current deletion behavior
 

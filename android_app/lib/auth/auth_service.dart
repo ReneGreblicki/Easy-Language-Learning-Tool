@@ -3,6 +3,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class AuthService {
   AuthService(this.client);
 
+  static const authCallbackUrl =
+      'com.renegreblicki.easylanguageflashcards://login-callback/';
+
   final SupabaseClient client;
 
   Stream<AuthState> get changes => client.auth.onAuthStateChange;
@@ -20,12 +23,15 @@ class AuthService {
     await client.auth.signUp(
       email: email.trim(),
       password: password,
+      emailRedirectTo: authCallbackUrl,
       data: {'username': username.trim()},
     );
   }
 
-  Future<void> resetPassword(String email) =>
-      client.auth.resetPasswordForEmail(email.trim());
+  Future<void> resetPassword(String email) => client.auth.resetPasswordForEmail(
+        email.trim(),
+        redirectTo: authCallbackUrl,
+      );
 
   Future<void> signOut() => client.auth.signOut();
 }

@@ -34,6 +34,9 @@ jobs:
       - name: Create Android platform shell
         working-directory: android_app
         run: flutter create --platforms=android --org com.renegreblicki .
+      - name: Configure authentication deep link
+        working-directory: android_app
+        run: python tool/configure_android_deep_link.py
       - name: Resolve dependencies
         working-directory: android_app
         run: flutter pub get

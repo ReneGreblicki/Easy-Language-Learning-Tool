@@ -413,6 +413,11 @@ Windows Credential Manager or macOS Keychain; the password is never stored.
 Create an account in the Android app first if you do not already have one. Email
 confirmation may be required before the first sign-in.
 
+The confirmation link should reopen the Android app. If it opens a broken `localhost`
+page, the project administrator must add
+`com.renegreblicki.easylanguageflashcards://login-callback/**` under Supabase
+**Authentication → URL Configuration → Redirect URLs**.
+
 ## 5.2 Upload a deck
 
 1. Load the workbook in **Flashcards**.

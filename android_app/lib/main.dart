@@ -168,7 +168,11 @@ class _LoginScreenState extends State<LoginScreen> {
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Check your email to confirm the account.')),
+          const SnackBar(
+            content: Text(
+              'Account created. Open the confirmation email once; the link will return to this app.',
+            ),
+          ),
         );
       }
     } on AuthException catch (error) {
