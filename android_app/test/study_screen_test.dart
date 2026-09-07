@@ -22,36 +22,46 @@ void main() {
     isDownloaded: true,
   );
 
-  testWidgets('card advances through all four sides', (tester) async {
+  testWidgets('card flips between matching front and back', (tester) async {
     final repository = MemoryDeckRepository([deck]);
     await tester.pumpWidget(
       MaterialApp(home: StudyScreen(deck: deck, repository: repository)),
     );
 
     expect(find.text('lernen'), findsOneWidget);
-    await tester.tap(find.byType(Card));
+    expect(find.text('Ich lerne jeden Tag.'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('flashcard-surface')));
     await tester.pump();
     expect(find.text('to learn'), findsOneWidget);
-    await tester.tap(find.byType(Card));
-    await tester.pump();
-    expect(find.text('Ich lerne jeden Tag.'), findsOneWidget);
-    await tester.tap(find.byType(Card));
-    await tester.pump();
     expect(find.text('I learn every day.'), findsOneWidget);
   });
 
-  testWidgets('known rating is persisted', (tester) async {
+  testWidgets('offers the desktop navigation controls', (tester) async {
     final repository = MemoryDeckRepository([deck]);
     await tester.pumpWidget(
       MaterialApp(home: StudyScreen(deck: deck, repository: repository)),
     );
 
-    await tester.tap(find.text('Known'));
-    await tester.pump();
+    expect(find.text('← Previous'), findsOneWidget);
+    expect(find.text('Reveal'), findsOneWidget);
+    expect(find.text('Next →'), findsOneWidget);
+    expect(find.text('↻  Reshuffle'), findsOneWidget);
+    expect(find.byKey(const Key('sound-button')), findsOneWidget);
+  });
 
-    expect(
-      (await repository.cloudLibrary()).single.cards.single.rating,
-      StudyRating.known,
+  testWidgets('words mode hides sentence content', (tester) async {
+    final repository = MemoryDeckRepository([deck]);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StudyScreen(
+          deck: deck,
+          repository: repository,
+          mode: StudyContentMode.words,
+        ),
+      ),
     );
+
+    expect(find.text('lernen'), findsOneWidget);
+    expect(find.text('Ich lerne jeden Tag.'), findsNothing);
   });
 }
