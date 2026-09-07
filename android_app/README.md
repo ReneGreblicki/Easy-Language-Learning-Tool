@@ -34,9 +34,11 @@ to `localhost`.
 
 ## Implemented study behavior
 
-- Four sides in order: foreign word, word translation, foreign sentence, sentence translation
-- Tap the card to advance between sides
-- Previous and next navigation
-- Known, Learning and Difficult ratings
-- Local-first progress persistence
-- Repeatable audio playback when an audio URL is available
+- Launch choice: Words, Sentences, or Words and sentences
+- Launch choice: all rows or an inclusive selected rank range
+- Two-sided cards: learning content on the front and translation on the back
+- Tap the card or press Reveal to flip it
+- Previous, Reveal, Next, and Reshuffle controls matching desktop
+- Sound control below the text with repeatable playback when audio is available
+- Switchable desktop-matched light and dark palettes
+- The same launcher artwork as the desktop application
