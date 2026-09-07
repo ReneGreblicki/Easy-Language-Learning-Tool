@@ -43,7 +43,7 @@ void main() {
     );
 
     expect(find.text('← Previous'), findsOneWidget);
-    expect(find.text('Reveal'), findsOneWidget);
+    expect(find.text('Turn'), findsOneWidget);
     expect(find.text('Next →'), findsOneWidget);
     expect(find.text('↻  Reshuffle'), findsOneWidget);
     expect(find.byKey(const Key('sound-button')), findsOneWidget);
