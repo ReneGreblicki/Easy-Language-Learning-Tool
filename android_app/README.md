@@ -37,8 +37,9 @@ to `localhost`.
 - Launch choice: Words, Sentences, or Words and sentences
 - Launch choice: all rows or an inclusive selected rank range
 - Two-sided cards: learning content on the front and translation on the back
-- Tap the card or press Reveal to flip it
-- Previous, Reveal, Next, and Reshuffle controls matching desktop
-- Sound control below the text with repeatable playback when audio is available
+- Tap the card or press Turn to flip it
+- Previous, Turn, Next, and Reshuffle controls
+- Large sound control centered on the line marking the card's bottom quarter
+- Downloaded audio when available, with Android text-to-speech as a fallback
 - Switchable desktop-matched light and dark palettes
 - The same launcher artwork as the desktop application
