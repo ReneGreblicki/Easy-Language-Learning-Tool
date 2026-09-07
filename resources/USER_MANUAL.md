@@ -446,13 +446,22 @@ private application storage. A downloaded deck remains available after the app i
 closed and works without an internet connection. Available word and sentence audio
 is downloaded with the deck and played from local storage.
 
-## 6.2 Study and progress
+## 6.2 Start and study a deck
 
-Tap a card to move through its four sides: learning-language word, translation,
-learning-language sentence, and sentence translation. Use **Difficult**,
-**Learning**, or **Known** to save a rating. Ratings are saved locally first, so
-studying remains reliable offline. Pending ratings retry during later ratings and
-library refreshes, and the current rating is restored on other signed-in devices.
+Open a deck and choose **Words**, **Sentences**, or **Words and sentences**. Choose
+all rows or enable **Selected rows only** and enter an inclusive From rank and To
+rank. Select **Start** to create a shuffled session from that selection.
+
+Each card has two sides, matching the desktop application: the learning-language
+content on the front and its translation on the back. Tap anywhere on the card to
+flip it, or use **Reveal**. The sound button sits below the card text; select it to
+play the available audio for that side. Use **Previous**, **Reveal**, **Next**, and
+**Reshuffle** just as on desktop. The progress line shows workbook rank, position,
+deck size, and Front or Back.
+
+Use the brightness icon in **My decks** or the study screen to switch between the
+desktop application's light and dark palettes. The Android launcher uses the same
+application icon as the Windows and macOS versions.
 
 ## 6.3 Phone-only removal
 
@@ -487,8 +496,6 @@ on any phone that needs an offline copy.
 | Sign in or synchronize a deck | Yes |
 | Download an Android deck and audio | Yes |
 | Study an already downloaded Android deck | No |
-| Save an Android rating locally | No |
-| Send pending ratings to other devices | Yes |
 
 Cloud generation sends the necessary prompt content to the selected AI provider. Edge TTS sends the text required for speech synthesis to Microsoft’s service.
 
@@ -545,8 +552,3 @@ The completed portion is preserved. Keep the same workbook and settings, then ru
 - In desktop **Sync**, select **Retry pending uploads**.
 - Refresh **My decks** on Android while online.
 - If the saved desktop session expired, sign in again and retry.
-
-## An Android rating has not appeared on another device
-
-The rating remains safely queued on the phone. Reconnect to the internet and refresh
-the library or save another rating to retry pending progress.
