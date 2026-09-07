@@ -27,8 +27,8 @@ Pass: the deck title, language pair, order, and all four text fields match the w
 4. Reopen the app and deck.
 5. Start each of the Words, Sentences, and Words and sentences modes.
 6. Test all rows and a selected inclusive row range.
-7. Flip by tapping the card and by pressing **Reveal**.
-8. Test **Previous**, **Next**, **Reshuffle**, and the sound button below the text.
+7. Flip by tapping the card and by pressing **Turn**.
+8. Test **Previous**, **Next**, **Reshuffle**, and the large sound button on the 75% line.
 9. Switch between the light and dark desktop-matched themes.
 
 Pass: the deck remains in the library, each card has only Front and Back, every selected
