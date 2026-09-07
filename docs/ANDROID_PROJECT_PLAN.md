@@ -40,7 +40,7 @@ function without exposing account lookup data.
 - Deck identity, title, language, CEFR level and generation settings
 - Ranked cards: foreign word, word translation, foreign sentence, sentence translation
 - Audio object metadata and checksums
-- Study status, current position, ratings and session history
+- Study selection, shuffled order, current position and session history
 - Revision, source device and synchronization timestamps
 - Global soft-deletion state
 
@@ -95,7 +95,7 @@ Android database under the device installation ID.
 
 ## 6. Delivery phases
 
-Current implementation status: Phases A–C and the offline progress outbox from Phase D are
+Current implementation status: Phases A–C and the synchronization foundation from Phase D are
 implemented on the draft release branch. Automated Windows, macOS, Python, and Android gates
 run for every checkpoint. Release signing, store publication, and physical-device verification
 remain human-gated Phase E work.
@@ -123,9 +123,11 @@ remain human-gated Phase E work.
 - Cloud deck library
 - Download/remove-download actions
 - Local SQLite cache
-- Four-sided flashcard study
-- Repeat audio, shuffle and resume
-- Known/Learning/Difficult ratings
+- Desktop-matched two-sided flashcard study
+- Words, Sentences, or combined content selection
+- All rows or inclusive selected-rank range
+- Previous, Reveal, Next, Reshuffle and in-card audio controls
+- Desktop-matched light/dark palettes and application icon
 
 ### Phase D — Bidirectional progress sync
 
@@ -137,7 +139,7 @@ remain human-gated Phase E work.
 
 ### Phase E — Release hardening
 
-- Accessibility and dark/light themes
+- Accessibility review and theme persistence
 - Network interruption and storage-pressure recovery
 - Security and privacy review
 - Android App Bundle signing
