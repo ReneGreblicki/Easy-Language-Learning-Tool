@@ -1,18 +1,34 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../data/deck_repository.dart';
 import '../models/deck.dart';
 
+enum StudyContentMode { words, sentences, both }
+
+extension StudyContentModeLabel on StudyContentMode {
+  String get label => switch (this) {
+        StudyContentMode.words => 'Words',
+        StudyContentMode.sentences => 'Sentences',
+        StudyContentMode.both => 'Words and sentences',
+      };
+}
+
 class StudyScreen extends StatefulWidget {
   const StudyScreen({
     required this.deck,
     required this.repository,
+    this.mode = StudyContentMode.both,
+    this.onToggleTheme,
     super.key,
   });
 
   final Deck deck;
   final DeckRepository repository;
+  final StudyContentMode mode;
+  final VoidCallback? onToggleTheme;
 
   @override
   State<StudyScreen> createState() => _StudyScreenState();
@@ -20,10 +36,18 @@ class StudyScreen extends StatefulWidget {
 
 class _StudyScreenState extends State<StudyScreen> {
   final AudioPlayer _audio = AudioPlayer();
+  late List<Flashcard> _cards;
   var _cardIndex = 0;
-  var _sideIndex = 0;
+  var _showingBack = false;
+  var _playing = false;
 
-  Flashcard get _card => widget.deck.cards[_cardIndex];
+  Flashcard get _card => _cards[_cardIndex];
+
+  @override
+  void initState() {
+    super.initState();
+    _cards = List<Flashcard>.from(widget.deck.cards);
+  }
 
   @override
   void dispose() {
@@ -31,138 +55,198 @@ class _StudyScreenState extends State<StudyScreen> {
     super.dispose();
   }
 
-  String get _text => switch (_sideIndex) {
-        0 => _card.foreignWord,
-        1 => _card.wordTranslation,
-        2 => _card.foreignSentence,
-        _ => _card.sentenceTranslation,
-      };
+  String get _word => _showingBack ? _card.wordTranslation : _card.foreignWord;
+  String get _sentence =>
+      _showingBack ? _card.sentenceTranslation : _card.foreignSentence;
 
-  String? get _audioUrl => switch (_sideIndex) {
-        0 => _card.wordAudioUrl,
-        2 => _card.sentenceAudioUrl,
-        _ => null,
-      };
-
-  void _advanceSide() {
-    setState(() => _sideIndex = (_sideIndex + 1) % 4);
+  List<String> get _audioUrls {
+    if (_showingBack) return const [];
+    return switch (widget.mode) {
+      StudyContentMode.words => [_card.wordAudioUrl].nonNulls.toList(),
+      StudyContentMode.sentences => [_card.sentenceAudioUrl].nonNulls.toList(),
+      StudyContentMode.both =>
+        [_card.wordAudioUrl, _card.sentenceAudioUrl].nonNulls.toList(),
+    };
   }
 
+  void _flip() => setState(() => _showingBack = !_showingBack);
+
   void _move(int offset) {
-    final next = (_cardIndex + offset).clamp(0, widget.deck.cards.length - 1);
+    final next = (_cardIndex + offset).clamp(0, _cards.length - 1);
     setState(() {
       _cardIndex = next;
-      _sideIndex = 0;
+      _showingBack = false;
+    });
+  }
+
+  void _reshuffle() {
+    final previous = _card.id;
+    _cards.shuffle(Random.secure());
+    if (_cards.length > 1 && _cards.first.id == previous) {
+      final first = _cards.removeAt(0);
+      _cards.insert(1, first);
+    }
+    setState(() {
+      _cardIndex = 0;
+      _showingBack = false;
     });
   }
 
   Future<void> _play() async {
-    final url = _audioUrl;
-    if (url == null) return;
-    await _audio.stop();
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      await _audio.setUrl(url);
-    } else {
-      await _audio.setFilePath(url);
+    if (_audioUrls.isEmpty || _playing) return;
+    setState(() => _playing = true);
+    try {
+      await _audio.stop();
+      for (final url in _audioUrls) {
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+          await _audio.setUrl(url);
+        } else {
+          await _audio.setFilePath(url);
+        }
+        await _audio.seek(Duration.zero);
+        await _audio.play();
+      }
+    } finally {
+      if (mounted) setState(() => _playing = false);
     }
-    await _audio.seek(Duration.zero);
-    await _audio.play();
-  }
-
-  Future<void> _rate(StudyRating rating) async {
-    await widget.repository.saveProgress(_card.id, rating);
-    if (_cardIndex + 1 < widget.deck.cards.length) _move(1);
   }
 
   @override
   Widget build(BuildContext context) {
-    if (widget.deck.cards.isEmpty) {
+    if (_cards.isEmpty) {
       return const Scaffold(body: Center(child: Text('This deck has no cards.')));
     }
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = dark ? const Color(0xFF18233B) : Colors.white;
+    final borderColor = dark ? const Color(0xFF334155) : const Color(0xFFD5DEEA);
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.deck.title),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(4),
-          child: LinearProgressIndicator(
-            value: (_cardIndex + 1) / widget.deck.cards.length,
-          ),
-        ),
+        actions: [
+          if (widget.onToggleTheme != null)
+            IconButton(
+              tooltip: 'Switch light/dark theme',
+              onPressed: widget.onToggleTheme,
+              icon: const Icon(Icons.brightness_6_outlined),
+            ),
+        ],
       ),
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+              decoration: BoxDecoration(
+                color: dark ? const Color(0xFF203E61) : const Color(0xFFE1EDF9),
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Text(
-                'Card ${_cardIndex + 1} of ${widget.deck.cards.length} · '
-                'Side ${_sideIndex + 1} of 4',
+                '${widget.deck.sourceLanguage}  →  ${widget.deck.translationLanguage}',
+                style: TextStyle(
+                  color: dark ? const Color(0xFF8BC7F5) : const Color(0xFF245E96),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(24),
-                  onTap: _advanceSide,
-                  child: Card(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                    child: Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(28),
-                        child: Text(
-                          _text,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.headlineMedium,
-                        ),
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+                child: Material(
+                  color: cardColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                    side: BorderSide(color: borderColor),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    key: const Key('flashcard-surface'),
+                    onTap: _flip,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 20),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (widget.mode != StudyContentMode.sentences)
+                            Text(
+                              _word,
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                            ),
+                          if (widget.mode == StudyContentMode.both)
+                            const SizedBox(height: 28),
+                          if (widget.mode != StudyContentMode.words)
+                            Text(
+                              _sentence,
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.headlineSmall,
+                            ),
+                          const SizedBox(height: 22),
+                          IconButton(
+                            key: const Key('sound-button'),
+                            tooltip: 'Play this side',
+                            onPressed: _audioUrls.isEmpty || _playing ? null : _play,
+                            style: IconButton.styleFrom(
+                              backgroundColor: cardColor,
+                              foregroundColor:
+                                  dark ? const Color(0xFF8BC7F5) : const Color(0xFF245E96),
+                              side: BorderSide(
+                                color: dark ? const Color(0xFF4EA5E0) : const Color(0xFF9CC6E8),
+                              ),
+                            ),
+                            icon: Icon(_playing ? Icons.more_horiz : Icons.volume_up),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
               ),
             ),
-            if (_audioUrl != null)
-              IconButton.filledTonal(
-                tooltip: 'Play audio',
-                onPressed: _play,
-                icon: const Icon(Icons.volume_up),
-              ),
+            Text(
+              'Workbook rank ${_card.rank}  •  Card ${_cardIndex + 1} of ${_cards.length}  •  '
+              '${_showingBack ? 'Back' : 'Front'}',
+              textAlign: TextAlign.center,
+            ),
             Padding(
-              padding: const EdgeInsets.all(12),
-              child: Wrap(
-                spacing: 8,
+              padding: const EdgeInsets.fromLTRB(18, 8, 18, 6),
+              child: LinearProgressIndicator(value: (_cardIndex + 1) / _cards.length),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Row(
                 children: [
-                  OutlinedButton(
-                    onPressed: () => _rate(StudyRating.difficult),
-                    child: const Text('Difficult'),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _cardIndex == 0 ? null : () => _move(-1),
+                      child: const Text('← Previous'),
+                    ),
                   ),
-                  OutlinedButton(
-                    onPressed: () => _rate(StudyRating.learning),
-                    child: const Text('Learning'),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _flip,
+                      child: Text(_showingBack ? 'Show learning side' : 'Reveal'),
+                    ),
                   ),
-                  FilledButton(
-                    onPressed: () => _rate(StudyRating.known),
-                    child: const Text('Known'),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _cardIndex + 1 == _cards.length ? null : () => _move(1),
+                      child: const Text('Next →'),
+                    ),
                   ),
                 ],
               ),
             ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  tooltip: 'Previous card',
-                  onPressed: _cardIndex == 0 ? null : () => _move(-1),
-                  icon: const Icon(Icons.arrow_back),
-                ),
-                IconButton(
-                  tooltip: 'Next card',
-                  onPressed: _cardIndex + 1 == widget.deck.cards.length
-                      ? null
-                      : () => _move(1),
-                  icon: const Icon(Icons.arrow_forward),
-                ),
-              ],
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: FilledButton(
+                onPressed: _reshuffle,
+                child: const Text('↻  Reshuffle'),
+              ),
             ),
           ],
         ),
