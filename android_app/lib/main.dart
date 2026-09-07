@@ -33,7 +33,7 @@ Future<void> main() async {
   );
 }
 
-class EasyLanguageFlashcards extends StatelessWidget {
+class EasyLanguageFlashcards extends StatefulWidget {
   const EasyLanguageFlashcards({
     this.repository,
     this.authService,
@@ -44,18 +44,43 @@ class EasyLanguageFlashcards extends StatelessWidget {
   final AuthService? authService;
 
   @override
+  State<EasyLanguageFlashcards> createState() => _EasyLanguageFlashcardsState();
+}
+
+class _EasyLanguageFlashcardsState extends State<EasyLanguageFlashcards> {
+  ThemeMode _themeMode = ThemeMode.dark;
+
+  void _toggleTheme() => setState(() {
+        _themeMode = _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+      });
+
+  @override
   Widget build(BuildContext context) {
     final fallback = MemoryDeckRepository(<Deck>[]);
     return MaterialApp(
       title: 'Easy Language Flashcards',
-      theme: ThemeData(colorSchemeSeed: const Color(0xFF2563EB)),
+      theme: ThemeData(
+        brightness: Brightness.light,
+        scaffoldBackgroundColor: const Color(0xFFF7F9FC),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2E74B5)),
+      ),
       darkTheme: ThemeData(
         brightness: Brightness.dark,
-        colorSchemeSeed: const Color(0xFF60A5FA),
+        scaffoldBackgroundColor: const Color(0xFF111827),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF60A5FA),
+          brightness: Brightness.dark,
+          surface: const Color(0xFF172033),
+        ),
       ),
-      home: authService == null
-          ? DeckLibrary(repository: repository ?? fallback)
-          : AuthGate(repository: repository!, authService: authService!),
+      themeMode: _themeMode,
+      home: widget.authService == null
+          ? DeckLibrary(repository: widget.repository ?? fallback, onToggleTheme: _toggleTheme)
+          : AuthGate(
+              repository: widget.repository!,
+              authService: widget.authService!,
+              onToggleTheme: _toggleTheme,
+            ),
     );
   }
 }
@@ -64,18 +89,24 @@ class AuthGate extends StatelessWidget {
   const AuthGate({
     required this.repository,
     required this.authService,
+    required this.onToggleTheme,
     super.key,
   });
 
   final DeckRepository repository;
   final AuthService authService;
+  final VoidCallback onToggleTheme;
 
   @override
   Widget build(BuildContext context) => StreamBuilder<AuthState>(
         stream: authService.changes,
         builder: (context, _) => authService.session == null
             ? LoginScreen(authService: authService)
-            : DeckLibrary(repository: repository, authService: authService),
+            : DeckLibrary(
+                repository: repository,
+                authService: authService,
+                onToggleTheme: onToggleTheme,
+              ),
       );
 }
 
@@ -248,12 +279,14 @@ class _LoginScreenState extends State<LoginScreen> {
 class DeckLibrary extends StatefulWidget {
   const DeckLibrary({
     required this.repository,
+    required this.onToggleTheme,
     this.authService,
     super.key,
   });
 
   final DeckRepository repository;
   final AuthService? authService;
+  final VoidCallback onToggleTheme;
 
   @override
   State<DeckLibrary> createState() => _DeckLibraryState();
@@ -336,10 +369,33 @@ class _DeckLibraryState extends State<DeckLibrary> {
     final localDecks = await widget.repository.downloadedDecks();
     final studyDeck = localDecks.where((candidate) => candidate.id == deck.id).firstOrNull;
     if (!mounted) return;
+    final sourceDeck = studyDeck ?? deck;
+    if (sourceDeck.cards.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This deck has no cards.')),
+      );
+      return;
+    }
+    final configuration = await showDialog<_StudyConfiguration>(
+      context: context,
+      builder: (context) => _StudySetupDialog(deck: sourceDeck),
+    );
+    if (configuration == null || !mounted) return;
+    final selectedDeck = sourceDeck.copyWithCards(
+      sourceDeck.cards
+          .where((card) =>
+              card.rank >= configuration.fromRank && card.rank <= configuration.toRank)
+          .toList(growable: false),
+    );
     await Navigator.push<void>(
       context,
       MaterialPageRoute(
-        builder: (_) => StudyScreen(deck: studyDeck ?? deck, repository: widget.repository),
+        builder: (_) => StudyScreen(
+          deck: selectedDeck,
+          repository: widget.repository,
+          mode: configuration.mode,
+          onToggleTheme: widget.onToggleTheme,
+        ),
       ),
     );
   }
@@ -390,6 +446,11 @@ class _DeckLibraryState extends State<DeckLibrary> {
         appBar: AppBar(
           title: const Text('My decks'),
           actions: [
+            IconButton(
+              tooltip: 'Switch light/dark theme',
+              onPressed: widget.onToggleTheme,
+              icon: const Icon(Icons.brightness_6_outlined),
+            ),
             IconButton(
               tooltip: 'Cloud Trash',
               onPressed: _showTrash,
@@ -467,5 +528,114 @@ class _DeckLibraryState extends State<DeckLibrary> {
             );
           },
         ),
+      );
+}
+
+class _StudyConfiguration {
+  const _StudyConfiguration(this.mode, this.fromRank, this.toRank);
+
+  final StudyContentMode mode;
+  final int fromRank;
+  final int toRank;
+}
+
+class _StudySetupDialog extends StatefulWidget {
+  const _StudySetupDialog({required this.deck});
+
+  final Deck deck;
+
+  @override
+  State<_StudySetupDialog> createState() => _StudySetupDialogState();
+}
+
+class _StudySetupDialogState extends State<_StudySetupDialog> {
+  StudyContentMode _mode = StudyContentMode.both;
+  bool _selectedRows = false;
+  late final TextEditingController _from;
+  late final TextEditingController _to;
+  late final int _minimum;
+  late final int _maximum;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final ranks = widget.deck.cards.map((card) => card.rank);
+    _minimum = ranks.reduce((a, b) => a < b ? a : b);
+    _maximum = ranks.reduce((a, b) => a > b ? a : b);
+    _from = TextEditingController(text: _minimum.toString());
+    _to = TextEditingController(text: _maximum.toString());
+  }
+
+  @override
+  void dispose() {
+    _from.dispose();
+    _to.dispose();
+    super.dispose();
+  }
+
+  void _start() {
+    final from = _selectedRows ? int.tryParse(_from.text) : _minimum;
+    final to = _selectedRows ? int.tryParse(_to.text) : _maximum;
+    if (from == null || to == null || from < _minimum || to > _maximum || from > to) {
+      setState(() => _error = 'Choose an inclusive range from $_minimum to $_maximum.');
+      return;
+    }
+    Navigator.pop(context, _StudyConfiguration(_mode, from, to));
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Start flashcards'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<StudyContentMode>(
+                initialValue: _mode,
+                decoration: const InputDecoration(labelText: 'Cards'),
+                items: StudyContentMode.values
+                    .map((mode) => DropdownMenuItem(value: mode, child: Text(mode.label)))
+                    .toList(growable: false),
+                onChanged: (mode) => setState(() => _mode = mode!),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Selected rows only'),
+                value: _selectedRows,
+                onChanged: (value) => setState(() => _selectedRows = value),
+              ),
+              if (_selectedRows)
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _from,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: 'From rank'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: _to,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: 'To rank'),
+                      ),
+                    ),
+                  ],
+                ),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton(onPressed: _start, child: const Text('Start')),
+        ],
       );
 }
