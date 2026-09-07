@@ -126,7 +126,7 @@ remain human-gated Phase E work.
 - Desktop-matched two-sided flashcard study
 - Words, Sentences, or combined content selection
 - All rows or inclusive selected-rank range
-- Previous, Reveal, Next, Reshuffle and in-card audio controls
+- Previous, Turn, Next, Reshuffle and in-card audio controls
 - Desktop-matched light/dark palettes and application icon
 
 ### Phase D — Bidirectional progress sync
