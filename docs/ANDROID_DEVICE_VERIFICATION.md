@@ -25,22 +25,16 @@ Pass: the deck title, language pair, order, and all four text fields match the w
 2. Close the app completely.
 3. Enable airplane mode.
 4. Reopen the app and deck.
-5. Move through all four sides and replay available audio twice.
+5. Start each of the Words, Sentences, and Words and sentences modes.
+6. Test all rows and a selected inclusive row range.
+7. Flip by tapping the card and by pressing **Reveal**.
+8. Test **Previous**, **Next**, **Reshuffle**, and the sound button below the text.
+9. Switch between the light and dark desktop-matched themes.
 
-Pass: the deck remains in the library, every card is readable, and cached audio replays
-without a network connection.
+Pass: the deck remains in the library, each card has only Front and Back, every selected
+field is readable, controls behave like desktop, and cached audio replays offline.
 
-## 3. Offline progress and retry
-
-1. While offline, rate at least three cards with different ratings.
-2. Close and reopen the app.
-3. Disable airplane mode and refresh the library.
-4. Sign in on a second Android installation, or inspect `study_progress` in Supabase.
-
-Pass: no rating is lost, pending rows synchronize after reconnecting, and review counts do
-not reset to one.
-
-## 4. Phone-only removal safety
+## 3. Phone-only removal safety
 
 1. Record the desktop workbook path and checksum.
 2. On Android, choose **Remove download** and confirm.
@@ -49,7 +43,7 @@ not reset to one.
 Pass: only the phone's cached deck/audio disappears. The cloud library entry, desktop
 database, workbook path, workbook checksum, and desktop History entry are unchanged.
 
-## 5. Cloud soft deletion and restore
+## 4. Cloud soft deletion and restore
 
 1. Download the deck again.
 2. Choose **Delete everywhere** and confirm.
@@ -60,7 +54,7 @@ database, workbook path, workbook checksum, and desktop History entry are unchan
 Pass: the cloud entry is hidden and restored as expected, the phone cache is removed, and
 no desktop file is moved, archived, edited, or deleted.
 
-## 6. Result record
+## 5. Result record
 
 | Field | Result |
 |---|---|
@@ -70,7 +64,7 @@ no desktop file is moved, archived, edited, or deleted.
 | APK SHA-256 | |
 | Account/upload | Pass / Fail |
 | Offline deck/audio | Pass / Fail |
-| Progress retry | Pass / Fail |
+| Study modes/range/navigation/theme | Pass / Fail |
 | Phone-only removal | Pass / Fail |
 | Trash/restore | Pass / Fail |
 | Notes | |
