@@ -454,9 +454,10 @@ rank. Select **Start** to create a shuffled session from that selection.
 
 Each card has two sides, matching the desktop application: the learning-language
 content on the front and its translation on the back. Tap anywhere on the card to
-flip it, or use **Reveal**. The sound button sits below the card text; select it to
-play the available audio for that side. Use **Previous**, **Reveal**, **Next**, and
-**Reshuffle** just as on desktop. The progress line shows workbook rank, position,
+flip it, or use **Turn**. The large sound button is centered on the line marking the
+bottom quarter of the card. Select it to play downloaded audio, or Android
+text-to-speech when downloaded audio is unavailable. Use **Previous**, **Turn**,
+**Next**, and **Reshuffle**. The progress line shows workbook rank, position,
 deck size, and Front or Back.
 
 Use the brightness icon in **My decks** or the study screen to switch between the
