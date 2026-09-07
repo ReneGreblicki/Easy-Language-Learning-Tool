@@ -118,4 +118,14 @@ class Deck {
         isDownloaded: isDownloaded ?? this.isDownloaded,
         deletedAt: deletedAt ?? this.deletedAt,
       );
+
+  Deck copyWithCards(List<Flashcard> selectedCards) => Deck(
+        id: id,
+        title: title,
+        sourceLanguage: sourceLanguage,
+        translationLanguage: translationLanguage,
+        cards: selectedCards,
+        isDownloaded: isDownloaded,
+        deletedAt: deletedAt,
+      );
 }
