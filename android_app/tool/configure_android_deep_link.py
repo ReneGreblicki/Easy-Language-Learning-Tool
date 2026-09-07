@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from shutil import copyfile
 from xml.etree import ElementTree
 
 ANDROID = "http://schemas.android.com/apk/res/android"
@@ -15,6 +16,14 @@ if application is None:
 activity = application.find("activity")
 if activity is None:
     raise RuntimeError("Generated Android manifest has no activity element.")
+
+# Use the same artwork as the Windows and macOS desktop packages.
+icon_source = Path("../assets/icons/logo.png")
+icon_target = Path("android/app/src/main/res/drawable/app_icon.png")
+icon_target.parent.mkdir(parents=True, exist_ok=True)
+copyfile(icon_source, icon_target)
+application.set(f"{{{ANDROID}}}icon", "@drawable/app_icon")
+application.set(f"{{{ANDROID}}}roundIcon", "@drawable/app_icon")
 
 scheme = "com.renegreblicki.easylanguageflashcards"
 existing = activity.findall("intent-filter/data")
