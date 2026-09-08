@@ -2,9 +2,9 @@
 
 ## 1. Goal
 
-Add a flashcard-only Android companion to Easy Language Learning Tool. The desktop app
-remains the generator of record. Android downloads completed decks, keeps them available
-offline, plays downloaded audio, records study progress, and synchronizes that progress.
+Add an Android study companion to Easy Language Learning Tool. The desktop remains the
+generator of record. Android offers flashcards, a paired list, and resumable playback of
+desktop-generated TTS audio.
 
 ## 2. Locked product rules
 
@@ -19,6 +19,8 @@ offline, plays downloaded audio, records study progress, and synchronizes that p
 9. Desktop Trash applies only to deletion initiated in the desktop app. Phone actions never
    modify, archive, move, or delete desktop files.
 10. Passwords are handled only by the authentication provider and are never stored by either app.
+11. Desktop TTS upload and Android audio download are separate, explicit opt-in choices.
+12. Opening the Android home library never downloads or resolves audio.
 
 ## 3. Architecture
 
@@ -56,7 +58,8 @@ Android database under the device installation ID.
 3. Assign stable UUIDs to the deck and cards.
 4. Add an upsert operation to the durable outbox.
 5. Upload metadata and cards.
-6. Upload audio independently.
+6. If **Include available desktop TTS audio** is enabled, discover matching cached word and
+   sentence clips and upload them to private user storage with checksums.
 7. Mark each outbox operation complete only after server acknowledgement.
 
 ### Android download
@@ -64,9 +67,21 @@ Android database under the device installation ID.
 1. Authenticate.
 2. Read changes after the last server cursor.
 3. Store metadata and cards in one local transaction.
-4. Download audio according to Wi-Fi/manual/text-only settings.
-5. Verify audio checksums.
-6. Mark the deck available offline.
+4. Present activity choice, then content/range settings.
+5. Stream audio only for audio-capable activities.
+6. Download audio only when the user explicitly enables offline audio.
+7. Mark deck text available offline.
+
+### Android activity workflow
+
+1. Select a deck from the unchanged **My decks** home page.
+2. Choose **Flashcards**, **Listen to audio**, or **View list**.
+3. Choose Words, Sentences, or both.
+4. Choose all rows or an inclusive rank range.
+5. Optionally download transferred desktop audio for offline use.
+6. Flashcards use two sides and an invisible 75% anchor for the sound button.
+7. Audio playback persists position by deck, mode, and range.
+8. List view renders each foreign value immediately above its translation.
 
 ### Study progress
 
@@ -128,6 +143,11 @@ remain human-gated Phase E work.
 - All rows or inclusive selected-rank range
 - Previous, Turn, Next, Reshuffle and in-card audio controls
 - Desktop-matched light/dark palettes and application icon
+- Activity chooser followed by activity-specific settings
+- Paired, colour-coded list view
+- Desktop TTS audio transfer as an explicit opt-in
+- Resumable word/sentence/combined audio playlists
+- Audio timeout recovery and invisible sound-button positioning anchor
 
 ### Phase D — Bidirectional progress sync
 
@@ -158,11 +178,13 @@ Every pull request must run:
 6. Offline, retry, duplicate-event and conflict tests.
 7. Device-local removal test proving cloud and desktop records remain unchanged.
 8. Delete-everywhere restoration and retention tests.
+9. Optional audio upload/download tests and audio-session resume tests.
+10. Activity chooser, list ordering/colour, and flashcard loading-state widget tests.
 
 Release candidates additionally require:
 
 - Windows and macOS regression builds
-- Android debug APK build
+- Android installable release APK build
 - Android release AAB build
 - Clean Android installation
 - Offline deck and audio test

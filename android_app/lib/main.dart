@@ -8,6 +8,8 @@ import 'data/local_deck_store.dart';
 import 'data/supabase_deck_source.dart';
 import 'data/sync_deck_repository.dart';
 import 'models/deck.dart';
+import 'study/audio_screen.dart';
+import 'study/list_screen.dart';
 import 'study/study_screen.dart';
 
 Future<void> main() async {
@@ -363,41 +365,69 @@ class _DeckLibraryState extends State<DeckLibrary> {
   }
 
   Future<void> _openDeck(Deck deck) async {
-    if (!deck.isDownloaded) {
-      await widget.repository.download(deck.id);
-    }
-    final localDecks = await widget.repository.downloadedDecks();
-    final studyDeck = localDecks.where((candidate) => candidate.id == deck.id).firstOrNull;
-    if (!mounted) return;
-    final sourceDeck = studyDeck ?? deck;
-    if (sourceDeck.cards.isEmpty) {
+    if (deck.cards.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('This deck has no cards.')),
       );
       return;
     }
+    final activity = await showDialog<_DeckActivity>(
+      context: context,
+      builder: (context) => const _ActivityDialog(),
+    );
+    if (activity == null || !mounted) return;
     final configuration = await showDialog<_StudyConfiguration>(
       context: context,
-      builder: (context) => _StudySetupDialog(deck: sourceDeck),
+      builder: (context) => _StudySetupDialog(deck: deck, activity: activity),
     );
     if (configuration == null || !mounted) return;
+    final includeAudio = activity != _DeckActivity.list;
+    Deck sourceDeck;
+    try {
+      sourceDeck = deck.isDownloaded && !includeAudio && !configuration.downloadAudio
+          ? deck
+          : await widget.repository.loadDeck(
+              deck.id,
+              includeAudio: includeAudio || configuration.downloadAudio,
+              downloadAudio: configuration.downloadAudio,
+              fromRank: configuration.fromRank,
+              toRank: configuration.toRank,
+            );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open deck: $error')),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
     final selectedDeck = sourceDeck.copyWithCards(
       sourceDeck.cards
           .where((card) =>
               card.rank >= configuration.fromRank && card.rank <= configuration.toRank)
           .toList(growable: false),
     );
-    await Navigator.push<void>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => StudyScreen(
+    final Widget screen = switch (activity) {
+      _DeckActivity.flashcards => StudyScreen(
           deck: selectedDeck,
           repository: widget.repository,
           mode: configuration.mode,
           onToggleTheme: widget.onToggleTheme,
         ),
-      ),
-    );
+      _DeckActivity.audio => AudioStudyScreen(
+          deck: selectedDeck,
+          repository: widget.repository,
+          mode: configuration.mode,
+          onToggleTheme: widget.onToggleTheme,
+        ),
+      _DeckActivity.list => StudyListScreen(
+          deck: selectedDeck,
+          mode: configuration.mode,
+          onToggleTheme: widget.onToggleTheme,
+        ),
+    };
+    await Navigator.push<void>(context, MaterialPageRoute(builder: (_) => screen));
   }
 
   Future<void> _showTrash() async {
@@ -531,18 +561,54 @@ class _DeckLibraryState extends State<DeckLibrary> {
       );
 }
 
+enum _DeckActivity { flashcards, audio, list }
+
+class _ActivityDialog extends StatelessWidget {
+  const _ActivityDialog();
+
+  @override
+  Widget build(BuildContext context) => SimpleDialog(
+        title: const Text('Choose activity'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, _DeckActivity.flashcards),
+            child: const ListTile(
+              leading: Icon(Icons.style_outlined),
+              title: Text('Flashcards'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, _DeckActivity.audio),
+            child: const ListTile(
+              leading: Icon(Icons.headphones_outlined),
+              title: Text('Listen to audio'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(context, _DeckActivity.list),
+            child: const ListTile(
+              leading: Icon(Icons.list_alt_outlined),
+              title: Text('View list'),
+            ),
+          ),
+        ],
+      );
+}
+
 class _StudyConfiguration {
-  const _StudyConfiguration(this.mode, this.fromRank, this.toRank);
+  const _StudyConfiguration(this.mode, this.fromRank, this.toRank, this.downloadAudio);
 
   final StudyContentMode mode;
   final int fromRank;
   final int toRank;
+  final bool downloadAudio;
 }
 
 class _StudySetupDialog extends StatefulWidget {
-  const _StudySetupDialog({required this.deck});
+  const _StudySetupDialog({required this.deck, required this.activity});
 
   final Deck deck;
+  final _DeckActivity activity;
 
   @override
   State<_StudySetupDialog> createState() => _StudySetupDialogState();
@@ -551,6 +617,7 @@ class _StudySetupDialog extends StatefulWidget {
 class _StudySetupDialogState extends State<_StudySetupDialog> {
   StudyContentMode _mode = StudyContentMode.both;
   bool _selectedRows = false;
+  bool _downloadAudio = false;
   late final TextEditingController _from;
   late final TextEditingController _to;
   late final int _minimum;
@@ -581,12 +648,16 @@ class _StudySetupDialogState extends State<_StudySetupDialog> {
       setState(() => _error = 'Choose an inclusive range from $_minimum to $_maximum.');
       return;
     }
-    Navigator.pop(context, _StudyConfiguration(_mode, from, to));
+    Navigator.pop(context, _StudyConfiguration(_mode, from, to, _downloadAudio));
   }
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Start flashcards'),
+        title: Text(switch (widget.activity) {
+          _DeckActivity.flashcards => 'Flashcard settings',
+          _DeckActivity.audio => 'Audio settings',
+          _DeckActivity.list => 'List settings',
+        }),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -605,6 +676,14 @@ class _StudySetupDialogState extends State<_StudySetupDialog> {
                 value: _selectedRows,
                 onChanged: (value) => setState(() => _selectedRows = value),
               ),
+              if (widget.activity != _DeckActivity.list)
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Download desktop TTS audio'),
+                  subtitle: const Text('Optional. Enables offline audio playback.'),
+                  value: _downloadAudio,
+                  onChanged: (value) => setState(() => _downloadAudio = value ?? false),
+                ),
               if (_selectedRows)
                 Row(
                   children: [

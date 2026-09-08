@@ -34,12 +34,14 @@ to `localhost`.
 
 ## Implemented study behavior
 
+- Two-stage deck launch: activity first, then content and row settings
+- Flashcards, resumable desktop-audio playback, and paired list view
 - Launch choice: Words, Sentences, or Words and sentences
 - Launch choice: all rows or an inclusive selected rank range
 - Two-sided cards: learning content on the front and translation on the back
 - Tap the card or press Turn to flip it
 - Previous, Turn, Next, and Reshuffle controls
-- Large sound control centered on the line marking the card's bottom quarter
+- Large sound control centered at 75% card height with no visible guide line
 - Downloaded audio when available, with Android text-to-speech as a fallback
 - Switchable desktop-matched light and dark palettes
 - The same launcher artwork as the desktop application

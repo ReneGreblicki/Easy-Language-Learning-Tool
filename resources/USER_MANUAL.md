@@ -433,51 +433,53 @@ desktop workbook.
 
 ---
 
-# 6. Android flashcard companion
+# 6. Android study companion
 
-The Android companion is flashcard-only. It does not generate workbooks; decks are
-generated and uploaded by the Windows or macOS desktop application.
+The Android companion does not generate workbooks. Deck text and optional desktop-generated
+TTS clips are uploaded by the Windows or macOS application.
 
-## 6.1 Sign in and download
+## 6.1 Upload text and optional audio
 
-Sign in with the same account as the desktop app. The cloud library lists your
-active decks. Select the download icon or open a deck to store it in the phone's
-private application storage. A downloaded deck remains available after the app is
-closed and works without an internet connection. Available word and sentence audio
-is downloaded with the deck and played from local storage.
+In desktop **Sync**, **Upload current deck** always uploads the four text fields. Enable
+**Include available desktop TTS audio** only when you also want to transfer existing TTS
+clips for the same workbook. This option never generates audio and remains off by default.
+If no matching TTS clips exist, the text deck still uploads normally.
 
-## 6.2 Start and study a deck
+## 6.2 Choose an activity
 
-Open a deck and choose **Words**, **Sentences**, or **Words and sentences**. Choose
-all rows or enable **Selected rows only** and enter an inclusive From rank and To
-rank. Select **Start** to create a shuffled session from that selection.
+Sign in with the same account as desktop and open a deck from **My decks**. The first menu
+offers **Flashcards**, **Listen to audio**, or **View list**. A second menu then selects
+**Words**, **Sentences**, or **Words and sentences**, plus all rows or an inclusive selected
+rank range. For Flashcards and Listen to audio, optionally enable **Download desktop TTS
+audio** to cache transferred clips for offline playback. Leaving it disabled streams
+available clips and does not automatically download them.
 
-Each card has two sides, matching the desktop application: the learning-language
-content on the front and its translation on the back. Tap anywhere on the card to
-flip it, or use **Turn**. The large sound button is centered on the line marking the
-bottom quarter of the card. Select it to play downloaded audio, or Android
-text-to-speech when downloaded audio is unavailable. Use **Previous**, **Turn**,
-**Next**, and **Reshuffle**. The progress line shows workbook rank, position,
-deck size, and Front or Back.
+## 6.3 Flashcards
 
-Use the brightness icon in **My decks** or the study screen to switch between the
-desktop application's light and dark palettes. The Android launcher uses the same
-application icon as the Windows and macOS versions.
+Cards retain the two-sided desktop layout. Tap the card or select **Turn** to flip it. Use
+**Previous**, **Turn**, **Next**, and **Reshuffle**. The large sound button remains centered
+at the 75% height position without a visible guide line. It plays transferred desktop audio
+when available and uses Android text-to-speech as a fallback. Playback always exits its
+loading state after success or failure.
 
-## 6.3 Phone-only removal
+## 6.4 Audio player
 
-Choose **Remove download** to erase only that Android installation's cached deck
-and audio. The synchronized cloud deck, the desktop database, and every desktop
-workbook remain unchanged—not deleted and not archived. The deck can be downloaded
-again later.
+The audio player uses the same content and row-range choices, with Previous, Play/Pause, and
+Next. The current track is saved for each deck, mode, and range, so reopening the same
+selection resumes where the previous session stopped.
 
-**Delete everywhere** soft-deletes only the synchronized cloud copy and removes the
-phone download. The original desktop workbook and desktop files remain unchanged.
-The cloud copy has a 30-day recovery period before permanent removal.
+## 6.5 List view
 
-To recover it, select the **Cloud Trash** icon in **My decks**, find the deck, and
-select **Restore**. Restoration recreates the cloud-library entry; download it again
-on any phone that needs an offline copy.
+List view places foreign word, word translation, foreign sentence, and sentence translation
+directly under one another. Foreign-language text uses the established blue accent;
+translations use the established light/dark foreground colour.
+
+## 6.6 Phone storage and deletion
+
+Deck text is cached when opened. Audio is cached only when explicitly enabled. **Remove
+download** affects only that Android installation. **Delete everywhere** soft-deletes only
+the cloud copy and phone download. Desktop files are never deleted, moved, or archived.
+Use **Cloud Trash** within 30 days to restore the cloud copy.
 
 ---
 

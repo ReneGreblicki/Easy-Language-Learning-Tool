@@ -98,4 +98,13 @@ void main() {
     expect(saved.rating, StudyRating.known);
     expect(await repository.cloudLibrary(), hasLength(1));
   });
+
+  test('audio session position is remembered independently', () async {
+    final repository = MemoryDeckRepository([]);
+
+    await repository.saveAudioPosition('deck:words:1-100', 17);
+
+    expect(await repository.loadAudioPosition('deck:words:1-100'), 17);
+    expect(await repository.loadAudioPosition('deck:sentences:1-100'), 0);
+  });
 }

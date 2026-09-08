@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -103,6 +104,38 @@ class SupabaseSyncClient:
         ]
         for start in range(0, len(card_rows), 250):
             self._upsert("cards", card_rows[start : start + 250], session)
+        for audio in deck.audio:
+            path = f"{session.user_id}/{deck.id}/{audio.card_id}-{audio.side}.mp3"
+            source = Path(audio.local_path)
+            if not source.is_file() or source.stat().st_size != audio.byte_size:
+                raise SyncClientError(f"Desktop TTS clip is unavailable: {source}")
+            response = self._http.post(
+                f"{self.project_url}/storage/v1/object/flashcard-audio/{path}",
+                headers={
+                    "apikey": self.publishable_key,
+                    "Authorization": f"Bearer {session.access_token}",
+                    "Content-Type": "audio/mpeg",
+                    "x-upsert": "true",
+                },
+                content=source.read_bytes(),
+            )
+            self._json_or_error(response, "Could not upload desktop TTS audio")
+            self._upsert(
+                "card_audio",
+                [
+                    {
+                        "id": str(audio.id),
+                        "card_id": str(audio.card_id),
+                        "user_id": session.user_id,
+                        "side": audio.side,
+                        "storage_path": path,
+                        "sha256": audio.sha256,
+                        "byte_size": audio.byte_size,
+                        "updated_at": deck.updated_at.isoformat(),
+                    }
+                ],
+                session,
+            )
 
     def _upsert(self, table: str, rows: list[dict[str, Any]], session: CloudSession) -> None:
         response = self._http.post(

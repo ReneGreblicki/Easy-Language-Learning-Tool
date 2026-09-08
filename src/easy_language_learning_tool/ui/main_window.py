@@ -201,7 +201,9 @@ class MainWindow(QMainWindow):
         self.history = HistoryService(self._database_path, self.paths.history)
         self.flashcard_service = FlashcardService(self._database_path)
         self._sync_client = SupabaseSyncClient(SUPABASE_PROJECT_URL, SUPABASE_PUBLIC_CLIENT_CONFIG)
-        self._sync_service = DesktopSyncService(self._database_path, self._sync_client)
+        self._sync_service = DesktopSyncService(
+            self._database_path, self._sync_client, self.paths.cache
+        )
         self._cloud_session: CloudSession | None = None
         self._flashcard_session: FlashcardSession | None = None
         self._flashcard_source_id: int | None = None
@@ -724,10 +726,15 @@ class MainWindow(QMainWindow):
         self.sync_upload_button = QPushButton("Upload current deck")
         self.sync_upload_button.clicked.connect(self.sync_current_deck)
         self.sync_retry_button = QPushButton("Retry pending uploads")
+        self.sync_include_audio = QCheckBox("Include available desktop TTS audio")
+        self.sync_include_audio.setToolTip(
+            "Optional. Uploads existing TTS clips for this workbook; it does not generate audio."
+        )
         self.sync_retry_button.clicked.connect(self.retry_sync)
         deck_buttons.addWidget(self.sync_upload_button)
         deck_buttons.addWidget(self.sync_retry_button)
         deck_layout.addLayout(deck_buttons)
+        deck_layout.addWidget(self.sync_include_audio)
         layout.addWidget(deck)
 
         self.sync_status = QLabel("Sign in to synchronize decks with the Android app.")
@@ -835,6 +842,7 @@ class MainWindow(QMainWindow):
                 source_id,
                 source_language=source_language.label,
                 translation_language=translation_language.label,
+                include_audio=self.sync_include_audio.isChecked(),
             )
             return self._sync_service.flush(session)
 

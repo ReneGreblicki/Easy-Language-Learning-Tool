@@ -79,19 +79,32 @@ class LocalDeckStore {
         .toList(growable: false);
   }
 
-  Future<void> saveDeck(Deck deck) async {
+  Future<void> saveDeck(Deck deck, {bool downloadAudio = true}) async {
     final db = await database;
+    final existingDecks = await downloadedDecks();
+    final existing = existingDecks.where((item) => item.id == deck.id).firstOrNull;
+    final existingCards = {
+      if (existing != null)
+        for (final card in existing.cards) card.id: card,
+    };
     final cards = <Flashcard>[];
     for (final card in deck.cards) {
+      final cached = existingCards[card.id];
       cards.add(
-        card.copyWith(
-          wordAudioUrl: await _cacheAudio(deck.id, card.id, 'word', card.wordAudioUrl),
-          sentenceAudioUrl: await _cacheAudio(
-            deck.id,
-            card.id,
-            'sentence',
-            card.sentenceAudioUrl,
-          ),
+        Flashcard(
+          id: card.id,
+          rank: card.rank,
+          foreignWord: card.foreignWord,
+          wordTranslation: card.wordTranslation,
+          foreignSentence: card.foreignSentence,
+          sentenceTranslation: card.sentenceTranslation,
+          rating: card.rating,
+          wordAudioUrl: downloadAudio
+              ? await _cacheAudio(deck.id, card.id, 'word', card.wordAudioUrl)
+              : cached?.wordAudioUrl,
+          sentenceAudioUrl: downloadAudio
+              ? await _cacheAudio(deck.id, card.id, 'sentence', card.sentenceAudioUrl)
+              : cached?.sentenceAudioUrl,
         ),
       );
     }
@@ -111,6 +124,27 @@ class LocalDeckStore {
         'payload_json': jsonEncode(localDeck.toJson()),
         'updated_at': DateTime.now().toUtc().toIso8601String(),
       },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<int> loadAudioPosition(String sessionKey) async {
+    final db = await database;
+    final rows = await db.query(
+      'sync_metadata',
+      columns: ['value'],
+      where: 'key = ?',
+      whereArgs: ['audio-session:$sessionKey'],
+      limit: 1,
+    );
+    return rows.isEmpty ? 0 : int.tryParse(rows.single['value'] as String) ?? 0;
+  }
+
+  Future<void> saveAudioPosition(String sessionKey, int position) async {
+    final db = await database;
+    await db.insert(
+      'sync_metadata',
+      {'key': 'audio-session:$sessionKey', 'value': position.toString()},
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }

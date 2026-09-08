@@ -47,6 +47,9 @@ void main() {
     expect(find.text('Next →'), findsOneWidget);
     expect(find.text('↻  Reshuffle'), findsOneWidget);
     expect(find.byKey(const Key('sound-button')), findsOneWidget);
+    final sound = tester.widget<IconButton>(find.byKey(const Key('sound-button')));
+    expect(sound.onPressed, isNotNull);
+    expect(find.byType(Divider), findsNothing);
   });
 
   testWidgets('words mode hides sentence content', (tester) async {

@@ -14,7 +14,8 @@ Android version, APK commit, tester, and UTC date.
 
 1. Sign in to Android and desktop with the same account.
 2. Generate or load a small workbook on desktop.
-3. Open **Sync** and select **Upload current deck**.
+3. Generate TTS for the same workbook, enable **Include available desktop TTS audio**, then
+   select **Upload current deck**.
 4. Refresh **My decks** on Android.
 
 Pass: the deck title, language pair, order, and all four text fields match the workbook.
@@ -25,11 +26,15 @@ Pass: the deck title, language pair, order, and all four text fields match the w
 2. Close the app completely.
 3. Enable airplane mode.
 4. Reopen the app and deck.
-5. Start each of the Words, Sentences, and Words and sentences modes.
-6. Test all rows and a selected inclusive row range.
-7. Flip by tapping the card and by pressing **Turn**.
-8. Test **Previous**, **Next**, **Reshuffle**, and the large sound button on the 75% line.
-9. Switch between the light and dark desktop-matched themes.
+5. Open the activity chooser and test Flashcards, Listen to audio, and View list.
+6. In every activity, test Words, Sentences, and Words and sentences.
+7. Test all rows and a selected inclusive row range.
+8. Confirm list order and foreign/translation colours.
+9. Pause audio, leave, reopen the same selection, and confirm it resumes at that track.
+10. Confirm audio is not downloaded unless the optional box is enabled.
+11. Flip cards by tapping and by pressing **Turn**; test Previous, Next, and Reshuffle.
+12. Confirm the sound button works, leaves loading state, and has no visible guide line.
+13. Switch between the light and dark desktop-matched themes.
 
 Pass: the deck remains in the library, each card has only Front and Back, every selected
 field is readable, controls behave like desktop, and cached audio replays offline.

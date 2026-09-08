@@ -5,6 +5,15 @@ abstract interface class DeckRepository {
   Future<List<Deck>> downloadedDecks();
   Future<List<Deck>> trashedDecks();
   Future<void> download(String deckId);
+  Future<Deck> loadDeck(
+    String deckId, {
+    bool includeAudio = false,
+    bool downloadAudio = false,
+    int? fromRank,
+    int? toRank,
+  });
+  Future<int> loadAudioPosition(String sessionKey);
+  Future<void> saveAudioPosition(String sessionKey, int position);
 
   /// Removes only this Android installation's cached cards and audio.
   ///
@@ -21,6 +30,7 @@ class MemoryDeckRepository implements DeckRepository {
   MemoryDeckRepository(this._decks);
 
   final List<Deck> _decks;
+  final Map<String, int> _audioPositions = {};
 
   @override
   Future<List<Deck>> cloudLibrary() async =>
@@ -37,6 +47,27 @@ class MemoryDeckRepository implements DeckRepository {
   @override
   Future<void> download(String deckId) async {
     _replace(deckId, (deck) => deck.copyWith(isDownloaded: true));
+  }
+
+  @override
+  Future<Deck> loadDeck(
+    String deckId, {
+    bool includeAudio = false,
+    bool downloadAudio = false,
+    int? fromRank,
+    int? toRank,
+  }) async {
+    final deck = _decks.firstWhere((deck) => deck.id == deckId);
+    _replace(deckId, (value) => value.copyWith(isDownloaded: true));
+    return deck;
+  }
+
+  @override
+  Future<int> loadAudioPosition(String sessionKey) async => _audioPositions[sessionKey] ?? 0;
+
+  @override
+  Future<void> saveAudioPosition(String sessionKey, int position) async {
+    _audioPositions[sessionKey] = position;
   }
 
   @override

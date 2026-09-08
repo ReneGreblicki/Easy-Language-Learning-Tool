@@ -46,11 +46,11 @@ jobs:
       - name: Test
         working-directory: android_app
         run: flutter test
-      - name: Build debug APK
+      - name: Build release APK
         working-directory: android_app
-        run: flutter build apk --debug
+        run: flutter build apk --release
       - uses: actions/upload-artifact@v6
         with:
-          name: Easy-Language-Flashcards-Android-debug
-          path: android_app/build/app/outputs/flutter-apk/app-debug.apk
+          name: Easy-Language-Learning-Android-0.2.0
+          path: android_app/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error

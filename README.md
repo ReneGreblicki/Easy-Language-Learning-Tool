@@ -1,6 +1,6 @@
 # Easy Language Learning Tool
 
-> **Android companion preview:** The flashcard-only Android app synchronizes
+> **Android companion preview:** The Android study app synchronizes
 > desktop-generated decks for offline study. See the
 > [complete Android project plan and workflow](docs/ANDROID_PROJECT_PLAN.md).
 
@@ -624,9 +624,12 @@ page, the project administrator must add
 
 1. Load the workbook in **Flashcards**.
 2. Open **Sync** and sign in.
-3. Select **Upload current deck**.
-4. Sign in to the Android app with the same account and refresh **My decks**.
-5. Download the deck once to keep its cards and available audio on the phone.
+3. Optionally enable **Include available desktop TTS audio**. It is off by default and
+   uploads only clips already generated for this workbook.
+4. Select **Upload current deck**.
+5. Sign in to the Android app with the same account and refresh **My decks**.
+6. Open the deck once to keep its text on the phone. Audio is cached only when explicitly
+   selected in the activity settings.
 
 Deck and card identifiers remain stable when the same workbook is uploaded again.
 Interrupted uploads remain in a durable queue; use **Retry pending uploads** after
@@ -635,32 +638,24 @@ desktop workbook.
 
 ---
 
-# 6. Android flashcard companion
+# 6. Android study companion
 
-The Android companion is flashcard-only. It does not generate workbooks; decks are
-generated and uploaded by the Windows or macOS desktop application.
+The Android companion provides flashcards, audio playback, and a list view. It does not
+generate workbooks; content comes from the Windows or macOS desktop application.
 
-## 6.1 Sign in and download
+## 6.1 Sign in, choose an activity, and optionally download audio
 
-Sign in with the same account as the desktop app. The cloud library lists your
-active decks. Select the download icon or open a deck to store it in the phone's
-private application storage. A downloaded deck remains available after the app is
-closed and works without an internet connection. Available word and sentence audio
-is downloaded with the deck and played from local storage.
+Sign in with the same account as desktop and open a deck. Choose **Flashcards**, **Listen to
+audio**, or **View list**, then choose Words, Sentences, or both and all rows or a selected
+rank range. Desktop TTS audio is transferred only when enabled during desktop upload and is
+downloaded to the phone only when **Download desktop TTS audio** is selected.
 
-## 6.2 Start and study a deck
+## 6.2 Flashcards, audio, and list
 
-Open a deck and choose **Words**, **Sentences**, or **Words and sentences**. Choose
-all rows or enable **Selected rows only** and enter an inclusive From rank and To
-rank. Select **Start** to create a shuffled session from that selection.
-
-Each card has two sides, matching the desktop application: the learning-language
-content on the front and its translation on the back. Tap anywhere on the card to
-flip it, or use **Turn**. The large sound button is centered on the line marking the
-bottom quarter of the card. Select it to play downloaded audio, or Android
-text-to-speech when downloaded audio is unavailable. Use **Previous**, **Turn**,
-**Next**, and **Reshuffle**. The progress line shows workbook rank, position,
-deck size, and Front or Back.
+Flashcards remain two-sided with Previous, Turn, Next, Reshuffle, and a large sound button
+at 75% card height without a visible guide line. Audio playback resumes the saved track for
+the same deck, mode, and range. List view places each foreign value directly above its
+translation and uses distinct established palette colours.
 
 Use the brightness icon in **My decks** or the study screen to switch between the
 desktop application's light and dark palettes. The Android launcher uses the same

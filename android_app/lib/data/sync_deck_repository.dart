@@ -17,7 +17,7 @@ class SyncDeckRepository implements DeckRepository {
       final remote = await cloud.fetchLibrary();
       final localById = {for (final deck in downloaded) deck.id: deck};
       return remote
-          .map((deck) => localById[deck.id] ?? deck)
+          .map((deck) => deck.copyWith(isDownloaded: localById.containsKey(deck.id)))
           .toList(growable: false);
     } on Exception {
       if (downloaded.isNotEmpty) return downloaded;
@@ -33,11 +33,43 @@ class SyncDeckRepository implements DeckRepository {
 
   @override
   Future<void> download(String deckId) async {
-    final decks = await cloud.fetchLibrary();
-    final deck = decks.where((candidate) => candidate.id == deckId).firstOrNull;
-    if (deck == null) throw StateError('Deck not found: $deckId');
-    await local.saveDeck(deck);
+    await loadDeck(deckId);
   }
+
+  @override
+  Future<Deck> loadDeck(
+    String deckId, {
+    bool includeAudio = false,
+    bool downloadAudio = false,
+    int? fromRank,
+    int? toRank,
+  }) async {
+    Deck? deck;
+    try {
+      deck = await cloud.fetchDeck(
+        deckId,
+        includeAudio: includeAudio,
+        fromRank: fromRank,
+        toRank: toRank,
+      );
+    } on Exception {
+      final downloaded = await local.downloadedDecks();
+      deck = downloaded.where((candidate) => candidate.id == deckId).firstOrNull;
+      if (deck == null) rethrow;
+    }
+    if (deck == null) throw StateError('Deck not found: $deckId');
+    await local.saveDeck(deck, downloadAudio: downloadAudio);
+    if (!downloadAudio) return deck;
+    final localDecks = await local.downloadedDecks();
+    return localDecks.firstWhere((candidate) => candidate.id == deckId);
+  }
+
+  @override
+  Future<int> loadAudioPosition(String sessionKey) => local.loadAudioPosition(sessionKey);
+
+  @override
+  Future<void> saveAudioPosition(String sessionKey, int position) =>
+      local.saveAudioPosition(sessionKey, position);
 
   @override
   Future<void> removeDownload(String deckId) => local.removeDownload(deckId);

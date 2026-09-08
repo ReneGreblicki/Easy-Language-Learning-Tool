@@ -7,7 +7,7 @@ class SupabaseDeckSource {
 
   final SupabaseClient client;
 
-  Future<List<Deck>> fetchLibrary() async {
+  Future<List<Deck>> fetchLibrary({bool includeAudio = false}) async {
     final response = await client
         .from('decks')
         .select(
@@ -17,9 +17,6 @@ class SupabaseDeckSource {
         )
         .isFilter('deleted_at', null)
         .order('updated_at', ascending: false);
-    final audioRows = await client
-        .from('card_audio')
-        .select('card_id,side,storage_path');
     final progressRows = await client
         .from('study_progress')
         .select('card_id,rating');
@@ -27,16 +24,7 @@ class SupabaseDeckSource {
       for (final progress in progressRows)
         progress['card_id'] as String: progress['rating'] as String,
     };
-    final audioUrls = <String, Map<String, String>>{};
-    for (final audio in audioRows) {
-      final cardId = audio['card_id'] as String;
-      final side = audio['side'] as String;
-      final storagePath = audio['storage_path'] as String;
-      final signedUrl = await client.storage
-          .from('flashcard-audio')
-          .createSignedUrl(storagePath, 3600);
-      audioUrls.putIfAbsent(cardId, () => <String, String>{})[side] = signedUrl;
-    }
+    final audioUrls = includeAudio ? await _audioUrls() : <String, Map<String, String>>{};
     return response
         .map((row) {
           final hydrated = Map<String, dynamic>.from(row);
@@ -53,6 +41,67 @@ class SupabaseDeckSource {
           return Deck.fromJson(hydrated);
         })
         .toList(growable: false);
+  }
+
+  Future<Deck?> fetchDeck(
+    String deckId, {
+    bool includeAudio = false,
+    int? fromRank,
+    int? toRank,
+  }) async {
+    final decks = await fetchLibrary();
+    final deck = decks.where((deck) => deck.id == deckId).firstOrNull;
+    if (deck == null || !includeAudio) return deck;
+    final selectedIds = deck.cards
+        .where((card) =>
+            (fromRank == null || card.rank >= fromRank) &&
+            (toRank == null || card.rank <= toRank))
+        .map((card) => card.id)
+        .toSet();
+    final urls = await _audioUrls(selectedIds);
+    return deck.copyWithCards(
+      deck.cards
+          .map(
+            (card) => card.copyWith(
+              wordAudioUrl: urls[card.id]?['foreign_word'],
+              sentenceAudioUrl: urls[card.id]?['foreign_sentence'],
+            ),
+          )
+          .toList(growable: false),
+    );
+  }
+
+  Future<Map<String, Map<String, String>>> _audioUrls([Set<String>? cardIds]) async {
+    final audioRows = <Map<String, dynamic>>[];
+    if (cardIds == null) {
+      audioRows.addAll(
+        (await client.from('card_audio').select('card_id,side,storage_path'))
+            .cast<Map<String, dynamic>>(),
+      );
+    } else {
+      final ids = cardIds.toList(growable: false);
+      for (var start = 0; start < ids.length; start += 100) {
+        final end = start + 100 < ids.length ? start + 100 : ids.length;
+        audioRows.addAll(
+          (await client
+                  .from('card_audio')
+                  .select('card_id,side,storage_path')
+                  .inFilter('card_id', ids.sublist(start, end)))
+              .cast<Map<String, dynamic>>(),
+        );
+      }
+    }
+    final result = <String, Map<String, String>>{};
+    for (final audio in audioRows) {
+      final cardId = audio['card_id'] as String;
+      final side = audio['side'] as String;
+      final storagePath = audio['storage_path'] as String;
+      final signedUrl = await client.storage
+          .from('flashcard-audio')
+          .createSignedUrl(storagePath, 3600);
+      result.putIfAbsent(cardId, () => <String, String>{})[side] = signedUrl;
+    }
+    return result;
   }
 
   Future<List<Deck>> fetchTrash() async {

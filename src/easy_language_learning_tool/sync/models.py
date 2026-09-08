@@ -27,6 +27,17 @@ class CardPayload(BaseModel):
     revision: int = Field(default=1, ge=1)
 
 
+class AudioPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: UUID
+    card_id: UUID
+    side: str
+    local_path: str
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    byte_size: int = Field(gt=0)
+
+
 class DeckPayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -38,6 +49,7 @@ class DeckPayload(BaseModel):
     cefr_level: str | None = None
     settings: dict[str, object] = Field(default_factory=dict)
     cards: list[CardPayload] = Field(min_length=1, max_length=5000)
+    audio: list[AudioPayload] = Field(default_factory=list, max_length=10000)
     revision: int = Field(default=1, ge=1)
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 

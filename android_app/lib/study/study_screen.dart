@@ -125,12 +125,12 @@ class _StudyScreenState extends State<StudyScreen> {
         try {
           for (final url in _audioUrls) {
             if (url.startsWith('http://') || url.startsWith('https://')) {
-              await _audio.setUrl(url);
+              await _audio.setUrl(url).timeout(const Duration(seconds: 8));
             } else {
-              await _audio.setFilePath(url);
+              await _audio.setFilePath(url).timeout(const Duration(seconds: 8));
             }
             await _audio.seek(Duration.zero);
-            await _audio.play();
+            await _audio.play().timeout(const Duration(seconds: 30));
           }
           playedDownloadedAudio = true;
         } catch (_) {
@@ -138,10 +138,20 @@ class _StudyScreenState extends State<StudyScreen> {
         }
       }
       if (!playedDownloadedAudio) {
-        await _tts.awaitSpeakCompletion(true);
-        await _tts.setLanguage(_speechLanguage);
-        await _tts.setSpeechRate(0.42);
-        await _tts.speak(_spokenText.where((text) => text.trim().isNotEmpty).join('. '));
+        await _tts.stop().timeout(const Duration(seconds: 2));
+        await _tts.awaitSpeakCompletion(false).timeout(const Duration(seconds: 2));
+        await _tts.setLanguage(_speechLanguage).timeout(const Duration(seconds: 2));
+        await _tts.setVolume(1).timeout(const Duration(seconds: 2));
+        await _tts.setSpeechRate(0.42).timeout(const Duration(seconds: 2));
+        await _tts
+            .speak(_spokenText.where((text) => text.trim().isNotEmpty).join('. '))
+            .timeout(const Duration(seconds: 3));
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Sound could not be played: $error')),
+        );
       }
     } finally {
       if (mounted) setState(() => _playing = false);
@@ -229,12 +239,6 @@ class _StudyScreenState extends State<StudyScreen> {
                               ),
                             ),
                           ),
-                        ),
-                        Positioned(
-                          left: 0,
-                          right: 0,
-                          top: constraints.maxHeight * 0.75,
-                          child: Divider(height: 1, thickness: 1, color: borderColor),
                         ),
                         Positioned(
                           left: 0,

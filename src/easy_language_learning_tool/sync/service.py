@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from uuid import UUID, uuid4, uuid5
@@ -7,6 +8,7 @@ from uuid import UUID, uuid4, uuid5
 from easy_language_learning_tool.persistence.database import database_connection
 from easy_language_learning_tool.sync.client import CloudSession, SupabaseSyncClient
 from easy_language_learning_tool.sync.models import (
+    AudioPayload,
     CardPayload,
     DeckPayload,
     SyncOperation,
@@ -18,10 +20,16 @@ CARD_NAMESPACE = UUID("87399045-f531-4a2c-b1d0-f524a8733e60")
 
 
 class DesktopSyncService:
-    def __init__(self, database_path: Path, client: SupabaseSyncClient) -> None:
+    def __init__(
+        self,
+        database_path: Path,
+        client: SupabaseSyncClient,
+        cache_root: Path | None = None,
+    ) -> None:
         self.database_path = database_path
         self.client = client
         self.outbox = SyncOutbox(database_path)
+        self.cache_root = cache_root
 
     def queue_source(
         self,
@@ -31,11 +39,12 @@ class DesktopSyncService:
         translation_language: str,
         cefr_level: str | None = None,
         settings: dict[str, object] | None = None,
+        include_audio: bool = False,
     ) -> UUID:
         with database_connection(self.database_path) as connection:
             source = connection.execute(
                 """
-                SELECT file_checksum, display_name
+                SELECT file_checksum, display_name, source_path
                 FROM flashcard_sources
                 WHERE id = ?
                 """,
@@ -73,6 +82,34 @@ class DesktopSyncService:
                 )
                 for row in rows
             ]
+            audio: list[AudioPayload] = []
+            if include_audio and self.cache_root is not None:
+                prefix = str(source[0])[:12]
+                for card in cards:
+                    for column, side in ((1, "foreign_word"), (3, "foreign_sentence")):
+                        pattern = f"{prefix}-*/cells/{card.rank:05d}_{column}.mp3"
+                        candidates = [
+                            item
+                            for item in (self.cache_root / "tts" / "jobs").glob(pattern)
+                            if item.is_file() and item.stat().st_size > 0
+                        ]
+                        clip = max(
+                            candidates,
+                            key=lambda item: item.stat().st_mtime_ns,
+                            default=None,
+                        )
+                        if clip is None:
+                            continue
+                        audio.append(
+                            AudioPayload(
+                                id=uuid5(card.id, side),
+                                card_id=card.id,
+                                side=side,
+                                local_path=str(clip),
+                                sha256=hashlib.sha256(clip.read_bytes()).hexdigest(),
+                                byte_size=clip.stat().st_size,
+                            )
+                        )
             deck = DeckPayload(
                 id=deck_id,
                 title=source[1],
@@ -81,6 +118,7 @@ class DesktopSyncService:
                 cefr_level=cefr_level,
                 settings=settings or {},
                 cards=cards,
+                audio=audio,
                 revision=revision,
             )
             operation = SyncOperation(
