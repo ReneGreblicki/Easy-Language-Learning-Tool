@@ -23,6 +23,7 @@ class StudyScreen extends StatefulWidget {
     required this.deck,
     required this.repository,
     this.mode = StudyContentMode.both,
+    this.voiceGender = SpeechVoiceGender.female,
     this.onToggleTheme,
     super.key,
   });
@@ -30,6 +31,7 @@ class StudyScreen extends StatefulWidget {
   final Deck deck;
   final DeckRepository repository;
   final StudyContentMode mode;
+  final SpeechVoiceGender voiceGender;
   final VoidCallback? onToggleTheme;
 
   @override
@@ -122,7 +124,12 @@ class _StudyScreenState extends State<StudyScreen> {
           }
         }
         if (!playedTransferredAudio) {
-          await _speech.speak(text, language, awaitCompletion: true);
+          await _speech.speak(
+            text,
+            language,
+            awaitCompletion: true,
+            gender: widget.voiceGender,
+          );
         }
       }
     } catch (error) {

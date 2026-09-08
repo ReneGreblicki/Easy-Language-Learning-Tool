@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'auth/auth_service.dart';
+import 'audio/device_speech.dart';
 import 'config/app_config.dart';
 import 'data/deck_repository.dart';
 import 'data/local_deck_store.dart';
@@ -507,12 +508,14 @@ class _DeckLibraryState extends State<DeckLibrary> {
           deck: selectedDeck,
           repository: widget.repository,
           mode: configuration.mode,
+          voiceGender: configuration.voiceGender,
           onToggleTheme: widget.onToggleTheme,
         ),
       _DeckActivity.audio => AudioStudyScreen(
           deck: selectedDeck,
           repository: widget.repository,
           mode: configuration.mode,
+          voiceGender: configuration.voiceGender,
           onToggleTheme: widget.onToggleTheme,
         ),
       _DeckActivity.list => StudyListScreen(
@@ -739,12 +742,19 @@ class _ActivityDialog extends StatelessWidget {
 }
 
 class _StudyConfiguration {
-  const _StudyConfiguration(this.mode, this.fromRank, this.toRank, this.downloadAudio);
+  const _StudyConfiguration(
+    this.mode,
+    this.fromRank,
+    this.toRank,
+    this.downloadAudio,
+    this.voiceGender,
+  );
 
   final StudyContentMode mode;
   final int fromRank;
   final int toRank;
   final bool downloadAudio;
+  final SpeechVoiceGender voiceGender;
 }
 
 class _StudySetupDialog extends StatefulWidget {
@@ -761,6 +771,7 @@ class _StudySetupDialogState extends State<_StudySetupDialog> {
   StudyContentMode _mode = StudyContentMode.both;
   bool _selectedRows = false;
   bool _downloadAudio = false;
+  SpeechVoiceGender _voiceGender = SpeechVoiceGender.female;
   late final TextEditingController _from;
   late final TextEditingController _to;
   late final int _minimum;
@@ -791,7 +802,10 @@ class _StudySetupDialogState extends State<_StudySetupDialog> {
       setState(() => _error = 'Choose an inclusive range from $_minimum to $_maximum.');
       return;
     }
-    Navigator.pop(context, _StudyConfiguration(_mode, from, to, _downloadAudio));
+    Navigator.pop(
+      context,
+      _StudyConfiguration(_mode, from, to, _downloadAudio, _voiceGender),
+    );
   }
 
   @override
@@ -820,10 +834,27 @@ class _StudySetupDialogState extends State<_StudySetupDialog> {
                 onChanged: (value) => setState(() => _selectedRows = value),
               ),
               if (widget.activity != _DeckActivity.list)
+                DropdownButtonFormField<SpeechVoiceGender>(
+                  initialValue: _voiceGender,
+                  decoration: const InputDecoration(labelText: 'Phone voice'),
+                  items: SpeechVoiceGender.values
+                      .map(
+                        (gender) => DropdownMenuItem(
+                          value: gender,
+                          child: Text(gender.label),
+                        ),
+                      )
+                      .toList(growable: false),
+                  onChanged: (gender) => setState(() => _voiceGender = gender!),
+                ),
+              if (widget.activity != _DeckActivity.list)
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Download desktop TTS audio'),
-                  subtitle: const Text('Optional. Enables offline audio playback.'),
+                  subtitle: const Text(
+                    'Optional. Uses the voice selected when desktop audio was created; '
+                    'the phone voice is used when no recording is available.',
+                  ),
                   value: _downloadAudio,
                   onChanged: (value) => setState(() => _downloadAudio = value ?? false),
                 ),

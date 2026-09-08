@@ -49,7 +49,10 @@ to `localhost`.
 - Transferred desktop audio when available, with adaptive Android text-to-speech as a
   per-item fallback for the learner language
 - Audio-player entries exist even when desktop audio was not transferred
-- Auto-hiding list scrollbar that is visible only while scrolling
+- Female or male phone-voice preference for flashcards and audio playback
+- Audio speed control from −2× through normal 0 to +2× (0.5× to 2× actual playback)
+- Configurable inter-item break from 0 to 2 seconds, defaulting to 0.5 seconds
+- Auto-hiding, draggable list scrollbar that is visible only while scrolling
 - Descriptive authentication, network, synchronization, storage, and audio errors without
   exposing raw exception details or server URLs
 - Switchable desktop-matched light and dark palettes

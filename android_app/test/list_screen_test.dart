@@ -42,5 +42,6 @@ void main() {
     expect(source.style?.color, isNot(translation.style?.color));
     final scrollbar = tester.widget<Scrollbar>(find.byType(Scrollbar));
     expect(scrollbar.thumbVisibility, isFalse);
+    expect(scrollbar.interactive, isTrue);
   });
 }

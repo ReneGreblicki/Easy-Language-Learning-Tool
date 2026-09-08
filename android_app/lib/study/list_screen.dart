@@ -47,6 +47,9 @@ class _StudyListScreenState extends State<StudyListScreen> {
       body: Scrollbar(
         controller: _scrollController,
         thumbVisibility: false,
+        interactive: true,
+        thickness: 8,
+        radius: const Radius.circular(8),
         child: ListView.separated(
           controller: _scrollController,
           padding: const EdgeInsets.all(14),

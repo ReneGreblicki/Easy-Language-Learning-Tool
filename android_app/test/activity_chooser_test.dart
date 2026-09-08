@@ -40,4 +40,40 @@ void main() {
     expect(find.text('Listen to audio'), findsOneWidget);
     expect(find.text('View list'), findsOneWidget);
   });
+
+  testWidgets('flashcard and audio settings offer phone voice gender', (tester) async {
+    const deck = Deck(
+      id: 'deck-voice',
+      title: 'Voice deck',
+      sourceLanguage: 'European Spanish',
+      translationLanguage: 'US English',
+      cards: [
+        Flashcard(
+          id: 'card-voice',
+          rank: 1,
+          foreignWord: 'hola',
+          wordTranslation: 'hello',
+          foreignSentence: 'Hola.',
+          sentenceTranslation: 'Hello.',
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DeckLibrary(
+          repository: MemoryDeckRepository(const [deck]),
+          onToggleTheme: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Voice deck'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Flashcards'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Flashcard settings'), findsOneWidget);
+    expect(find.text('Phone voice'), findsOneWidget);
+    expect(find.text('Female'), findsOneWidget);
+  });
 }

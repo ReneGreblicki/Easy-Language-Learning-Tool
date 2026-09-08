@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../audio/device_speech.dart';
+import '../audio/playback_settings.dart';
 import '../data/deck_repository.dart';
 import '../errors/app_error.dart';
 import '../models/deck.dart';
@@ -21,6 +22,7 @@ class AudioStudyScreen extends StatefulWidget {
     required this.mode,
     required this.repository,
     required this.onToggleTheme,
+    this.voiceGender = SpeechVoiceGender.female,
     super.key,
   });
 
@@ -28,6 +30,7 @@ class AudioStudyScreen extends StatefulWidget {
   final StudyContentMode mode;
   final DeckRepository repository;
   final VoidCallback onToggleTheme;
+  final SpeechVoiceGender voiceGender;
 
   @override
   State<AudioStudyScreen> createState() => _AudioStudyScreenState();
@@ -42,6 +45,8 @@ class _AudioStudyScreenState extends State<AudioStudyScreen> {
   bool _playing = false;
   int _index = 0;
   int _playbackGeneration = 0;
+  double _speedAdjustment = 0;
+  double _pauseSeconds = 0.5;
   String? _error;
 
   @override
@@ -97,6 +102,7 @@ class _AudioStudyScreenState extends State<AudioStudyScreen> {
     } else {
       await _player.setFilePath(source).timeout(const Duration(seconds: 10));
     }
+    await _player.setSpeed(playbackFactorForAdjustment(_speedAdjustment));
     await _player.seek(Duration.zero);
     await _player.play().timeout(const Duration(minutes: 3));
   }
@@ -114,6 +120,8 @@ class _AudioStudyScreenState extends State<AudioStudyScreen> {
       item.label,
       widget.deck.sourceLanguage,
       awaitCompletion: true,
+      gender: widget.voiceGender,
+      speedFactor: playbackFactorForAdjustment(_speedAdjustment),
     );
   }
 
@@ -132,6 +140,12 @@ class _AudioStudyScreenState extends State<AudioStudyScreen> {
         await _playItem(_items[_index]);
         if (!mounted || generation != _playbackGeneration) return;
         if (_index + 1 >= _items.length) break;
+        if (_pauseSeconds > 0) {
+          await Future<void>.delayed(
+            Duration(milliseconds: (_pauseSeconds * 1000).round()),
+          );
+          if (!mounted || generation != _playbackGeneration) return;
+        }
         setState(() => _index += 1);
         await widget.repository.saveAudioPosition(_sessionKey, _index);
       }
@@ -167,6 +181,24 @@ class _AudioStudyScreenState extends State<AudioStudyScreen> {
     });
     await widget.repository.saveAudioPosition(_sessionKey, next);
   }
+
+  void _changeSpeed(double adjustment) {
+    setState(() => _speedAdjustment = adjustment);
+    _player
+        .setSpeed(playbackFactorForAdjustment(adjustment))
+        .catchError((_) {});
+  }
+
+  String _formatAdjustment(double value) {
+    if (value == 0) return '0';
+    final number = value == value.roundToDouble()
+        ? value.toInt().toString()
+        : value.toStringAsFixed(1);
+    return value > 0 ? '+$number×' : '$number×';
+  }
+
+  String _formatPause(double value) =>
+      value == value.roundToDouble() ? '${value.toInt()}s' : '${value}s';
 
   @override
   void dispose() {
@@ -239,7 +271,63 @@ class _AudioStudyScreenState extends State<AudioStudyScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 14),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text('−2×'),
+                                      Text(
+                                        '${_formatAdjustment(_speedAdjustment)}  '
+                                        '(${playbackFactorForAdjustment(_speedAdjustment).toStringAsFixed(2)}×)',
+                                      ),
+                                      const Text('+2×'),
+                                    ],
+                                  ),
+                                  Slider(
+                                    key: const Key('audio-speed-slider'),
+                                    value: _speedAdjustment,
+                                    min: -2,
+                                    max: 2,
+                                    divisions: 8,
+                                    label: _formatAdjustment(_speedAdjustment),
+                                    onChanged: _changeSpeed,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            PopupMenuButton<double>(
+                              key: const Key('audio-pause-button'),
+                              tooltip: 'Change break between items',
+                              initialValue: _pauseSeconds,
+                              onSelected: (value) => setState(() => _pauseSeconds = value),
+                              itemBuilder: (context) => playbackPauseOptions
+                                  .map(
+                                    (seconds) => PopupMenuItem(
+                                      value: seconds,
+                                      child: Text('${_formatPause(seconds)} break'),
+                                    ),
+                                  )
+                                  .toList(growable: false),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.timer_outlined),
+                                    Text(_formatPause(_pauseSeconds)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
                         const Text(
                           'Transferred desktop audio is used when available. '
                           'Otherwise, the phone voice is used. Your position is saved automatically.',

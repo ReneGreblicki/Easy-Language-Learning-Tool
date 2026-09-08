@@ -48,10 +48,14 @@ Pass: every failure is descriptive and actionable, with no raw technical details
 11. Flip cards by tapping and by pressing **Turn**; test Previous, Next, and Reshuffle.
 12. Test learner-language playback both with and without transferred desktop audio. Confirm
     the closest installed regional voice is used when the exact locale is unavailable.
-13. Confirm the sound button works on both card sides, leaves loading state, and has no
+13. Select female and male phone voices and confirm both are applied when suitable voices are
+    installed. Confirm transferred clips retain their desktop-generated voice.
+14. In Audio, test −2×, 0, and +2× speed positions and confirm 0 is normal speed.
+15. Confirm the default break is 0.5 seconds, then test shorter and longer break selections.
+16. Confirm the sound button works on both card sides, leaves loading state, and has no
     visible guide line.
-14. Scroll the list and confirm its scrollbar appears while moving and then fades away.
-15. Switch between the light and dark desktop-matched themes.
+17. Scroll the list, drag the scrollbar thumb to fast-scroll, and confirm it fades afterward.
+18. Switch between the light and dark desktop-matched themes.
 
 Pass: the deck remains in the library, each card has only Front and Back, every selected
 field is readable, controls behave like desktop, and cached audio replays offline.

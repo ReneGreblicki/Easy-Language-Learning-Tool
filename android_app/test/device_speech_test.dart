@@ -23,4 +23,28 @@ void main() {
   test('reports when no voice for the language is installed', () {
     expect(chooseBestSpeechLocale('German', ['en-US', 'es-ES']), isNull);
   });
+
+  test('prefers the requested voice gender in the correct language', () {
+    final voices = [
+      {'name': 'Spanish male 1', 'locale': 'es_ES'},
+      {'name': 'Spanish female 1', 'locale': 'es-ES'},
+      {'name': 'English female', 'locale': 'en-US'},
+    ];
+    expect(
+      chooseBestSpeechVoice(
+        'European Spanish',
+        SpeechVoiceGender.female,
+        voices,
+      )?['name'],
+      'Spanish female 1',
+    );
+    expect(
+      chooseBestSpeechVoice(
+        'European Spanish',
+        SpeechVoiceGender.male,
+        voices,
+      )?['name'],
+      'Spanish male 1',
+    );
+  });
 }

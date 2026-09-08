@@ -87,3 +87,11 @@ candidate passes automated Windows acceptance and receives explicit approval.
 - Android 11+ release manifests explicitly declare text-to-speech service discovery.
 - Flashcard audio uses the same adaptive voice fallback on both front and back.
 - List view adds a scrollbar that appears during scrolling and fades afterward.
+
+## Android companion 0.2.4
+
+- Adds female and male phone-voice preferences to flashcard and audio setup.
+- Adds a horizontal audio-speed adjustment from −2× through normal 0 to +2×, mapped to
+  safe 0.5×–2× playback for transferred clips and Android speech.
+- Adds a default 0.5-second break between words and sentences, adjustable from 0 to 2 seconds.
+- Makes the auto-hiding list scrollbar thicker and directly draggable for fast scrolling.

@@ -650,7 +650,9 @@ audio**, or **View list**, then choose Words, Sentences, or both and all rows or
 rank range. Desktop TTS audio is transferred only when enabled during desktop upload and is
 downloaded to the phone only when **Download desktop TTS audio** is selected. If a transferred
 clip is unavailable or cannot be opened, Android uses an installed voice for the learner
-language instead, so audio playback does not depend on desktop audio being uploaded.
+language instead, so audio playback does not depend on desktop audio being uploaded. Flashcard
+and audio settings let the user prefer a female or male phone voice. A transferred clip keeps
+the voice that was selected when that clip was created on desktop.
 
 ## 6.2 Flashcards, audio, and list
 
@@ -660,7 +662,12 @@ or sentence, prefers transferred desktop clips, falls back to Android text-to-sp
 resumes the saved track for the same deck, mode, and range. The app matches the closest
 installed regional voice when the exact learner-language locale is unavailable. List view
 places each foreign value directly above its translation, uses distinct established palette
-colours, and shows its scrollbar only while the list is moving.
+colours, and shows its draggable scrollbar only while the list is moving.
+
+Audio mode adds a horizontal **−2× to +2×** speed adjustment under Previous, Play/Stop, and
+Next. Zero is normal speed; the safe playback range is 0.5× to 2×. Each word or sentence is
+followed by a 0.5-second break by default. Use the timer button to the right of the speed
+control to select a break from 0 to 2 seconds.
 
 Use the brightness icon in **My decks** or the study screen to switch between the
 desktop application's light and dark palettes. The Android launcher uses the same
