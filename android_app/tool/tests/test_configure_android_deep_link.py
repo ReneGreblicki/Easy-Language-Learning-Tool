@@ -19,7 +19,7 @@ class ConfigureAndroidManifestTest(unittest.TestCase):
                 '<?xml version="1.0" encoding="utf-8"?>'
                 '<manifest xmlns:android="http://schemas.android.com/apk/res/android">'
                 '<application><activity android:name=".MainActivity" /></application>'
-                '</manifest>',
+                "</manifest>",
                 encoding="utf-8",
             )
             icon_source.write_bytes(b"test-icon")
