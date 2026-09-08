@@ -148,6 +148,7 @@ remain human-gated Phase E work.
 - Desktop TTS audio transfer as an explicit opt-in
 - Resumable word/sentence/combined audio playlists
 - Audio timeout recovery and invisible sound-button positioning anchor
+- Central user-facing error translation for authentication, network, sync, storage, and audio
 
 ### Phase D — Bidirectional progress sync
 
@@ -180,6 +181,7 @@ Every pull request must run:
 8. Delete-everywhere restoration and retention tests.
 9. Optional audio upload/download tests and audio-session resume tests.
 10. Activity chooser, list ordering/colour, and flashcard loading-state widget tests.
+11. Error-message tests proving raw exceptions, server URLs, and internal codes are not displayed.
 
 Release candidates additionally require:
 

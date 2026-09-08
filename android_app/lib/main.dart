@@ -7,6 +7,7 @@ import 'data/deck_repository.dart';
 import 'data/local_deck_store.dart';
 import 'data/supabase_deck_source.dart';
 import 'data/sync_deck_repository.dart';
+import 'errors/app_error.dart';
 import 'models/deck.dart';
 import 'study/audio_screen.dart';
 import 'study/list_screen.dart';
@@ -19,10 +20,22 @@ Future<void> main() async {
     runApp(const EasyLanguageFlashcards());
     return;
   }
-  await Supabase.initialize(
-    url: config.supabaseUrl,
-    publishableKey: config.publishableKey,
-  );
+  try {
+    await Supabase.initialize(
+      url: config.supabaseUrl,
+      publishableKey: config.publishableKey,
+    );
+  } catch (error) {
+    runApp(
+      _StartupFailureApp(
+        message: describeAppError(
+          error,
+          fallback: 'The app could not start its account service. Close it and try again.',
+        ),
+      ),
+    );
+    return;
+  }
   final client = Supabase.instance.client;
   runApp(
     EasyLanguageFlashcards(
@@ -33,6 +46,28 @@ Future<void> main() async {
       authService: AuthService(client),
     ),
   );
+}
+
+class _StartupFailureApp extends StatelessWidget {
+  const _StartupFailureApp({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+        title: 'Easy Language Flashcards',
+        darkTheme: ThemeData.dark(),
+        themeMode: ThemeMode.dark,
+        home: Scaffold(
+          appBar: AppBar(title: const Text('Cannot start app')),
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(message, textAlign: TextAlign.center),
+            ),
+          ),
+        ),
+      );
 }
 
 class EasyLanguageFlashcards extends StatefulWidget {
@@ -135,6 +170,15 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _signIn() async {
+    final email = _email.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      setState(() => _error = 'Enter a valid email address.');
+      return;
+    }
+    if (_password.text.isEmpty) {
+      setState(() => _error = 'Enter your password.');
+      return;
+    }
     setState(() {
       _busy = true;
       _error = null;
@@ -144,8 +188,15 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _email.text,
         password: _password.text,
       );
-    } on AuthException catch (error) {
-      if (mounted) setState(() => _error = error.message);
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => _error = describeAppError(
+            error,
+            fallback: 'Sign-in failed. Check your account details and try again.',
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -192,7 +243,26 @@ class _LoginScreenState extends State<LoginScreen> {
         ],
       ),
     );
-    if (accepted != true) return;
+    if (accepted != true) {
+      username.dispose();
+      email.dispose();
+      password.dispose();
+      return;
+    }
+    final registrationError = username.text.trim().length < 3
+        ? 'Username must contain at least 3 characters.'
+        : !email.text.trim().contains('@')
+            ? 'Enter a valid email address.'
+            : password.text.length < 8
+                ? 'Password must contain at least 8 characters.'
+                : null;
+    if (registrationError != null) {
+      if (mounted) setState(() => _error = registrationError);
+      username.dispose();
+      email.dispose();
+      password.dispose();
+      return;
+    }
     try {
       await widget.authService.register(
         username: username.text,
@@ -208,8 +278,15 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         );
       }
-    } on AuthException catch (error) {
-      if (mounted) setState(() => _error = error.message);
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => _error = describeAppError(
+            error,
+            fallback: 'The account could not be created. Check the details and try again.',
+          ),
+        );
+      }
     } finally {
       username.dispose();
       email.dispose();
@@ -218,8 +295,8 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _resetPassword() async {
-    if (_email.text.trim().isEmpty) {
-      setState(() => _error = 'Enter your email address first.');
+    if (!_email.text.trim().contains('@')) {
+      setState(() => _error = 'Enter a valid email address first.');
       return;
     }
     try {
@@ -229,8 +306,15 @@ class _LoginScreenState extends State<LoginScreen> {
           const SnackBar(content: Text('Password-reset email sent.')),
         );
       }
-    } on AuthException catch (error) {
-      if (mounted) setState(() => _error = error.message);
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => _error = describeAppError(
+            error,
+            fallback: 'The password-reset email could not be sent. Try again later.',
+          ),
+        );
+      }
     }
   }
 
@@ -307,10 +391,20 @@ class _DeckLibraryState extends State<DeckLibrary> {
     _decks = widget.repository.cloudLibrary();
   }
 
-  Future<void> _removeDownload(Deck deck) async {
-    await widget.repository.removeDownload(deck.id);
+  void _showError(Object error, String fallback) {
     if (!mounted) return;
-    setState(_refresh);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(describeAppError(error, fallback: fallback))),
+    );
+  }
+
+  Future<void> _removeDownload(Deck deck) async {
+    try {
+      await widget.repository.removeDownload(deck.id);
+      if (mounted) setState(_refresh);
+    } catch (error) {
+      _showError(error, 'The phone download could not be removed. Try again.');
+    }
   }
 
   Future<void> _confirmRemoveDownload(Deck deck) async {
@@ -360,8 +454,12 @@ class _DeckLibraryState extends State<DeckLibrary> {
       ),
     );
     if (confirmed != true) return;
-    await widget.repository.deleteEverywhere(deck.id);
-    if (mounted) setState(_refresh);
+    try {
+      await widget.repository.deleteEverywhere(deck.id);
+      if (mounted) setState(_refresh);
+    } catch (error) {
+      _showError(error, 'The cloud copy could not be deleted. Refresh and try again.');
+    }
   }
 
   Future<void> _openDeck(Deck deck) async {
@@ -394,11 +492,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
               toRank: configuration.toRank,
             );
     } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not open deck: $error')),
-        );
-      }
+      _showError(error, 'The deck could not be opened. Refresh and try again.');
       return;
     }
     if (!mounted) return;
@@ -431,7 +525,13 @@ class _DeckLibraryState extends State<DeckLibrary> {
   }
 
   Future<void> _showTrash() async {
-    final trashed = await widget.repository.trashedDecks();
+    List<Deck> trashed;
+    try {
+      trashed = await widget.repository.trashedDecks();
+    } catch (error) {
+      _showError(error, 'Cloud Trash could not be loaded. Try again.');
+      return;
+    }
     if (!mounted) return;
     await showDialog<void>(
       context: context,
@@ -451,9 +551,17 @@ class _DeckLibraryState extends State<DeckLibrary> {
                       subtitle: const Text('Recoverable for 30 days'),
                       trailing: TextButton(
                         onPressed: () async {
-                          await widget.repository.restore(deck.id);
-                          if (dialogContext.mounted) Navigator.pop(dialogContext);
-                          if (mounted) setState(_refresh);
+                          try {
+                            await widget.repository.restore(deck.id);
+                            if (dialogContext.mounted) Navigator.pop(dialogContext);
+                            if (mounted) setState(_refresh);
+                          } catch (error) {
+                            if (dialogContext.mounted) Navigator.pop(dialogContext);
+                            _showError(
+                              error,
+                              'The deck could not be restored. Refresh and try again.',
+                            );
+                          }
                         },
                         child: const Text('Restore'),
                       ),
@@ -469,6 +577,14 @@ class _DeckLibraryState extends State<DeckLibrary> {
         ],
       ),
     );
+  }
+
+  Future<void> _signOut() async {
+    try {
+      await widget.authService?.signOut();
+    } catch (error) {
+      _showError(error, 'Sign-out failed. Check your connection and try again.');
+    }
   }
 
   @override
@@ -489,7 +605,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
             if (widget.authService != null)
               IconButton(
                 tooltip: 'Sign out',
-                onPressed: widget.authService!.signOut,
+                onPressed: _signOut,
                 icon: const Icon(Icons.logout),
               ),
           ],
@@ -499,7 +615,27 @@ class _DeckLibraryState extends State<DeckLibrary> {
           builder: (context, snapshot) {
             if (snapshot.hasError) {
               return Center(
-                child: Text('Synchronization failed: ${snapshot.error}'),
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        describeAppError(
+                          snapshot.error!,
+                          fallback: 'Deck synchronization failed. Try again.',
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      FilledButton.icon(
+                        onPressed: () => setState(_refresh),
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Try again'),
+                      ),
+                    ],
+                  ),
+                ),
               );
             }
             if (!snapshot.hasData) {
@@ -547,8 +683,15 @@ class _DeckLibraryState extends State<DeckLibrary> {
                         : IconButton(
                             tooltip: 'Download',
                             onPressed: () async {
-                              await widget.repository.download(deck.id);
-                              if (mounted) setState(_refresh);
+                              try {
+                                await widget.repository.download(deck.id);
+                                if (mounted) setState(_refresh);
+                              } catch (error) {
+                                _showError(
+                                  error,
+                                  'The deck could not be downloaded. Try again.',
+                                );
+                              }
                             },
                             icon: const Icon(Icons.cloud_download_outlined),
                           ),

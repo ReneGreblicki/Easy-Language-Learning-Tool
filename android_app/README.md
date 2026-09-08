@@ -43,5 +43,7 @@ to `localhost`.
 - Previous, Turn, Next, and Reshuffle controls
 - Large sound control centered at 75% card height with no visible guide line
 - Downloaded audio when available, with Android text-to-speech as a fallback
+- Descriptive authentication, network, synchronization, storage, and audio errors without
+  exposing raw exception details or server URLs
 - Switchable desktop-matched light and dark palettes
 - The same launcher artwork as the desktop application

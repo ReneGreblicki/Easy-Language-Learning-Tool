@@ -5,6 +5,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../data/deck_repository.dart';
+import '../errors/app_error.dart';
 import '../models/deck.dart';
 
 enum StudyContentMode { words, sentences, both }
@@ -150,7 +151,14 @@ class _StudyScreenState extends State<StudyScreen> {
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sound could not be played: $error')),
+          SnackBar(
+            content: Text(
+              describeAppError(
+                error,
+                fallback: 'Sound could not be played. Check the phone volume and try again.',
+              ),
+            ),
+          ),
         );
       }
     } finally {

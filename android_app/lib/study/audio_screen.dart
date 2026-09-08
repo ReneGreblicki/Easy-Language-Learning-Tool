@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../data/deck_repository.dart';
+import '../errors/app_error.dart';
 import '../models/deck.dart';
 import 'study_screen.dart';
 
@@ -91,7 +92,10 @@ class _AudioStudyScreenState extends State<AudioStudyScreen> {
       if (mounted) {
         setState(() {
           _loading = false;
-          _error = 'Audio could not be loaded: $error';
+          _error = describeAppError(
+            error,
+            fallback: 'Audio could not be loaded. Reopen the deck and try again.',
+          );
         });
       }
     }

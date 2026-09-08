@@ -20,7 +20,17 @@ Android version, APK commit, tester, and UTC date.
 
 Pass: the deck title, language pair, order, and all four text fields match the workbook.
 
-## 2. Persistent offline deck
+## 2. Error messages
+
+1. Disable Wi-Fi and mobile data, then attempt to sign in.
+2. Confirm the app explains that the server cannot be reached and suggests connection checks.
+3. Confirm no exception name, API URL, hostname, database code, or stack detail is displayed.
+4. Restore connectivity and enter an incorrect password; confirm the app identifies incorrect
+   email/password without exposing the server response.
+
+Pass: every failure is descriptive and actionable, with no raw technical details.
+
+## 3. Persistent offline deck
 
 1. Download and open the deck.
 2. Close the app completely.
@@ -39,7 +49,7 @@ Pass: the deck title, language pair, order, and all four text fields match the w
 Pass: the deck remains in the library, each card has only Front and Back, every selected
 field is readable, controls behave like desktop, and cached audio replays offline.
 
-## 3. Phone-only removal safety
+## 4. Phone-only removal safety
 
 1. Record the desktop workbook path and checksum.
 2. On Android, choose **Remove download** and confirm.
@@ -48,7 +58,7 @@ field is readable, controls behave like desktop, and cached audio replays offlin
 Pass: only the phone's cached deck/audio disappears. The cloud library entry, desktop
 database, workbook path, workbook checksum, and desktop History entry are unchanged.
 
-## 4. Cloud soft deletion and restore
+## 5. Cloud soft deletion and restore
 
 1. Download the deck again.
 2. Choose **Delete everywhere** and confirm.
@@ -59,7 +69,7 @@ database, workbook path, workbook checksum, and desktop History entry are unchan
 Pass: the cloud entry is hidden and restored as expected, the phone cache is removed, and
 no desktop file is moved, archived, edited, or deleted.
 
-## 5. Result record
+## 6. Result record
 
 | Field | Result |
 |---|---|

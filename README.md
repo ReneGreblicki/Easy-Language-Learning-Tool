@@ -750,3 +750,13 @@ The completed portion is preserved. Keep the same workbook and settings, then ru
 - In desktop **Sync**, select **Retry pending uploads**.
 - Refresh **My decks** on Android while online.
 - If the saved desktop session expired, sign in again and retry.
+
+## Android cannot reach the sign-in server
+
+- Confirm that normal websites open on the phone.
+- Temporarily disable VPN, Private DNS, firewall, or ad-blocking applications.
+- Switch between Wi-Fi and mobile data, then try again.
+- If the message persists on both networks, check the Supabase project status.
+
+Technical authentication, network, synchronization, storage, and audio failures are converted
+into descriptive user-facing messages without exposing raw server URLs or exception details.
