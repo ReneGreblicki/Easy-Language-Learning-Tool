@@ -71,7 +71,7 @@ class _AudioStudyScreenState extends State<AudioStudyScreen> {
     }
     try {
       final saved = await widget.repository.loadAudioPosition(_sessionKey);
-      final initial = saved.clamp(0, _items.length - 1) as int;
+      final initial = saved.clamp(0, _items.length - 1);
       await _player.setAudioSources(
         _items
             .map((item) => AudioSource.uri(
@@ -107,7 +107,7 @@ class _AudioStudyScreenState extends State<AudioStudyScreen> {
   @override
   Widget build(BuildContext context) {
     final index = (_player.currentIndex ?? 0)
-        .clamp(0, _items.isEmpty ? 0 : _items.length - 1) as int;
+        .clamp(0, _items.isEmpty ? 0 : _items.length - 1);
     final item = _items.isEmpty ? null : _items[index];
     return Scaffold(
       appBar: AppBar(
