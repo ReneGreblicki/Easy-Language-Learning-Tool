@@ -20,6 +20,9 @@ Android version, APK commit, tester, and UTC date.
 
 Pass: the deck title, language pair, order, and all four text fields match the workbook.
 
+Regression note: Android v0.2.0 and v0.2.1 release APKs omitted the main-manifest internet
+permission and therefore could not contact Supabase. Verification must use v0.2.2 or newer.
+
 ## 2. Error messages
 
 1. Disable Wi-Fi and mobile data, then attempt to sign in.

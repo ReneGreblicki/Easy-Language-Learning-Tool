@@ -15,6 +15,10 @@ The publishable key is not a service-role secret. Database security depends on t
 row-level security policies in `../supabase/migrations/0001_android_sync.sql`, not on hiding
 the publishable key.
 
+The platform-configuration step explicitly adds `android.permission.INTERNET` to the main
+manifest used by release APKs. Do not rely on Flutter's debug-only manifest: debug builds can
+connect even when a release build has no network permission.
+
 Before connecting the app, execute every file in `../supabase/migrations` in numeric order in
 the Supabase SQL editor. Then open **Authentication → URL Configuration** and add this redirect
 URL:

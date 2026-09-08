@@ -21,6 +21,8 @@ desktop-generated TTS audio.
 10. Passwords are handled only by the authentication provider and are never stored by either app.
 11. Desktop TTS upload and Android audio download are separate, explicit opt-in choices.
 12. Opening the Android home library never downloads or resolves audio.
+13. Release APKs must declare Android internet access in the main manifest; debug-only
+    permissions are not accepted as release verification.
 
 ## 3. Architecture
 
@@ -182,6 +184,7 @@ Every pull request must run:
 9. Optional audio upload/download tests and audio-session resume tests.
 10. Activity chooser, list ordering/colour, and flashcard loading-state widget tests.
 11. Error-message tests proving raw exceptions, server URLs, and internal codes are not displayed.
+12. Generated release-manifest tests proving Supabase network access is declared.
 
 Release candidates additionally require:
 

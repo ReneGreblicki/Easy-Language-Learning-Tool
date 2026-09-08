@@ -753,6 +753,9 @@ The completed portion is preserved. Keep the same workbook and settings, then ru
 
 ## Android cannot reach the sign-in server
 
+Use Android v0.2.2 or newer. Versions 0.2.0 and 0.2.1 were release builds with a missing
+main-manifest internet permission; older debug versions were not affected.
+
 - Confirm that normal websites open on the phone.
 - Temporarily disable VPN, Private DNS, firewall, or ad-blocking applications.
 - Switch between Wi-Fi and mobile data, then try again.
