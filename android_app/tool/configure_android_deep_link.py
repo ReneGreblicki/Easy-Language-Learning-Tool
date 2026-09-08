@@ -32,9 +32,7 @@ def configure_manifest(manifest_path: Path, icon_source: Path, icon_target: Path
 
     tts_action = "android.intent.action.TTS_SERVICE"
     query_actions = root.findall("queries/intent/action")
-    if not any(
-        item.get(f"{{{ANDROID}}}name") == tts_action for item in query_actions
-    ):
+    if not any(item.get(f"{{{ANDROID}}}name") == tts_action for item in query_actions):
         queries = root.find("queries")
         if queries is None:
             queries = ElementTree.Element("queries")

@@ -34,8 +34,7 @@ class ConfigureAndroidManifestTest(unittest.TestCase):
             self.assertEqual(set(permissions), set(REQUIRED_PERMISSIONS))
             self.assertEqual(len(permissions), len(REQUIRED_PERMISSIONS))
             tts_actions = [
-                item.get(f"{{{ANDROID}}}name")
-                for item in parsed.findall("queries/intent/action")
+                item.get(f"{{{ANDROID}}}name") for item in parsed.findall("queries/intent/action")
             ]
             self.assertEqual(tts_actions, ["android.intent.action.TTS_SERVICE"])
             callback = parsed.find("application/activity/intent-filter/data")
