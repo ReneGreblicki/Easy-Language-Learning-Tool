@@ -40,5 +40,7 @@ void main() {
     final source = tester.widget<Text>(find.text('de'));
     final translation = tester.widget<Text>(find.text('of; from'));
     expect(source.style?.color, isNot(translation.style?.color));
+    final scrollbar = tester.widget<Scrollbar>(find.byType(Scrollbar));
+    expect(scrollbar.thumbVisibility, isFalse);
   });
 }

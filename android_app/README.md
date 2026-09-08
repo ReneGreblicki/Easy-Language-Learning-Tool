@@ -39,14 +39,17 @@ to `localhost`.
 ## Implemented study behavior
 
 - Two-stage deck launch: activity first, then content and row settings
-- Flashcards, resumable desktop-audio playback, and paired list view
+- Flashcards, resumable audio playback, and paired list view
 - Launch choice: Words, Sentences, or Words and sentences
 - Launch choice: all rows or an inclusive selected rank range
 - Two-sided cards: learning content on the front and translation on the back
 - Tap the card or press Turn to flip it
 - Previous, Turn, Next, and Reshuffle controls
 - Large sound control centered at 75% card height with no visible guide line
-- Downloaded audio when available, with Android text-to-speech as a fallback
+- Transferred desktop audio when available, with adaptive Android text-to-speech as a
+  per-item fallback for the learner language
+- Audio-player entries exist even when desktop audio was not transferred
+- Auto-hiding list scrollbar that is visible only while scrolling
 - Descriptive authentication, network, synchronization, storage, and audio errors without
   exposing raw exception details or server URLs
 - Switchable desktop-matched light and dark palettes

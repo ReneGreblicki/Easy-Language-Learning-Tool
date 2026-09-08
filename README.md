@@ -648,14 +648,19 @@ generate workbooks; content comes from the Windows or macOS desktop application.
 Sign in with the same account as desktop and open a deck. Choose **Flashcards**, **Listen to
 audio**, or **View list**, then choose Words, Sentences, or both and all rows or a selected
 rank range. Desktop TTS audio is transferred only when enabled during desktop upload and is
-downloaded to the phone only when **Download desktop TTS audio** is selected.
+downloaded to the phone only when **Download desktop TTS audio** is selected. If a transferred
+clip is unavailable or cannot be opened, Android uses an installed voice for the learner
+language instead, so audio playback does not depend on desktop audio being uploaded.
 
 ## 6.2 Flashcards, audio, and list
 
 Flashcards remain two-sided with Previous, Turn, Next, Reshuffle, and a large sound button
-at 75% card height without a visible guide line. Audio playback resumes the saved track for
-the same deck, mode, and range. List view places each foreign value directly above its
-translation and uses distinct established palette colours.
+at 75% card height without a visible guide line. Audio playback includes every selected word
+or sentence, prefers transferred desktop clips, falls back to Android text-to-speech, and
+resumes the saved track for the same deck, mode, and range. The app matches the closest
+installed regional voice when the exact learner-language locale is unavailable. List view
+places each foreign value directly above its translation, uses distinct established palette
+colours, and shows its scrollbar only while the list is moving.
 
 Use the brightness icon in **My decks** or the study screen to switch between the
 desktop application's light and dark palettes. The Android launcher uses the same

@@ -23,6 +23,8 @@ desktop-generated TTS audio.
 12. Opening the Android home library never downloads or resolves audio.
 13. Release APKs must declare Android internet access in the main manifest; debug-only
     permissions are not accepted as release verification.
+14. Android 11+ manifests must declare text-to-speech service discovery so installed
+    learner-language engines and regional voices can be enumerated reliably.
 
 ## 3. Architecture
 
@@ -70,7 +72,8 @@ Android database under the device installation ID.
 2. Read changes after the last server cursor.
 3. Store metadata and cards in one local transaction.
 4. Present activity choice, then content/range settings.
-5. Stream audio only for audio-capable activities.
+5. Resolve audio only for audio-capable activities; prefer transferred clips and use the
+   closest installed Android learner-language voice when a clip is absent or fails.
 6. Download audio only when the user explicitly enables offline audio.
 7. Mark deck text available offline.
 
@@ -82,8 +85,10 @@ Android database under the device installation ID.
 4. Choose all rows or an inclusive rank range.
 5. Optionally download transferred desktop audio for offline use.
 6. Flashcards use two sides and an invisible 75% anchor for the sound button.
-7. Audio playback persists position by deck, mode, and range.
-8. List view renders each foreign value immediately above its translation.
+7. Audio playback includes every selected text item and persists position by deck, mode,
+   and range, regardless of whether desktop audio was transferred.
+8. List view renders each foreign value immediately above its translation and uses an
+   auto-hiding scrollbar that appears only during scrolling.
 
 ### Study progress
 

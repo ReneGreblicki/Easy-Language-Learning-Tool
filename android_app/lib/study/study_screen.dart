@@ -1,9 +1,9 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:just_audio/just_audio.dart';
 
+import '../audio/device_speech.dart';
 import '../data/deck_repository.dart';
 import '../errors/app_error.dart';
 import '../models/deck.dart';
@@ -38,7 +38,7 @@ class StudyScreen extends StatefulWidget {
 
 class _StudyScreenState extends State<StudyScreen> {
   final AudioPlayer _audio = AudioPlayer();
-  final FlutterTts _tts = FlutterTts();
+  final DeviceSpeech _speech = DeviceSpeech();
   late List<Flashcard> _cards;
   var _cardIndex = 0;
   var _showingBack = false;
@@ -55,43 +55,13 @@ class _StudyScreenState extends State<StudyScreen> {
   @override
   void dispose() {
     _audio.dispose();
-    _tts.stop().catchError((_) => 0);
+    _speech.stop().catchError((_) {});
     super.dispose();
   }
 
   String get _word => _showingBack ? _card.wordTranslation : _card.foreignWord;
   String get _sentence =>
       _showingBack ? _card.sentenceTranslation : _card.foreignSentence;
-
-  List<String> get _audioUrls {
-    if (_showingBack) return const [];
-    return switch (widget.mode) {
-      StudyContentMode.words => [_card.wordAudioUrl].nonNulls.toList(),
-      StudyContentMode.sentences => [_card.sentenceAudioUrl].nonNulls.toList(),
-      StudyContentMode.both =>
-        [_card.wordAudioUrl, _card.sentenceAudioUrl].nonNulls.toList(),
-    };
-  }
-
-  List<String> get _spokenText => switch (widget.mode) {
-        StudyContentMode.words => [_word],
-        StudyContentMode.sentences => [_sentence],
-        StudyContentMode.both => [_word, _sentence],
-      };
-
-  String get _speechLanguage {
-    final language = (_showingBack
-            ? widget.deck.translationLanguage
-            : widget.deck.sourceLanguage)
-        .toLowerCase();
-    if (language.contains('spanish')) return 'es-ES';
-    if (language.contains('german')) return 'de-DE';
-    if (language.contains('portuguese')) return 'pt-PT';
-    if (language.contains('french')) return 'fr-FR';
-    if (language.contains('italian')) return 'it-IT';
-    if (language.contains('thai')) return 'th-TH';
-    return 'en-US';
-  }
 
   void _flip() => setState(() => _showingBack = !_showingBack);
 
@@ -121,10 +91,24 @@ class _StudyScreenState extends State<StudyScreen> {
     setState(() => _playing = true);
     try {
       await _audio.stop();
-      var playedDownloadedAudio = false;
-      if (_audioUrls.isNotEmpty) {
-        try {
-          for (final url in _audioUrls) {
+      final language = _showingBack
+          ? widget.deck.translationLanguage
+          : widget.deck.sourceLanguage;
+      final entries = switch (widget.mode) {
+        StudyContentMode.words => [(_word, _showingBack ? null : _card.wordAudioUrl)],
+        StudyContentMode.sentences => [
+            (_sentence, _showingBack ? null : _card.sentenceAudioUrl),
+          ],
+        StudyContentMode.both => [
+            (_word, _showingBack ? null : _card.wordAudioUrl),
+            (_sentence, _showingBack ? null : _card.sentenceAudioUrl),
+          ],
+      };
+      for (final (text, source) in entries) {
+        var playedTransferredAudio = false;
+        if (source != null && source.isNotEmpty) {
+          try {
+            final url = source;
             if (url.startsWith('http://') || url.startsWith('https://')) {
               await _audio.setUrl(url).timeout(const Duration(seconds: 8));
             } else {
@@ -132,21 +116,14 @@ class _StudyScreenState extends State<StudyScreen> {
             }
             await _audio.seek(Duration.zero);
             await _audio.play().timeout(const Duration(seconds: 30));
+            playedTransferredAudio = true;
+          } catch (_) {
+            await _audio.stop();
           }
-          playedDownloadedAudio = true;
-        } catch (_) {
-          await _audio.stop();
         }
-      }
-      if (!playedDownloadedAudio) {
-        await _tts.stop().timeout(const Duration(seconds: 2));
-        await _tts.awaitSpeakCompletion(false).timeout(const Duration(seconds: 2));
-        await _tts.setLanguage(_speechLanguage).timeout(const Duration(seconds: 2));
-        await _tts.setVolume(1).timeout(const Duration(seconds: 2));
-        await _tts.setSpeechRate(0.42).timeout(const Duration(seconds: 2));
-        await _tts
-            .speak(_spokenText.where((text) => text.trim().isNotEmpty).join('. '))
-            .timeout(const Duration(seconds: 3));
+        if (!playedTransferredAudio) {
+          await _speech.speak(text, language, awaitCompletion: true);
+        }
       }
     } catch (error) {
       if (mounted) {

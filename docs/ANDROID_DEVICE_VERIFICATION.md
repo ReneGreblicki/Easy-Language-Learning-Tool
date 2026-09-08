@@ -43,11 +43,15 @@ Pass: every failure is descriptive and actionable, with no raw technical details
 6. In every activity, test Words, Sentences, and Words and sentences.
 7. Test all rows and a selected inclusive row range.
 8. Confirm list order and foreign/translation colours.
-9. Pause audio, leave, reopen the same selection, and confirm it resumes at that track.
+9. Stop audio, leave, reopen the same selection, and confirm it resumes at that track.
 10. Confirm audio is not downloaded unless the optional box is enabled.
 11. Flip cards by tapping and by pressing **Turn**; test Previous, Next, and Reshuffle.
-12. Confirm the sound button works, leaves loading state, and has no visible guide line.
-13. Switch between the light and dark desktop-matched themes.
+12. Test learner-language playback both with and without transferred desktop audio. Confirm
+    the closest installed regional voice is used when the exact locale is unavailable.
+13. Confirm the sound button works on both card sides, leaves loading state, and has no
+    visible guide line.
+14. Scroll the list and confirm its scrollbar appears while moving and then fades away.
+15. Switch between the light and dark desktop-matched themes.
 
 Pass: the deck remains in the library, each card has only Front and Back, every selected
 field is readable, controls behave like desktop, and cached audio replays offline.

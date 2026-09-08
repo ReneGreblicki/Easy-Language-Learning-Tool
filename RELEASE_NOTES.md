@@ -75,3 +75,15 @@ Developer ID signing and notarization to remove the first-launch Gatekeeper warn
 
 The published v1.1.0 installer remains the public download until this release
 candidate passes automated Windows acceptance and receives explicit approval.
+
+## Android companion 0.2.3
+
+- Audio mode now includes every selected learner-language word and sentence even when
+  desktop TTS was not transferred.
+- Transferred desktop clips remain preferred; missing or failed clips fall back per item
+  to an installed Android text-to-speech voice.
+- Learner-language speech matches the closest installed regional locale instead of
+  failing when one exact locale is unavailable.
+- Android 11+ release manifests explicitly declare text-to-speech service discovery.
+- Flashcard audio uses the same adaptive voice fallback on both front and back.
+- List view adds a scrollbar that appears during scrolling and fades afterward.
