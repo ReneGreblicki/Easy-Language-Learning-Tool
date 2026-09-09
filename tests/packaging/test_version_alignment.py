@@ -20,9 +20,12 @@ def test_release_version_is_aligned_across_project_files() -> None:
     assert __version__ == project_version
     assert installer_match is not None
     assert installer_match.group(1) == project_version
+    assert f"Tool {project_version}" in (ROOT / "RELEASE_NOTES.md").read_text(encoding="utf-8")
+
+
+def test_readme_points_to_current_published_installers() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     assert "releases/download/v1.4.1/EasyLanguageLearningTool-Setup-1.4.1.exe" in readme
+    assert "releases/download/v1.4.1/EasyLanguageLearningTool-Android-0.2.6.apk" in readme
     assert "EasyLanguageLearningTool-1.4.1-Apple-Silicon.dmg" in readme
     assert "EasyLanguageLearningTool-1.4.1-Intel.dmg" in readme
-    assert "EasyLanguageLearningTool-Android-0.2.6.apk" in readme
-    assert f"Tool {project_version}" in (ROOT / "RELEASE_NOTES.md").read_text(encoding="utf-8")

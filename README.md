@@ -22,64 +22,225 @@ into one natural-sounding, resumable MP3 or desktop flashcards. Its Android and 
 companion app synchronizes desktop-generated decks for flashcards, alternating audio,
 and list study, with optional offline storage.
 
-## What the application does
+## What the desktop application does
 
-### Sentence Creation
+- Creates structured bilingual workbooks from ranked vocabulary with configurable
+  languages, CEFR levels, sentence styles, translations, and word forms.
+- Generates two-sided flashcards for words, sentences, or both, using all rows or a
+  selected rank range.
+- Produces natural-sounding MP3 lessons with configurable voices, pacing, pauses,
+  progress recovery, and safe resume after interruption.
+- Stores recent workbooks and audio in History and can upload generated decks, with
+  optional TTS audio, to the user's synchronized account.
 
-- Supports US English, European Spanish, German, European Portuguese, French,
-  Italian, and Thai. Thai is available as standard Thai script or tone-marked
-  Paiboon romanization.
-- Selects ranked words across all parts of speech deterministically from an internal
-  dataset; the AI creates examples but never decides which words are most common.
-- Connects to OpenAI, Anthropic, Google Gemini, DeepSeek, Ollama, or a custom
-  OpenAI-compatible endpoint.
-- Lets the user choose base words, a single CEFR level or a contiguous
-  gradual A1–C2 range, exact level percentages, question percentage, and a
-  neutral-to-personal sentence-subject scale. Scale 0 keeps every sentence neutral
-  or impersonal; scales 1–4 use personal forms for 20%–80% of rows; scale 5 changes
-  the subject pattern on every row.
-- Allows 0–4 part-of-speech-aware extra forms and dynamically limits base words so
-  `base words × (1 + extra forms)` never exceeds 5,000 final rows.
-- Exports `.xlsx` with exactly four public columns on `Sentences` and a separate
-  audit-ready `Metadata` sheet. Optional CSV export is supported by the core API.
-- Checkpoints long AI jobs and retries only rejected or missing rows.
+## What the mobile application does
 
-### Flashcards
+- Downloads synchronized desktop-generated decks and keeps them available offline.
+- Presents each deck as flashcards, a bilingual list, or paired learning-and-translation
+  audio for words, sentences, or both.
+- Supports all rows or selected rows, male or female voices, playback speed and pause
+  controls, session progress, and the established light and dark themes.
+- Optionally downloads desktop-generated TTS audio; otherwise it uses compatible voices
+  installed on the Android or iOS device.
+- Removes decks only from the mobile device. The corresponding desktop files remain unchanged
+  and are neither deleted nor archived.
 
-- Loads an app-generated or schema-compatible `.xlsx` workbook without changing
-  the source file.
-- Studies Words, Sentences, or one combined card per row. Combined cards display
-  the larger bold word above the sentence on the learning side and translation side.
-- Uses a near-full-tab card with large uncluttered text, a compact language-pair
-  badge, progress, and responsive light/dark styling.
-- Loads from app History or Desktop and plays the visible word, sentence, or both.
-  Matching TTS cell clips are reused; missing clips are generated on demand and cached.
-- Ranks the first data row below the header as 1 and stores the ranked rows locally
-  in SQLite.
-- Supports an inclusive From rank / To rank filter through **Selected rows only**.
-- Randomizes eligible rows without repetition until the selection is exhausted;
-  Previous and Next preserve that order, while Shuffle again starts a new cycle.
-- Restores the last workbook, display mode, selected ranks, shuffled order,
-  position, and card side after restarting the app.
+## How to learn effectively with the app
 
-### Text to Speech
+The guidance below connects the application's features to established vocabulary-learning
+research. Research findings are identified separately from practical routines suggested for
+using the app; the suggested quantities and schedules are starting points, not universal
+optimums.
 
-- Provides separate **Load from History** and **Load from Desktop** actions for
-  app-owned or compatible `.xlsx` workbooks.
-- Uses Microsoft Edge neural voices for the foreign columns and a separate voice
-  for the translation columns.
-- Supports voice, speed, pitch, volume, and four 1–10 second break controls.
-- Previews exactly two rows, or creates one combined MP3.
-- Supports pause, resume, and cancel. A failed or cancelled job preserves its last
-  completed row and partial MP3, and safely resumes only when checksums match.
-- Uses bundled `ffmpeg.exe` and `ffprobe.exe` in the Windows installer.
+### 1. Build a useful high-frequency foundation
 
-### History
+Frequency matters because common words account for a large proportion of ordinary language
+input. Nation's coverage analysis supports prioritising high-frequency vocabulary, while also
+showing that substantially more than 1,000 word families are needed for high coverage of
+unsimplified speech and writing.
 
-- Retains the latest 20 app-owned spreadsheets and 20 app-owned MP3 files.
-- Renames app-owned files, exports safe copies, restores generation settings, and
-  moves deletions to the Windows Recycle Bin or macOS Trash.
-- Never renames or deletes a file exported outside the app-owned History folder.
+Use **Sentence Creation** to begin with vocabulary relevant to everyday communication and your
+goals. Treat the first 1,000 ranked words as a practical milestone, not a scientifically proven
+point at which unrestricted immersion becomes optimal. Continue expanding your vocabulary
+after that milestone and adjust the material to your comprehension.
+
+### 2. Learn meanings clearly, then revisit the words in sentences
+
+A translated example sentence by itself has not consistently outperformed a direct
+word–translation pair, while repeated encounters in meaningful contexts can strengthen
+different aspects of word knowledge.
+
+Use the app in this order:
+
+1. Open **List** mode to inspect each learning-language word directly above its translation.
+2. Read the matching learning-language sentence and its translation.
+3. Notice how the word changes meaning or grammatical form in the sentence.
+4. Revisit the same word in new, understandable material outside the app.
+
+One generated sentence per word is a useful starting context, not sufficient evidence of full
+word knowledge.
+
+### 3. Use flashcards for active recall
+
+Retrieval-practice research shows that trying to recall an answer strengthens delayed
+retention more effectively than repeatedly studying material without retrieval.
+
+In **Flashcards**:
+
+1. Read the learning-language side.
+2. Pause and try to say or think of the translation before turning the card.
+3. Press **Turn** only after making a genuine retrieval attempt.
+4. Turn the card back and try the reverse direction when useful.
+5. Use **Previous**, **Next**, and **Reshuffle** to continue through the chosen set.
+
+Do not turn every card immediately. The effort to retrieve the answer is the important part of
+the exercise.
+
+### 4. Study manageable row ranges
+
+Use **Selected rows** to divide a large workbook into manageable groups. A practical starting
+point is 5–10 new rows per day, followed by older material, but this is an adjustable workload
+rather than a research-established optimum.
+
+Use:
+
+- **Words** when establishing meanings.
+- **Sentences** when practising comprehension in context.
+- **Words and sentences** when connecting both forms.
+- **All rows** for broad review after smaller ranges are becoming familiar.
+
+Increase or reduce the range according to recall accuracy, available time, and fatigue.
+
+### 5. Space reviews across days
+
+A meta-analysis of second-language vocabulary experiments found a medium-to-large advantage
+for spaced practice, with longer spacing generally helping delayed retention. The application
+remembers the mobile study position, but it does not calculate a formal spaced-repetition
+schedule automatically.
+
+A practical starting schedule is:
+
+- First review: later the same day or the next day.
+- Second review: about 2–3 days later.
+- Third review: about one week later.
+- Later reviews: extend the interval when recall is successful; shorten it when recall fails.
+
+This schedule is a usable implementation of spacing, not a uniquely proven optimal timetable.
+
+### 6. Reinforce learning through repeated, understandable context
+
+Repeated encounters can improve vocabulary knowledge, and reading, listening, and viewing can
+all produce incidental learning. Use generated workbook sentences as an initial context, then
+look for the same vocabulary in graded readers, short clips, conversations, or other material
+you can mostly understand.
+
+When encountering a studied word:
+
+1. Try to understand it from the surrounding context.
+2. Check the meaning when necessary.
+3. Replay or reread the passage.
+4. Return to the relevant app rows later.
+
+Treat guesses from context as provisional until checked.
+
+### 7. Use audio for listening and pronunciation support
+
+On desktop, generate TTS audio or include optional TTS when uploading a deck. On Android,
+choose **Listen to audio** for alternating learning-language and translation-language items, or
+use the speaker button on a flashcard. Select the same male or female voice preference for both
+languages when compatible voices are available.
+
+A practical routine is:
+
+1. Listen once without reading.
+2. Predict or recall the meaning.
+3. Listen again while viewing the text in **List** mode.
+4. Repeat the learning-language item aloud.
+5. Adjust playback speed and the pause between items until the speech remains understandable.
+6. Resume from the saved position during the next mobile session.
+
+Slower playback can help analysis, but gradually return toward a comfortable natural speed.
+Voice availability depends on the voices installed on the Android device or included with
+desktop-generated audio.
+
+### 8. Combine app study with accessible immersion
+
+Nation's Four Strands framework recommends balancing meaning-focused input,
+meaning-focused output, deliberate language study, and fluency development. Ordinary
+television can require several thousand word families for high lexical coverage, so difficulty
+should be selected by comprehension rather than by a fixed vocabulary milestone.
+
+Begin accessible listening and reading alongside app study. Use short clips, captions or
+transcripts, graded material, and repetition. Move to harder material when you can follow the
+main meaning and explain or summarise it—not merely when a counter reaches 1,000 words.
+
+### 9. Use the language yourself
+
+The app supports deliberate study and listening, but productive use must also be practised.
+After reviewing a row range:
+
+- Say or write a new sentence using several target words.
+- Describe part of your day.
+- Retell a studied sentence with one detail changed.
+- Have a short conversation or write a short message.
+- Revisit easy audio and speak along with it for fluency.
+
+Producing 3–5 sentences is a manageable starting task, not an experimentally validated daily
+dose.
+
+### 10. Recommended study cycle
+
+A balanced 20–30 minute session can be:
+
+1. **List — 3–5 minutes:** inspect 5–10 new rows and their sentences.
+2. **Flashcards — 8–10 minutes:** retrieve answers before pressing **Turn**.
+3. **Listen to audio — 5–10 minutes:** alternate both languages, then repeat the
+   learning-language items aloud.
+4. **Active use — 3–5 minutes:** produce a few original sentences.
+5. **Review:** return to older row ranges on later days using expanding intervals.
+
+For longer sessions, increase time gradually rather than adding so many new rows that careful
+retrieval and review become impossible.
+
+### Measuring progress
+
+Use several indicators rather than a single vocabulary count:
+
+- Can you recall the meaning before turning a card?
+- Can you understand the word in an unfamiliar sentence?
+- Can you recognise it in speech without seeing the text?
+- Can you produce an appropriate sentence with it?
+- Can you summarise the main meaning of accessible audio or video?
+
+Vocabulary coverage helps select material, but it is not itself a complete comprehension score.
+
+### Research references
+
+- Nation, I. S. P. (2006). *How large a vocabulary is needed for reading and listening?*
+  Canadian Modern Language Review, 63(1), 59–82.
+  [https://doi.org/10.3138/cmlr.63.1.59](https://doi.org/10.3138/cmlr.63.1.59)
+- Nation, I. S. P. (2007). *The Four Strands.* Innovation in Language Learning and
+  Teaching, 1(1), 2–13.
+  [https://doi.org/10.2167/illt039.0](https://doi.org/10.2167/illt039.0)
+- Webb, S. (2007). *Learning word pairs and glossed sentences: The effects of a single
+  context on vocabulary knowledge.* Language Teaching Research, 11(1), 63–81.
+  [https://doi.org/10.1177/1362168806072463](https://doi.org/10.1177/1362168806072463)
+- Webb, S. (2007). *The effects of repetition on vocabulary knowledge.* Applied
+  Linguistics, 28(1), 46–65.
+  [https://doi.org/10.1093/applin/aml048](https://doi.org/10.1093/applin/aml048)
+- Karpicke, J. D., & Roediger, H. L. III (2008). *The critical importance of retrieval
+  for learning.* Science, 319(5865), 966–968.
+  [https://doi.org/10.1126/science.1152408](https://doi.org/10.1126/science.1152408)
+- Webb, S., & Rodgers, M. P. H. (2009). *Vocabulary demands of television programs.*
+  Language Learning, 59(2), 335–366.
+  [https://doi.org/10.1111/j.1467-9922.2009.00509.x](https://doi.org/10.1111/j.1467-9922.2009.00509.x)
+- Feng, Y., & Webb, S. (2020). *Learning vocabulary through reading, listening, and
+  viewing: Which mode of input is most effective?* Studies in Second Language
+  Acquisition, 42(3), 499–523.
+  [https://doi.org/10.1017/S0272263119000494](https://doi.org/10.1017/S0272263119000494)
+- Kim, S. K., & Webb, S. (2022). *The effects of spaced practice on second language
+  learning: A meta-analysis.* Language Learning, 72(1), 269–319.
+  [https://doi.org/10.1111/lang.12479](https://doi.org/10.1111/lang.12479)
 
 ## End-user setup
 
@@ -98,6 +259,12 @@ and list study, with optional offline storage.
    restrict the inclusive rank range, then flip and navigate the shuffled cards.
 7. Open TTS, import a workbook, choose Language 1 for the foreign columns and
    Language 2 for the translation columns, preview two rows, then create the MP3.
+8. For mobile study, sign in to the same account on the desktop and mobile applications,
+   then upload a generated deck from the desktop. Transferring desktop TTS audio is optional.
+9. On Android or iOS, download the deck from **My decks**, choose **Flashcards**, **Listen to audio**,
+   or **List**, then select Words, Sentences, or both and All rows or Selected rows.
+10. Choose a male or female voice where available. Audio mode also provides speed and
+    inter-item pause controls and resumes from the previous saved position.
 
 The installed cloud-provider workflow requires no separate Python, Qt, FFmpeg,
 or other runtime download. Ollama itself is optional and separately installed
@@ -188,14 +355,20 @@ corpus and selected extra forms, so it never accepts a job above 5,000 final row
 
 Version 1.4.0 adds native Intel and Apple Silicon macOS packages while preserving
 the complete Information guide, hardened flashcard audio, uniform card surface,
-and mouse-wheel protections introduced in v1.3.0.
+and mouse-wheel protections introduced in v1.3.0. The current desktop release is
+**v1.4.1**, and the current Android companion and iOS preview are **v0.2.6**. The latest
+workflow is: generate a deck on desktop, sign in and upload it, then sign in to the same
+account on mobile and download it for offline Flashcards,
+Listen to audio, or List study. Desktop TTS transfer is optional, and removing a deck
+from mobile never deletes or archives the desktop file.
 
 ## Project documentation
 
 - `resources/USER_MANUAL.md` is the offline guide shown by the Information tab.
 - `docs/SPEC_TRACEABILITY.md` maps every approved requirement to code and tests.
 - `docs/RELEASE_READINESS.md` defines automated and external release gates.
-- `docs/ANDROID_DEVICE_VERIFICATION.md` is the final real-phone acceptance checklist.
+- `docs/ANDROID_PROJECT_PLAN.md` documents mobile synchronization and study workflows.
+- `docs/ANDROID_DEVICE_VERIFICATION.md` provides the real-device acceptance checklist.
 - `docs/APPLE_PLATFORM_PLAN.md` covers the iOS companion and macOS packaging workflow.
 - Third-party notices are under `resources/licences` and `LICENSES`.
 
