@@ -1,6 +1,8 @@
-# Easy Language Learning Tool 1.4.0 RC
+# Easy Language Learning Tool 1.4.1
 
-Version 1.4.0 adds native macOS application bundles and DMG installers for Apple
+Version 1.4.1 adds the renamed Easy Language Learning Tool Android companion and
+publishes new Windows and Android installers together. Version
+1.4.0 added native macOS application bundles and DMG installers for Apple
 Silicon and Intel Macs while preserving the Windows edition and every v1.3.0
 feature. Flashcard audio uses macOS `afplay`, bundled FFmpeg supports TTS without
 a separate installation, credentials use macOS Keychain, and file deletion uses
@@ -75,3 +77,38 @@ Developer ID signing and notarization to remove the first-launch Gatekeeper warn
 
 The published v1.1.0 installer remains the public download until this release
 candidate passes automated Windows acceptance and receives explicit approval.
+
+## Android companion 0.2.3
+
+- Audio mode now includes every selected learner-language word and sentence even when
+  desktop TTS was not transferred.
+- Transferred desktop clips remain preferred; missing or failed clips fall back per item
+  to an installed Android text-to-speech voice.
+- Learner-language speech matches the closest installed regional locale instead of
+  failing when one exact locale is unavailable.
+- Android 11+ release manifests explicitly declare text-to-speech service discovery.
+- Flashcard audio uses the same adaptive voice fallback on both front and back.
+- List view adds a scrollbar that appears during scrolling and fades afterward.
+
+## Android companion 0.2.4
+
+- Adds female and male phone-voice preferences to flashcard and audio setup.
+- Adds a horizontal audio-speed adjustment with slow and fast endpoints, mapped to safe
+  0.5×–2× playback for transferred clips and Android speech.
+- Adds a default 0.5-second break between words and sentences, adjustable from 0 to 2 seconds.
+- Makes the auto-hiding list scrollbar thicker and directly draggable for fast scrolling.
+
+## Android companion 0.2.5
+
+- Applies the selected male or female phone voice to both learning and translation languages;
+  transferred fixed-voice clips are now fallback-only.
+- Changes audio mode to alternate learning content and its translation for every selected word
+  and sentence.
+- Simplifies the speed control to a bare horizontal bar with −2× on its left and 2× on its
+  right, removing the centre/current value and every label above the bar.
+
+## Android companion 0.2.6
+
+- Renames the visible Android application and launcher label to **Easy Language Learning Tool**.
+- Keeps the existing package identity, local data, sign-in callback, and synchronized deck history compatible.
+- Publishes the installable APK alongside the desktop installers in the v1.4.1 GitHub release.

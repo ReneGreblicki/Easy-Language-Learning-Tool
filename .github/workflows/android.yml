@@ -1,0 +1,59 @@
+name: Android
+
+on:
+  pull_request:
+    paths:
+      - "android_app/**"
+      - "supabase/**"
+      - "src/easy_language_learning_tool/sync/**"
+      - "tests/unit/test_sync.py"
+      - ".github/workflows/android.yml"
+  push:
+    branches:
+      - "feature/android-sync"
+    paths:
+      - "android_app/**"
+      - "supabase/**"
+      - "src/easy_language_learning_tool/sync/**"
+      - "tests/unit/test_sync.py"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flutter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Create Android platform shell
+        working-directory: android_app
+        run: flutter create --platforms=android --org com.renegreblicki .
+      - name: Configure authentication deep link
+        working-directory: android_app
+        run: python tool/configure_android_deep_link.py
+      - name: Verify release manifest configuration
+        working-directory: android_app
+        run: python -m unittest discover -s tool/tests -p "test_*.py"
+      - name: Resolve dependencies
+        working-directory: android_app
+        run: flutter pub get
+      - name: Analyze
+        working-directory: android_app
+        run: flutter analyze
+      - name: Test
+        working-directory: android_app
+        run: flutter test
+      - name: Build release APK
+        working-directory: android_app
+        run: flutter build apk --release
+      - uses: actions/upload-artifact@v6
+        with:
+          name: Easy-Language-Learning-Tool-Android-0.2.6
+          path: android_app/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error

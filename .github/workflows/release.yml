@@ -2,8 +2,14 @@ name: Production release
 on:
   workflow_dispatch:
   push:
+    branches:
+      - "feature/android-sync"
     tags:
       - "v*"
+    paths:
+      - "pyproject.toml"
+      - ".github/workflows/release.yml"
+      - ".github/workflows/windows-build.yml"
 
 permissions:
   contents: write
@@ -31,12 +37,44 @@ jobs:
     needs: verify
     uses: ./.github/workflows/windows-build.yml
     secrets: inherit
-  package-macos:
+  package-android:
     needs: verify
-    uses: ./.github/workflows/macos-build.yml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Create Android platform shell
+        working-directory: android_app
+        run: flutter create --platforms=android --org com.renegreblicki .
+      - name: Configure Android application
+        working-directory: android_app
+        run: python tool/configure_android_deep_link.py
+      - name: Verify release manifest configuration
+        working-directory: android_app
+        run: python -m unittest discover -s tool/tests -p "test_*.py"
+      - name: Resolve dependencies
+        working-directory: android_app
+        run: flutter pub get
+      - name: Analyze
+        working-directory: android_app
+        run: flutter analyze
+      - name: Test
+        working-directory: android_app
+        run: flutter test
+      - name: Build release APK
+        working-directory: android_app
+        run: flutter build apk --release
+      - uses: actions/upload-artifact@v6
+        with:
+          name: Easy-Language-Learning-Tool-Android-0.2.6
+          path: android_app/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
   publish:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [package-windows, package-macos]
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/feature/android-sync'
+    needs: [package-windows, package-android]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
@@ -46,28 +84,45 @@ jobs:
           path: release-artifacts
       - uses: actions/download-artifact@v8
         with:
-          pattern: Easy-Language-Learning-Tool-macOS-*
-          path: release-artifacts/macos
-          merge-multiple: true
+          name: Easy-Language-Learning-Tool-Android-0.2.6
+          path: release-artifacts/android
       - name: Prepare portable archive
         shell: pwsh
         run: |
+          $versionMatch = Select-String -Path pyproject.toml -Pattern '^version = "([^"]+)"$' | Select-Object -First 1
+          if (-not $versionMatch) { throw "Project version was not found in pyproject.toml." }
+          $releaseTag = "v$($versionMatch.Matches[0].Groups[1].Value)"
           Compress-Archive -Path release-artifacts\\EasyLanguageLearningTool `
-            -DestinationPath release-artifacts\\EasyLanguageLearningTool-Portable-${{ github.ref_name }}.zip
+            -DestinationPath "release-artifacts\\EasyLanguageLearningTool-Portable-$releaseTag.zip"
+          Move-Item release-artifacts\\android\\app-release.apk `
+            release-artifacts\\android\\EasyLanguageLearningTool-Android-0.2.6.apk
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
+          $versionMatch = Select-String -Path pyproject.toml -Pattern '^version = "([^"]+)"$' | Select-Object -First 1
+          if (-not $versionMatch) { throw "Project version was not found in pyproject.toml." }
+          $releaseTag = "v$($versionMatch.Matches[0].Groups[1].Value)"
           $installer = Get-ChildItem release-artifacts\\installer\\*.exe | Select-Object -First 1
-          gh release create "${{ github.ref_name }}" `
-            $installer.FullName `
-            release-artifacts\\installer\\SHA256SUMS.txt `
-            release-artifacts\\installer\\BUILD_PROVENANCE.txt `
-            release-artifacts\\EasyLanguageLearningTool-Portable-${{ github.ref_name }}.zip `
-            release-artifacts\\macos\\*.dmg `
-            release-artifacts\\macos\\SHA256SUMS-*.txt `
-            release-artifacts\\macos\\BUILD_PROVENANCE-*.txt `
-            --title "Easy Language Learning Tool ${{ github.ref_name }}" `
-            --notes-file RELEASE_NOTES.md `
-            --verify-tag
+          $targetArguments = if ("${{ github.ref }}" -like "refs/tags/v*") {
+            @("--verify-tag")
+          } else {
+            @("--target", "${{ github.sha }}")
+          }
+          $assets = @(
+            $installer.FullName,
+            "release-artifacts\\installer\\SHA256SUMS.txt",
+            "release-artifacts\\installer\\BUILD_PROVENANCE.txt",
+            "release-artifacts\\EasyLanguageLearningTool-Portable-$releaseTag.zip",
+            "release-artifacts\\android\\EasyLanguageLearningTool-Android-0.2.6.apk"
+          )
+          gh release view "$releaseTag" *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload "$releaseTag" @assets --clobber
+          } else {
+            gh release create "$releaseTag" @assets `
+              --title "Easy Language Learning Tool $releaseTag" `
+              --notes-file RELEASE_NOTES.md `
+              @targetArguments
+          }

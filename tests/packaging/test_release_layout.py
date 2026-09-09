@@ -28,7 +28,7 @@ def test_release_support_files_are_present() -> None:
 
     manual = (root / "resources" / "USER_MANUAL.md").read_text(encoding="utf-8")
     assert manual.startswith("# 1. Sentence Creation")
-    assert "# 6. Common problems" in manual
+    assert "# 8. Common problems" in manual
     assert "# 3. Sentence Creation" not in manual
 
 
@@ -59,10 +59,14 @@ def test_macos_workflow_builds_both_architectures_and_bundles_runtime() -> None:
     assert "--macos-create-app-bundle" in workflow
     assert "dylibbundler" in workflow
     assert "hdiutil create" in workflow
-    assert "EasyLanguageLearningTool-1.4.0-${{ matrix.architecture }}.dmg" in workflow
+    assert "EasyLanguageLearningTool-1.4.1-${{ matrix.architecture }}.dmg" in workflow
     assert "codesign --verify --deep --strict" in workflow
 
+
+
+def test_current_release_publishes_windows_and_android_installers() -> None:
+    root = Path(__file__).resolve().parents[2]
     release = (root / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
-    assert "uses: ./.github/workflows/macos-build.yml" in release
-    assert "Easy-Language-Learning-Tool-macOS-*" in release
-    assert "release-artifacts\\\\macos\\\\*.dmg" in release
+    assert "uses: ./.github/workflows/windows-build.yml" in release
+    assert "Easy-Language-Learning-Tool-Android-0.2.6" in release
+    assert "EasyLanguageLearningTool-Android-0.2.6.apk" in release

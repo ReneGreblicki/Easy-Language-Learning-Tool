@@ -1,0 +1,110 @@
+import 'package:easy_language_flashcards/data/deck_repository.dart';
+import 'package:easy_language_flashcards/models/deck.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  test('remove download keeps deck in cloud library', () async {
+    final deck = Deck(
+      id: 'deck-1',
+      title: 'German A1',
+      sourceLanguage: 'German',
+      translationLanguage: 'US English',
+      cards: const [],
+      isDownloaded: true,
+    );
+    final repository = MemoryDeckRepository([deck]);
+
+    await repository.removeDownload(deck.id);
+
+    expect(await repository.downloadedDecks(), isEmpty);
+    expect(await repository.cloudLibrary(), hasLength(1));
+    expect((await repository.cloudLibrary()).single.deletedAt, isNull);
+  });
+
+  test('remove download never archives or deletes the desktop-origin deck', () async {
+    final original = Deck(
+      id: 'deck-1',
+      title: 'Desktop workbook',
+      sourceLanguage: 'German',
+      translationLanguage: 'US English',
+      cards: const [],
+      isDownloaded: true,
+    );
+    final repository = MemoryDeckRepository([original]);
+
+    await repository.removeDownload(original.id);
+
+    final cloudDeck = (await repository.cloudLibrary()).single;
+    expect(cloudDeck.title, original.title);
+    expect(cloudDeck.deletedAt, isNull);
+    expect(cloudDeck.isDownloaded, isFalse);
+  });
+
+  test('delete everywhere hides cloud deck', () async {
+    final deck = Deck(
+      id: 'deck-1',
+      title: 'German A1',
+      sourceLanguage: 'German',
+      translationLanguage: 'US English',
+      cards: const [],
+    );
+    final repository = MemoryDeckRepository([deck]);
+
+    await repository.deleteEverywhere(deck.id);
+
+    expect(await repository.cloudLibrary(), isEmpty);
+  });
+
+  test('soft-deleted cloud deck can be restored without changing desktop files', () async {
+    final deck = Deck(
+      id: 'deck-1',
+      title: 'Desktop workbook',
+      sourceLanguage: 'German',
+      translationLanguage: 'US English',
+      cards: const [],
+    );
+    final repository = MemoryDeckRepository([deck]);
+
+    await repository.deleteEverywhere(deck.id);
+    expect(await repository.trashedDecks(), hasLength(1));
+
+    await repository.restore(deck.id);
+    expect(await repository.trashedDecks(), isEmpty);
+    expect((await repository.cloudLibrary()).single.title, 'Desktop workbook');
+  });
+
+  test('study rating is stored without deleting the deck', () async {
+    const card = Flashcard(
+      id: 'card-1',
+      rank: 1,
+      foreignWord: 'lernen',
+      wordTranslation: 'to learn',
+      foreignSentence: 'Ich lerne jeden Tag.',
+      sentenceTranslation: 'I learn every day.',
+    );
+    final repository = MemoryDeckRepository([
+      const Deck(
+        id: 'deck-1',
+        title: 'German A1',
+        sourceLanguage: 'German',
+        translationLanguage: 'US English',
+        cards: [card],
+      ),
+    ]);
+
+    await repository.saveProgress(card.id, StudyRating.known);
+
+    final saved = (await repository.cloudLibrary()).single.cards.single;
+    expect(saved.rating, StudyRating.known);
+    expect(await repository.cloudLibrary(), hasLength(1));
+  });
+
+  test('audio session position is remembered independently', () async {
+    final repository = MemoryDeckRepository([]);
+
+    await repository.saveAudioPosition('deck:words:1-100', 17);
+
+    expect(await repository.loadAudioPosition('deck:words:1-100'), 17);
+    expect(await repository.loadAudioPosition('deck:sentences:1-100'), 0);
+  });
+}
