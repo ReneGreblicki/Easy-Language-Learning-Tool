@@ -1,7 +1,8 @@
 # Easy Language Learning Tool 1.4.1
 
 Version 1.4.1 adds the renamed Easy Language Learning Tool Android companion and
-publishes new Windows and Android installers together. Version
+publishes new Windows and Android installers together. It also adds an iOS companion
+adaptation and publishes the native Mac DMGs through the production release workflow. Version
 1.4.0 added native macOS application bundles and DMG installers for Apple
 Silicon and Intel Macs while preserving the Windows edition and every v1.3.0
 feature. Flashcard audio uses macOS `afplay`, bundled FFmpeg supports TTS without
@@ -18,6 +19,17 @@ Developer ID signing and notarization to remove the first-launch Gatekeeper warn
 - Uses platform-correct Trash labels and macOS application icons.
 - Adds macOS build, bundle validation, launch smoke testing, checksum, and
   provenance gates to GitHub Actions and production releases.
+
+## iOS companion preview 0.2.6
+
+- Adapts the existing Flutter mobile companion to iPhone while preserving synchronized
+  accounts, decks, history, list study, flashcards, and alternating two-language audio.
+- Uses the established light/dark palette, shared application icon, secure Supabase callback,
+  and iOS voice metadata for the selected female or male voice in both languages.
+- Adds automated iOS configuration, tests, static analysis, a debug Simulator build, and an
+  unsigned release-mode iPhone bundle with checksums and provenance.
+- Requires Apple distribution signing and provisioning before installation on physical iPhones
+  or TestFlight publication.
 
 ## Information
 

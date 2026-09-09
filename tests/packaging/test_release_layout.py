@@ -64,9 +64,22 @@ def test_macos_workflow_builds_both_architectures_and_bundles_runtime() -> None:
     assert "codesign --verify --deep --strict" in workflow
 
 
-def test_current_release_publishes_windows_and_android_installers() -> None:
+def test_current_release_publishes_windows_android_and_macos_installers() -> None:
     root = Path(__file__).resolve().parents[2]
     release = (root / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
     assert "uses: ./.github/workflows/windows-build.yml" in release
     assert "Easy-Language-Learning-Tool-Android-0.2.6" in release
     assert "EasyLanguageLearningTool-Android-0.2.6.apk" in release
+    assert "uses: ./.github/workflows/macos-build.yml" in release
+    assert "Easy-Language-Learning-Tool-macOS-Apple-Silicon" in release
+    assert "Easy-Language-Learning-Tool-macOS-Intel" in release
+
+
+def test_ios_workflow_builds_simulator_and_unsigned_device_apps() -> None:
+    root = Path(__file__).resolve().parents[2]
+    workflow = (root / ".github" / "workflows" / "ios.yml").read_text(encoding="utf-8")
+    assert "python3 tool/configure_ios.py" in workflow
+    assert "flutter build ios --simulator --debug" in workflow
+    assert "flutter build ios --release --no-codesign" in workflow
+    assert "EasyLanguageLearningTool-iOS-Simulator-0.2.6.zip" in workflow
+    assert "EasyLanguageLearningTool-iOS-Unsigned-0.2.6.zip" in workflow

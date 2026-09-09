@@ -3,13 +3,14 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - "feature/android-sync"
+      - "feature/apple-platforms"
     tags:
       - "v*"
     paths:
       - "pyproject.toml"
       - ".github/workflows/release.yml"
       - ".github/workflows/windows-build.yml"
+      - ".github/workflows/macos-build.yml"
 
 permissions:
   contents: write
@@ -72,9 +73,12 @@ jobs:
           name: Easy-Language-Learning-Tool-Android-0.2.6
           path: android_app/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
+  package-macos:
+    needs: verify
+    uses: ./.github/workflows/macos-build.yml
   publish:
-    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/feature/android-sync'
-    needs: [package-windows, package-android]
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/feature/apple-platforms'
+    needs: [package-windows, package-android, package-macos]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
@@ -86,6 +90,14 @@ jobs:
         with:
           name: Easy-Language-Learning-Tool-Android-0.2.6
           path: release-artifacts/android
+      - uses: actions/download-artifact@v8
+        with:
+          name: Easy-Language-Learning-Tool-macOS-Apple-Silicon
+          path: release-artifacts/macos/apple-silicon
+      - uses: actions/download-artifact@v8
+        with:
+          name: Easy-Language-Learning-Tool-macOS-Intel
+          path: release-artifacts/macos/intel
       - name: Prepare portable archive
         shell: pwsh
         run: |
@@ -117,6 +129,7 @@ jobs:
             "release-artifacts\\EasyLanguageLearningTool-Portable-$releaseTag.zip",
             "release-artifacts\\android\\EasyLanguageLearningTool-Android-0.2.6.apk"
           )
+          $assets += Get-ChildItem release-artifacts\\macos -Recurse -File | ForEach-Object { $_.FullName }
           gh release view "$releaseTag" *> $null
           if ($LASTEXITCODE -eq 0) {
             gh release upload "$releaseTag" @assets --clobber
