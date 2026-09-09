@@ -59,9 +59,9 @@ def test_macos_workflow_builds_both_architectures_and_bundles_runtime() -> None:
     assert "--macos-create-app-bundle" in workflow
     assert "dylibbundler" in workflow
     assert "hdiutil create" in workflow
-    assert "EasyLanguageLearningTool-1.4.1-${{ matrix.architecture }}.dmg" in workflow
+    assert "EasyLanguageLearningTool-$APP_VERSION-${{ matrix.architecture }}.dmg" in workflow
+    assert 'echo "APP_VERSION=$version" >> "$GITHUB_ENV"' in workflow
     assert "codesign --verify --deep --strict" in workflow
-
 
 
 def test_current_release_publishes_windows_and_android_installers() -> None:
