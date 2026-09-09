@@ -5,8 +5,8 @@ import json
 import plistlib
 import re
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 APP_LABEL = "Easy Language Learning Tool"
 BUNDLE_ID = "com.renegreblicki.easylanguagelearningtool"
