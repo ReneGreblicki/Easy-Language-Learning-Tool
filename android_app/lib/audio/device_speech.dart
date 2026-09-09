@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_tts/flutter_tts.dart';
 
@@ -18,8 +19,8 @@ class SpeechVoiceUnavailableException implements Exception {
 
   @override
   String toString() =>
-      'No $language text-to-speech voice is installed. Open Android Settings, '
-      'search for "Text-to-speech", and install or enable a $language voice.';
+      'No $language text-to-speech voice is available. Open your device '
+      'accessibility or spoken-content settings and enable a $language voice.';
 }
 
 String preferredSpeechLocale(String language) {
@@ -63,16 +64,26 @@ Map<String, String>? chooseBestSpeechVoice(
     final name = rawVoice['name']?.toString() ?? '';
     final locale = (rawVoice['locale']?.toString() ?? '').replaceAll('_', '-');
     if (name.isEmpty || locale.toLowerCase().split('-').first != languageCode) continue;
-    candidates.add({'name': name, 'locale': locale});
+    candidates.add({
+      'name': name,
+      'locale': locale,
+      if (rawVoice['gender'] != null) 'gender': rawVoice['gender'].toString(),
+      if (rawVoice['identifier'] != null)
+        'identifier': rawVoice['identifier'].toString(),
+      if (rawVoice['quality'] != null) 'quality': rawVoice['quality'].toString(),
+    });
   }
   if (candidates.isEmpty) return null;
   candidates.sort((left, right) {
     int score(Map<String, String> voice) {
       final name = voice['name']!.toLowerCase();
       final locale = voice['locale']!.toLowerCase();
+      final declaredGender = (voice['gender'] ?? '').toLowerCase();
+      final markedFemale =
+          declaredGender.contains('female') || name.contains('female') || name.contains('woman');
+      final markedMale = declaredGender.contains('male') ||
+          (!markedFemale && (name.contains('male') || name.contains('man')));
       var value = locale == preferredLocale.toLowerCase() ? 20 : 0;
-      final markedFemale = name.contains('female') || name.contains('woman');
-      final markedMale = !markedFemale && (name.contains('male') || name.contains('man'));
       if (gender == SpeechVoiceGender.female) {
         if (markedFemale) value += 100;
         if (markedMale) value -= 100;
@@ -80,6 +91,8 @@ Map<String, String>? chooseBestSpeechVoice(
         if (markedMale) value += 100;
         if (markedFemale) value -= 100;
       }
+      final quality = (voice['quality'] ?? '').toLowerCase();
+      if (quality.contains('enhanced') || quality == '2') value += 5;
       return value;
     }
 
@@ -95,6 +108,13 @@ class DeviceSpeech {
   DeviceSpeech({FlutterTts? engine}) : _engine = engine ?? FlutterTts();
 
   final FlutterTts _engine;
+  bool _appleAudioConfigured = false;
+
+  Future<void> _configurePlatformAudio() async {
+    if (!Platform.isIOS || _appleAudioConfigured) return;
+    await _engine.setSharedInstance(true).timeout(const Duration(seconds: 3));
+    _appleAudioConfigured = true;
+  }
 
   Future<String> _resolveLocale(String language) async {
     List<Object?> installed = const [];
@@ -102,8 +122,6 @@ class DeviceSpeech {
       final result = await _engine.getLanguages.timeout(const Duration(seconds: 4));
       if (result is List) installed = result.cast<Object?>();
     } catch (_) {
-      // Some Android engines do not enumerate voices. Trying the preferred
-      // locale still lets those engines select their own regional fallback.
       return preferredSpeechLocale(language);
     }
     if (installed.isEmpty) return preferredSpeechLocale(language);
@@ -121,6 +139,7 @@ class DeviceSpeech {
   }) async {
     final content = text.trim();
     if (content.isEmpty) return;
+    await _configurePlatformAudio();
     await _engine.stop().timeout(const Duration(seconds: 3));
     final locale = await _resolveLocale(language);
     final languageResult =
@@ -133,12 +152,14 @@ class DeviceSpeech {
       if (voices is List) {
         final voice = chooseBestSpeechVoice(language, gender, voices.cast<Object?>());
         if (voice != null) {
-          await _engine.setVoice(voice).timeout(const Duration(seconds: 4));
+          final selection = Platform.isIOS && voice['identifier'] != null
+              ? {'identifier': voice['identifier']!}
+              : {'name': voice['name']!, 'locale': voice['locale']!};
+          await _engine.setVoice(selection).timeout(const Duration(seconds: 4));
         }
       }
     } catch (_) {
-      // Some engines expose a language but not their individual voices. In
-      // that case Android keeps the closest available system voice.
+      // Keep the closest system voice selected by the resolved locale.
     }
     await _engine.setVolume(1).timeout(const Duration(seconds: 3));
     final speechRate = (0.42 * speedFactor).clamp(0.2, 0.84).toDouble();

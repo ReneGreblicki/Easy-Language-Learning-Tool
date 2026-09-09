@@ -1,0 +1,68 @@
+name: iOS
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "android_app/**"
+      - "assets/icons/**"
+      - ".github/workflows/ios.yml"
+  push:
+    branches:
+      - "feature/apple-platforms"
+    paths:
+      - "android_app/**"
+      - "assets/icons/**"
+      - ".github/workflows/ios.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Create iOS platform shell
+        working-directory: android_app
+        run: flutter create --platforms=ios --org com.renegreblicki .
+      - name: Configure iOS application
+        working-directory: android_app
+        run: python3 tool/configure_ios.py
+      - name: Verify generated mobile configuration
+        working-directory: android_app
+        run: python3 -m unittest discover -s tool/tests -p "test_*.py"
+      - name: Resolve dependencies
+        working-directory: android_app
+        run: flutter pub get
+      - name: Analyze
+        working-directory: android_app
+        run: flutter analyze
+      - name: Test
+        working-directory: android_app
+        run: flutter test
+      - name: Build iOS Simulator application
+        working-directory: android_app
+        run: flutter build ios --simulator --release
+      - name: Package simulator build
+        run: |
+          mkdir -p ios-release
+          ditto -c -k --keepParent             "android_app/build/ios/iphonesimulator/Runner.app"             "ios-release/EasyLanguageLearningTool-iOS-Simulator-0.2.6.zip"
+          shasum -a 256 ios-release/*.zip > ios-release/SHA256SUMS-iOS.txt
+          printf 'mobile_version=0.2.6\ncommit=%s\nworkflow_run=%s\nbuilt_utc=%s\nplatform=iOS-simulator\nsigned=false\n'             "${{ github.event.pull_request.head.sha || github.sha }}"             "${{ github.run_id }}"             "$(date -u +%Y-%m-%dT%H:%M:%SZ)"             > ios-release/BUILD_PROVENANCE-iOS.txt
+      - name: Validate application metadata
+        run: |
+          plist="android_app/build/ios/iphonesimulator/Runner.app/Info.plist"
+          plutil -lint "$plist"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$plist")" =             "Easy Language Learning Tool"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")" =             "com.renegreblicki.easylanguagelearningtool"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: Easy-Language-Learning-Tool-iOS-0.2.6-preview
+          path: ios-release/*
+          if-no-files-found: error

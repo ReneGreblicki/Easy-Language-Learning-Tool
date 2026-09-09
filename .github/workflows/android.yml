@@ -11,6 +11,7 @@ on:
   push:
     branches:
       - "feature/android-sync"
+      - "feature/apple-platforms"
     paths:
       - "android_app/**"
       - "supabase/**"

@@ -24,6 +24,38 @@ void main() {
     expect(chooseBestSpeechLocale('German', ['en-US', 'es-ES']), isNull);
   });
 
+  test('uses Apple voice gender metadata and retains the identifier', () {
+    final voices = [
+      {
+        'name': 'Monica',
+        'locale': 'es_ES',
+        'gender': 'VoiceGender.female',
+        'identifier': 'com.apple.voice.compact.es-ES.Monica',
+        'quality': 'enhanced',
+      },
+      {
+        'name': 'Jorge',
+        'locale': 'es-ES',
+        'gender': 'VoiceGender.male',
+        'identifier': 'com.apple.voice.compact.es-ES.Jorge',
+      },
+    ];
+    final female = chooseBestSpeechVoice(
+      'European Spanish',
+      SpeechVoiceGender.female,
+      voices,
+    );
+    final male = chooseBestSpeechVoice(
+      'European Spanish',
+      SpeechVoiceGender.male,
+      voices,
+    );
+
+    expect(female?['name'], 'Monica');
+    expect(female?['identifier'], 'com.apple.voice.compact.es-ES.Monica');
+    expect(male?['name'], 'Jorge');
+  });
+
   test('prefers the requested voice gender in the correct language', () {
     final voices = [
       {'name': 'Spanish male 1', 'locale': 'es_ES'},

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - "release/v1.4.0-rc"
+      - "feature/apple-platforms"
   pull_request:
     paths:
       - "src/**"
@@ -46,6 +46,10 @@ jobs:
           uv run ruff check .
           uv run mypy src
           uv run pytest --cov=easy_language_learning_tool --cov-report=term-missing --cov-fail-under=85
+      - name: Resolve application version
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          echo "APP_VERSION=$version" >> "$GITHUB_ENV"
       - name: Create macOS application icon
         run: |
           mkdir -p build/AppIcon.iconset
@@ -64,7 +68,7 @@ jobs:
         run: |
           uv run python -m nuitka --standalone --enable-plugin=pyside6 \
             --macos-create-app-bundle --macos-app-name="Easy Language Learning Tool" \
-            --macos-app-version=1.4.1 --macos-app-icon=build/AppIcon.icns \
+            --macos-app-version="$APP_VERSION" --macos-app-icon=build/AppIcon.icns \
             --output-dir=dist --output-filename=EasyLanguageLearningTool \
             --include-data-dir=resources=resources \
             --include-data-dir=assets=assets \
@@ -107,11 +111,12 @@ jobs:
           mkdir -p dist/dmg-root dist/release
           cp -R "dist/Easy Language Learning Tool.app" dist/dmg-root/
           ln -s /Applications dist/dmg-root/Applications
-          dmg="dist/release/EasyLanguageLearningTool-1.4.1-${{ matrix.architecture }}.dmg"
+          dmg="dist/release/EasyLanguageLearningTool-$APP_VERSION-${{ matrix.architecture }}.dmg"
           hdiutil create -volname "Easy Language Learning Tool" \
             -srcfolder dist/dmg-root -ov -format UDZO "$dmg"
           shasum -a 256 "$dmg" > "dist/release/SHA256SUMS-${{ matrix.architecture }}.txt"
-          printf 'version=1.4.1\ncommit=%s\nworkflow_run=%s\nbuilt_utc=%s\narchitecture=%s\ncodesign=ad-hoc\nnotarized=false\n' \
+          printf 'version=%s\ncommit=%s\nworkflow_run=%s\nbuilt_utc=%s\narchitecture=%s\ncodesign=ad-hoc\nnotarized=false\n' \
+            "$APP_VERSION" \
             "${{ github.event.pull_request.head.sha || github.sha }}" \
             "${{ github.run_id }}" \
             "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \

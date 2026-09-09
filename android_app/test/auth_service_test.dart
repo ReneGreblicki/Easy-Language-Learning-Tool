@@ -2,7 +2,7 @@ import 'package:easy_language_flashcards/auth/auth_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('authentication callback uses the registered Android scheme', () {
+  test('authentication callback uses the registered mobile scheme', () {
     final callback = Uri.parse(AuthService.authCallbackUrl);
 
     expect(callback.scheme, 'com.renegreblicki.easylanguageflashcards');

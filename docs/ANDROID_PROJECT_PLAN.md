@@ -226,3 +226,12 @@ The human gate requires:
 - Delete everywhere is recoverable for 30 days.
 - RLS isolation and synchronization tests pass.
 - Signed Android release is installable and documented.
+
+
+## 10. iOS parity extension
+
+The shared Flutter study client is also adapted for iOS. Apple-specific bundle identity,
+Supabase callback registration, icon generation, deployment target, voice identifiers, simulator
+packaging, signing requirements, and acceptance gates are defined in
+`docs/APPLE_PLATFORM_PLAN.md`. Android deletion and synchronization rules apply unchanged to
+iOS: removing a download is device-local and never changes desktop files.
