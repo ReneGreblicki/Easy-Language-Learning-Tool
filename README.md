@@ -1,9 +1,10 @@
 # Easy Language Learning Tool
 
-[![Download for Windows](https://img.shields.io/badge/Download_for_Windows-v1.3.0-0078D4?logo=windows&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.3.0/EasyLanguageLearningTool-Setup-1.3.0.exe)
+[![Download for Windows](https://img.shields.io/badge/Download_for_Windows-v1.4.1-0078D4?logo=windows&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-Setup-1.4.1.exe)
+[![Download for Android](https://img.shields.io/badge/Download_for_Android-v0.2.6-3DDC84?logo=android&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-Android-0.2.6.apk)
 
-**Windows users only need the `.exe` installer; the workflow ZIP is not required.**  
-[Release notes, checksum, and build provenance](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/tag/v1.3.0)
+**Windows users need the `.exe`; Android users need the `.apk`.**  
+[Release notes, checksums, and build provenance](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/tag/v1.4.1)
 
 > The installer is not yet Authenticode-signed, so Windows may display an Unknown Publisher or SmartScreen warning.
 
