@@ -27,8 +27,10 @@
    encryption declaration, and desktop-matched icon.
 3. Resolve Flutter/CocoaPods dependencies.
 4. Run mobile configuration tests, Dart analysis, and all unit/widget tests.
-5. Build and validate a release-mode iOS Simulator application.
-6. Publish the simulator ZIP, checksum, and provenance as a CI artifact.
+5. Build and validate a debug iOS Simulator application plus an unsigned release-mode iPhone
+   application.
+6. Publish both ZIPs, their checksums, and provenance as CI artifacts. The unsigned iPhone
+   bundle is a signing input and cannot be installed on a physical device as distributed.
 7. After Apple credentials are supplied, import the distribution certificate and provisioning
    profile, build a signed IPA, upload it to TestFlight, and complete physical-device checks.
 
