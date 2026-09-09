@@ -8,22 +8,33 @@
 
 > The installer is not yet Authenticode-signed, so Windows may display an Unknown Publisher or SmartScreen warning.
 
-Easy Language Learning Tool is a cross-platform system for creating ranked bilingual
-vocabulary and sentence decks, studying them in several formats, and producing
-natural-sounding, resumable MP3 lessons. The desktop application runs on Windows
-and macOS, while the optional Android companion provides synchronized offline study.
+Easy Language Learning Tool is a Windows desktop application for creating
+structured language-learning sentence workbooks, generating flashcards, and turning
+those workbooks into one natural-sounding, resumable MP3. The Android mobile app
+synchronizes desktop-generated decks for offline flashcard, list, and audio study.
 
-## What the application does
+## What the desktop application does
 
-- Creates structured bilingual workbooks from ranked vocabulary, with configurable
+- Creates structured bilingual workbooks from ranked vocabulary with configurable
   languages, CEFR levels, sentence styles, translations, and word forms.
-- Provides flashcards, bilingual lists, and paired audio for words, sentences, selected
-  rows, or complete decks, with light and dark themes and male or female voices.
-- Generates natural-sounding MP3 lessons with playback controls, configurable pauses,
+- Generates two-sided flashcards for words, sentences, or both, using all rows or a
+  selected rank range.
+- Produces natural-sounding MP3 lessons with configurable voices, pacing, pauses,
   progress recovery, and safe resume after interruption.
-- Synchronizes desktop-generated decks to Android through a user account while keeping
-  downloaded mobile decks available offline. Removing a deck from the phone does not
-  delete or archive the desktop copy.
+- Stores recent workbooks and audio in History and can upload generated decks, with
+  optional TTS audio, to the user's synchronized account.
+
+## What the mobile application does
+
+- Downloads synchronized desktop-generated decks and keeps them available offline.
+- Presents each deck as flashcards, a bilingual list, or paired learning-and-translation
+  audio for words, sentences, or both.
+- Supports all rows or selected rows, male or female voices, playback speed and pause
+  controls, session progress, and the established light and dark themes.
+- Optionally downloads desktop-generated TTS audio; otherwise it uses compatible voices
+  installed on the Android device.
+- Removes decks only from the phone. The corresponding desktop files remain unchanged
+  and are neither deleted nor archived.
 
 ## End-user setup
 
@@ -39,6 +50,12 @@ and macOS, while the optional Android companion provides synchronized offline st
    restrict the inclusive rank range, then flip and navigate the shuffled cards.
 7. Open TTS, import a workbook, choose Language 1 for the foreign columns and
    Language 2 for the translation columns, preview two rows, then create the MP3.
+8. For mobile study, sign in to the same account on the desktop and Android applications,
+   then upload a generated deck from the desktop. Transferring desktop TTS audio is optional.
+9. On Android, download the deck from **My decks**, choose **Flashcards**, **Listen to audio**,
+   or **List**, then select Words, Sentences, or both and All rows or Selected rows.
+10. Choose a male or female voice where available. Audio mode also provides speed and
+    inter-item pause controls and resumes from the previous saved position.
 
 The installed cloud-provider workflow requires no separate Python, Qt, FFmpeg,
 or other runtime download. Ollama itself is optional and separately installed
@@ -118,17 +135,19 @@ the word translation. See `docs/RELEASE_READINESS.md`.
 The interface caps the base-word control dynamically according to the available
 corpus and selected extra forms, so it never accepts a job above 5,000 final rows.
 
-The v1.3.0 release-candidate branch adds an offline Information tab after History
-with the complete numbered operating guide. It also prevents dropdowns, numeric fields, and
-sliders from changing under the mouse wheel, including after a prior click. Wheel
-input over these fields remains available to scroll the containing page; values
-change only through their explicit controls or keyboard input. The public download button installs the current v1.3.0 production release.
+The current Windows desktop release is **v1.4.1**, and the current Android companion
+is **v0.2.6**. The latest workflow is: generate a deck on desktop, sign in and upload it,
+then sign in to the same account on Android and download it for offline Flashcards,
+Listen to audio, or List study. Desktop TTS transfer is optional, and removing a deck
+from Android never deletes or archives the desktop file.
 
 ## Project documentation
 
 - `resources/USER_MANUAL.md` is the offline guide shown by the Information tab.
 - `docs/SPEC_TRACEABILITY.md` maps every approved requirement to code and tests.
 - `docs/RELEASE_READINESS.md` defines automated and external release gates.
+- `docs/ANDROID_PROJECT_PLAN.md` documents mobile synchronization and study workflows.
+- `docs/ANDROID_DEVICE_VERIFICATION.md` provides the real-device acceptance checklist.
 - Third-party notices are under `resources/licences` and `LICENSES`.
 
 Never commit API keys or provider responses containing secrets.
