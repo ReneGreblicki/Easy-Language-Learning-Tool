@@ -852,8 +852,7 @@ class _StudySetupDialogState extends State<_StudySetupDialog> {
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Download desktop TTS audio'),
                   subtitle: const Text(
-                    'Optional. Uses the voice selected when desktop audio was created; '
-                    'the phone voice is used when no recording is available.',
+                    'Optional fallback if the selected phone voice is unavailable.',
                   ),
                   value: _downloadAudio,
                   onChanged: (value) => setState(() => _downloadAudio = value ?? false),

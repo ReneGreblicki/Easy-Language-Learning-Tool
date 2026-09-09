@@ -91,7 +91,16 @@ candidate passes automated Windows acceptance and receives explicit approval.
 ## Android companion 0.2.4
 
 - Adds female and male phone-voice preferences to flashcard and audio setup.
-- Adds a horizontal audio-speed adjustment from −2× through normal 0 to +2×, mapped to
-  safe 0.5×–2× playback for transferred clips and Android speech.
+- Adds a horizontal audio-speed adjustment with slow and fast endpoints, mapped to safe
+  0.5×–2× playback for transferred clips and Android speech.
 - Adds a default 0.5-second break between words and sentences, adjustable from 0 to 2 seconds.
 - Makes the auto-hiding list scrollbar thicker and directly draggable for fast scrolling.
+
+## Android companion 0.2.5
+
+- Applies the selected male or female phone voice to both learning and translation languages;
+  transferred fixed-voice clips are now fallback-only.
+- Changes audio mode to alternate learning content and its translation for every selected word
+  and sentence.
+- Simplifies the speed control to a bare horizontal bar with −2× on its left and 2× on its
+  right, removing the centre/current value and every label above the bar.

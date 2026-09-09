@@ -107,29 +107,26 @@ class _StudyScreenState extends State<StudyScreen> {
           ],
       };
       for (final (text, source) in entries) {
-        var playedTransferredAudio = false;
-        if (source != null && source.isNotEmpty) {
-          try {
-            final url = source;
-            if (url.startsWith('http://') || url.startsWith('https://')) {
-              await _audio.setUrl(url).timeout(const Duration(seconds: 8));
-            } else {
-              await _audio.setFilePath(url).timeout(const Duration(seconds: 8));
-            }
-            await _audio.seek(Duration.zero);
-            await _audio.play().timeout(const Duration(seconds: 30));
-            playedTransferredAudio = true;
-          } catch (_) {
-            await _audio.stop();
-          }
-        }
-        if (!playedTransferredAudio) {
+        try {
           await _speech.speak(
             text,
             language,
             awaitCompletion: true,
             gender: widget.voiceGender,
           );
+        } catch (speechError) {
+          if (source == null || source.isEmpty) rethrow;
+          try {
+            if (source.startsWith('http://') || source.startsWith('https://')) {
+              await _audio.setUrl(source).timeout(const Duration(seconds: 8));
+            } else {
+              await _audio.setFilePath(source).timeout(const Duration(seconds: 8));
+            }
+            await _audio.seek(Duration.zero);
+            await _audio.play().timeout(const Duration(seconds: 30));
+          } catch (_) {
+            throw speechError;
+          }
         }
       }
     } catch (error) {

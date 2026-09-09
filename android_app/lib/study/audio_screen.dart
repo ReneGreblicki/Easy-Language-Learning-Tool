@@ -8,12 +8,40 @@ import '../errors/app_error.dart';
 import '../models/deck.dart';
 import 'study_screen.dart';
 
-class _AudioItem {
-  const _AudioItem(this.card, this.label, this.source);
+class AudioStudyItem {
+  const AudioStudyItem(this.card, this.label, this.language, this.source);
 
   final Flashcard card;
   final String label;
+  final String language;
   final String? source;
+}
+
+List<AudioStudyItem> buildAudioStudySequence(
+  Deck deck,
+  StudyContentMode mode,
+) {
+  final cards = List<Flashcard>.from(deck.cards)
+    ..sort((left, right) => left.rank.compareTo(right.rank));
+  return [
+    for (final card in cards) ...[
+      if (mode != StudyContentMode.sentences && card.foreignWord.trim().isNotEmpty) ...[
+        AudioStudyItem(card, card.foreignWord, deck.sourceLanguage, card.wordAudioUrl),
+        if (card.wordTranslation.trim().isNotEmpty)
+          AudioStudyItem(card, card.wordTranslation, deck.translationLanguage, null),
+      ],
+      if (mode != StudyContentMode.words && card.foreignSentence.trim().isNotEmpty) ...[
+        AudioStudyItem(
+          card,
+          card.foreignSentence,
+          deck.sourceLanguage,
+          card.sentenceAudioUrl,
+        ),
+        if (card.sentenceTranslation.trim().isNotEmpty)
+          AudioStudyItem(card, card.sentenceTranslation, deck.translationLanguage, null),
+      ],
+    ],
+  ];
 }
 
 class AudioStudyScreen extends StatefulWidget {
@@ -39,7 +67,7 @@ class AudioStudyScreen extends StatefulWidget {
 class _AudioStudyScreenState extends State<AudioStudyScreen> {
   final AudioPlayer _player = AudioPlayer();
   final DeviceSpeech _speech = DeviceSpeech();
-  late final List<_AudioItem> _items;
+  late final List<AudioStudyItem> _items;
   late final String _sessionKey;
   bool _loading = true;
   bool _playing = false;
@@ -52,20 +80,11 @@ class _AudioStudyScreenState extends State<AudioStudyScreen> {
   @override
   void initState() {
     super.initState();
-    final cards = List<Flashcard>.from(widget.deck.cards)
-      ..sort((left, right) => left.rank.compareTo(right.rank));
-    _items = [
-      for (final card in cards) ...[
-        if (widget.mode != StudyContentMode.sentences && card.foreignWord.trim().isNotEmpty)
-          _AudioItem(card, card.foreignWord, card.wordAudioUrl),
-        if (widget.mode != StudyContentMode.words && card.foreignSentence.trim().isNotEmpty)
-          _AudioItem(card, card.foreignSentence, card.sentenceAudioUrl),
-      ],
-    ];
+    _items = buildAudioStudySequence(widget.deck, widget.mode);
     final ranks = widget.deck.cards.map((card) => card.rank);
     final firstRank = ranks.reduce((left, right) => left < right ? left : right);
     final lastRank = ranks.reduce((left, right) => left > right ? left : right);
-    _sessionKey = '${widget.deck.id}:${widget.mode.name}:$firstRank-$lastRank';
+    _sessionKey = '${widget.deck.id}:${widget.mode.name}:$firstRank-$lastRank:paired-v2';
     _prepare();
   }
 
@@ -107,22 +126,23 @@ class _AudioStudyScreenState extends State<AudioStudyScreen> {
     await _player.play().timeout(const Duration(minutes: 3));
   }
 
-  Future<void> _playItem(_AudioItem item) async {
-    if (item.source != null && item.source!.isNotEmpty) {
+  Future<void> _playItem(AudioStudyItem item) async {
+    try {
+      await _speech.speak(
+        item.label,
+        item.language,
+        awaitCompletion: true,
+        gender: widget.voiceGender,
+        speedFactor: playbackFactorForAdjustment(_speedAdjustment),
+      );
+    } catch (speechError) {
+      if (item.source == null || item.source!.isEmpty) rethrow;
       try {
         await _playSource(item.source!);
-        return;
       } catch (_) {
-        await _player.stop();
+        throw speechError;
       }
     }
-    await _speech.speak(
-      item.label,
-      widget.deck.sourceLanguage,
-      awaitCompletion: true,
-      gender: widget.voiceGender,
-      speedFactor: playbackFactorForAdjustment(_speedAdjustment),
-    );
   }
 
   Future<void> _play() async {
@@ -187,14 +207,6 @@ class _AudioStudyScreenState extends State<AudioStudyScreen> {
     _player
         .setSpeed(playbackFactorForAdjustment(adjustment))
         .catchError((_) {});
-  }
-
-  String _formatAdjustment(double value) {
-    if (value == 0) return '0';
-    final number = value == value.roundToDouble()
-        ? value.toInt().toString()
-        : value.toStringAsFixed(1);
-    return value > 0 ? '+$number×' : '$number×';
   }
 
   String _formatPause(double value) =>
@@ -275,32 +287,18 @@ class _AudioStudyScreenState extends State<AudioStudyScreen> {
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
+                            const Text('−2×'),
                             Expanded(
-                              child: Column(
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      const Text('−2×'),
-                                      Text(
-                                        '${_formatAdjustment(_speedAdjustment)}  '
-                                        '(${playbackFactorForAdjustment(_speedAdjustment).toStringAsFixed(2)}×)',
-                                      ),
-                                      const Text('+2×'),
-                                    ],
-                                  ),
-                                  Slider(
-                                    key: const Key('audio-speed-slider'),
-                                    value: _speedAdjustment,
-                                    min: -2,
-                                    max: 2,
-                                    divisions: 8,
-                                    label: _formatAdjustment(_speedAdjustment),
-                                    onChanged: _changeSpeed,
-                                  ),
-                                ],
+                              child: Slider(
+                                key: const Key('audio-speed-slider'),
+                                value: _speedAdjustment,
+                                min: -2,
+                                max: 2,
+                                divisions: 8,
+                                onChanged: _changeSpeed,
                               ),
                             ),
+                            const Text('2×'),
                             PopupMenuButton<double>(
                               key: const Key('audio-pause-button'),
                               tooltip: 'Change break between items',
@@ -329,8 +327,8 @@ class _AudioStudyScreenState extends State<AudioStudyScreen> {
                         ),
                         const SizedBox(height: 8),
                         const Text(
-                          'Transferred desktop audio is used when available. '
-                          'Otherwise, the phone voice is used. Your position is saved automatically.',
+                          'The selected phone voice is used for both languages. '
+                          'Transferred audio is an offline fallback. Your position is saved automatically.',
                           textAlign: TextAlign.center,
                         ),
                       ],

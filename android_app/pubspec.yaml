@@ -1,7 +1,7 @@
 name: easy_language_flashcards
 description: Offline Android companion for Easy Language Learning Tool.
 publish_to: none
-version: 0.2.4+6
+version: 0.2.5+7
 
 environment:
   sdk: ">=3.5.0 <4.0.0"

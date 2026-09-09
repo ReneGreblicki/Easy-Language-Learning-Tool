@@ -46,16 +46,19 @@ Pass: every failure is descriptive and actionable, with no raw technical details
 9. Stop audio, leave, reopen the same selection, and confirm it resumes at that track.
 10. Confirm audio is not downloaded unless the optional box is enabled.
 11. Flip cards by tapping and by pressing **Turn**; test Previous, Next, and Reshuffle.
-12. Test learner-language playback both with and without transferred desktop audio. Confirm
-    the closest installed regional voice is used when the exact locale is unavailable.
-13. Select female and male phone voices and confirm both are applied when suitable voices are
-    installed. Confirm transferred clips retain their desktop-generated voice.
-14. In Audio, test −2×, 0, and +2× speed positions and confirm 0 is normal speed.
-15. Confirm the default break is 0.5 seconds, then test shorter and longer break selections.
-16. Confirm the sound button works on both card sides, leaves loading state, and has no
+12. Test learning- and translation-language playback. Confirm the closest installed regional
+    voice is used when the exact locale is unavailable.
+13. Select female and male phone voices. For each selection, confirm both learning and
+    translation playback use that gender when suitable voices are installed.
+14. In Audio, confirm the order is learning word, translated word, learning sentence,
+    translated sentence for each row.
+15. Confirm the speed control shows only −2× left of the bar and 2× right of the bar, with no
+    text, number, popup label, or normal-speed marker above it.
+16. Confirm the default break is 0.5 seconds, then test shorter and longer break selections.
+17. Confirm the sound button works on both card sides, leaves loading state, and has no
     visible guide line.
-17. Scroll the list, drag the scrollbar thumb to fast-scroll, and confirm it fades afterward.
-18. Switch between the light and dark desktop-matched themes.
+18. Scroll the list, drag the scrollbar thumb to fast-scroll, and confirm it fades afterward.
+19. Switch between the light and dark desktop-matched themes.
 
 Pass: the deck remains in the library, each card has only Front and Back, every selected
 field is readable, controls behave like desktop, and cached audio replays offline.

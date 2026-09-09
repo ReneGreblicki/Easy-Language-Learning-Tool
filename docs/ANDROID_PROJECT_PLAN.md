@@ -25,8 +25,9 @@ desktop-generated TTS audio.
     permissions are not accepted as release verification.
 14. Android 11+ manifests must declare text-to-speech service discovery so installed
     learner-language engines and regional voices can be enumerated reliably.
-15. Flashcard and audio setup must offer female and male phone-voice preferences. Transferred
-    clips retain the desktop voice with which they were generated.
+15. Flashcard and audio setup must offer female and male phone-voice preferences. One selection
+    applies to both learning and translation languages. Transferred clips are fallback-only
+    because their fixed desktop voice cannot guarantee the selected phone gender.
 
 ## 3. Architecture
 
@@ -87,10 +88,10 @@ Android database under the device installation ID.
 4. Choose all rows or an inclusive rank range.
 5. Optionally download transferred desktop audio for offline use.
 6. Flashcards use two sides and an invisible 75% anchor for the sound button.
-7. Audio playback includes every selected text item and persists position by deck, mode,
-   and range, regardless of whether desktop audio was transferred. Its horizontal speed
-   control runs from −2× through normal 0 to +2×, and its inter-item break defaults to 0.5
-   seconds with selectable values from 0 to 2 seconds.
+7. Audio playback alternates learning and translation items within each selected row and
+   persists position by deck, mode, and range. Its horizontal speed control shows only −2×
+   to the left and 2× to the right; the normal centre is unlabelled. Its inter-item break
+   defaults to 0.5 seconds with selectable values from 0 to 2 seconds.
 8. List view renders each foreign value immediately above its translation and uses an
    auto-hiding, draggable scrollbar that appears only during scrolling.
 

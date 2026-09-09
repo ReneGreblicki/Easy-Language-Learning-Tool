@@ -651,23 +651,26 @@ rank range. Desktop TTS audio is transferred only when enabled during desktop up
 downloaded to the phone only when **Download desktop TTS audio** is selected. If a transferred
 clip is unavailable or cannot be opened, Android uses an installed voice for the learner
 language instead, so audio playback does not depend on desktop audio being uploaded. Flashcard
-and audio settings let the user prefer a female or male phone voice. A transferred clip keeps
-the voice that was selected when that clip was created on desktop.
+and audio settings let the user select a female or male phone voice. The same selection is
+applied to both the learning and translation languages. Transferred clips are retained only
+as an offline fallback if the requested phone voice cannot be used.
 
 ## 6.2 Flashcards, audio, and list
 
 Flashcards remain two-sided with Previous, Turn, Next, Reshuffle, and a large sound button
 at 75% card height without a visible guide line. Audio playback includes every selected word
-or sentence, prefers transferred desktop clips, falls back to Android text-to-speech, and
+or sentence and its translation, uses the selected phone voice for both languages, and
 resumes the saved track for the same deck, mode, and range. The app matches the closest
 installed regional voice when the exact learner-language locale is unavailable. List view
 places each foreign value directly above its translation, uses distinct established palette
 colours, and shows its draggable scrollbar only while the list is moving.
 
-Audio mode adds a horizontal **−2× to +2×** speed adjustment under Previous, Play/Stop, and
-Next. Zero is normal speed; the safe playback range is 0.5× to 2×. Each word or sentence is
-followed by a 0.5-second break by default. Use the timer button to the right of the speed
-control to select a break from 0 to 2 seconds.
+Audio mode alternates each learning-language item with its translation: learning word,
+translated word, learning sentence, translated sentence. A horizontal speed adjustment sits
+under Previous, Play/Stop, and Next, with only **−2×** to the left and **2×** to the right.
+The centre is normal speed but is intentionally unlabelled. Each item is followed by a
+0.5-second break by default. Use the timer button to the right of the speed control to select
+a break from 0 to 2 seconds.
 
 Use the brightness icon in **My decks** or the study screen to switch between the
 desktop application's light and dark palettes. The Android launcher uses the same
