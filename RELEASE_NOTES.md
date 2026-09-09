@@ -1,7 +1,7 @@
 # Easy Language Learning Tool 1.4.1
 
 Version 1.4.1 adds the renamed Easy Language Learning Tool Android companion and
-publishes Windows, Android, Apple Silicon, and Intel installers together. Version
+publishes new Windows and Android installers together. Version
 1.4.0 added native macOS application bundles and DMG installers for Apple
 Silicon and Intel Macs while preserving the Windows edition and every v1.3.0
 feature. Flashcard audio uses macOS `afplay`, bundled FFmpeg supports TTS without

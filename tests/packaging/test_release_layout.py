@@ -62,7 +62,11 @@ def test_macos_workflow_builds_both_architectures_and_bundles_runtime() -> None:
     assert "EasyLanguageLearningTool-1.4.1-${{ matrix.architecture }}.dmg" in workflow
     assert "codesign --verify --deep --strict" in workflow
 
+
+
+def test_current_release_publishes_windows_and_android_installers() -> None:
+    root = Path(__file__).resolve().parents[2]
     release = (root / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
-    assert "uses: ./.github/workflows/macos-build.yml" in release
-    assert "Easy-Language-Learning-Tool-macOS-*" in release
-    assert "release-artifacts\\\\macos\\\\*.dmg" in release
+    assert "uses: ./.github/workflows/windows-build.yml" in release
+    assert "Easy-Language-Learning-Tool-Android-0.2.6" in release
+    assert "EasyLanguageLearningTool-Android-0.2.6.apk" in release

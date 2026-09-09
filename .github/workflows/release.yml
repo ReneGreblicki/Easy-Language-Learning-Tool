@@ -9,6 +9,7 @@ on:
     paths:
       - "pyproject.toml"
       - ".github/workflows/release.yml"
+      - ".github/workflows/windows-build.yml"
 
 permissions:
   contents: write
@@ -36,9 +37,6 @@ jobs:
     needs: verify
     uses: ./.github/workflows/windows-build.yml
     secrets: inherit
-  package-macos:
-    needs: verify
-    uses: ./.github/workflows/macos-build.yml
   package-android:
     needs: verify
     runs-on: ubuntu-latest
@@ -76,7 +74,7 @@ jobs:
           if-no-files-found: error
   publish:
     if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/feature/android-sync'
-    needs: [package-windows, package-macos, package-android]
+    needs: [package-windows, package-android]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
@@ -84,11 +82,6 @@ jobs:
         with:
           name: Easy-Language-Learning-Tool-Windows
           path: release-artifacts
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: Easy-Language-Learning-Tool-macOS-*
-          path: release-artifacts/macos
-          merge-multiple: true
       - uses: actions/download-artifact@v8
         with:
           name: Easy-Language-Learning-Tool-Android-0.2.6
@@ -124,9 +117,6 @@ jobs:
             "release-artifacts\\EasyLanguageLearningTool-Portable-$releaseTag.zip",
             "release-artifacts\\android\\EasyLanguageLearningTool-Android-0.2.6.apk"
           )
-          $assets += (Get-ChildItem release-artifacts\\macos\\*.dmg).FullName
-          $assets += (Get-ChildItem release-artifacts\\macos\\SHA256SUMS-*.txt).FullName
-          $assets += (Get-ChildItem release-artifacts\\macos\\BUILD_PROVENANCE-*.txt).FullName
           gh release view "$releaseTag" *> $null
           if ($LASTEXITCODE -eq 0) {
             gh release upload "$releaseTag" @assets --clobber

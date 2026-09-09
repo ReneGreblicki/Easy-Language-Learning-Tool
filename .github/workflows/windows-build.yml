@@ -35,7 +35,17 @@ jobs:
         run: |
           $archive = Join-Path $env:RUNNER_TEMP "ffmpeg.zip"
           $expanded = Join-Path $env:RUNNER_TEMP "ffmpeg"
-          Invoke-WebRequest "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" -OutFile $archive
+          $uri = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+          for ($attempt = 1; $attempt -le 5; $attempt++) {
+            try {
+              Invoke-WebRequest $uri -OutFile $archive
+              break
+            } catch {
+              if ($attempt -eq 5) { throw }
+              Write-Warning "FFmpeg download attempt $attempt failed; retrying in 15 seconds."
+              Start-Sleep -Seconds 15
+            }
+          }
           Expand-Archive $archive -DestinationPath $expanded
           $bin = Get-ChildItem $expanded -Directory | Select-Object -First 1 | ForEach-Object { Join-Path $_.FullName "bin" }
           Copy-Item (Join-Path $bin "ffmpeg.exe") installer\bundled\ffmpeg\ffmpeg.exe
