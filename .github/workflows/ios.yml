@@ -48,19 +48,34 @@ jobs:
         run: flutter test
       - name: Build iOS Simulator application
         working-directory: android_app
-        run: flutter build ios --simulator --release
+        run: flutter build ios --simulator --debug
+      - name: Build unsigned iPhone release application
+        working-directory: android_app
+        run: flutter build ios --release --no-codesign
       - name: Package simulator build
         run: |
           mkdir -p ios-release
-          ditto -c -k --keepParent             "android_app/build/ios/iphonesimulator/Runner.app"             "ios-release/EasyLanguageLearningTool-iOS-Simulator-0.2.6.zip"
+          ditto -c -k --keepParent "android_app/build/ios/iphonesimulator/Runner.app" \
+            "ios-release/EasyLanguageLearningTool-iOS-Simulator-0.2.6.zip"
+          ditto -c -k --keepParent "android_app/build/ios/iphoneos/Runner.app" \
+            "ios-release/EasyLanguageLearningTool-iOS-Unsigned-0.2.6.zip"
           shasum -a 256 ios-release/*.zip > ios-release/SHA256SUMS-iOS.txt
-          printf 'mobile_version=0.2.6\ncommit=%s\nworkflow_run=%s\nbuilt_utc=%s\nplatform=iOS-simulator\nsigned=false\n'             "${{ github.event.pull_request.head.sha || github.sha }}"             "${{ github.run_id }}"             "$(date -u +%Y-%m-%dT%H:%M:%SZ)"             > ios-release/BUILD_PROVENANCE-iOS.txt
+          printf 'mobile_version=0.2.6\ncommit=%s\nworkflow_run=%s\nbuilt_utc=%s\nplatform=iOS-simulator-and-unsigned-device\nsigned=false\n' \
+            "${{ github.event.pull_request.head.sha || github.sha }}" \
+            "${{ github.run_id }}" \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            > ios-release/BUILD_PROVENANCE-iOS.txt
       - name: Validate application metadata
         run: |
-          plist="android_app/build/ios/iphonesimulator/Runner.app/Info.plist"
-          plutil -lint "$plist"
-          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$plist")" =             "Easy Language Learning Tool"
-          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")" =             "com.renegreblicki.easylanguagelearningtool"
+          for plist in \
+            "android_app/build/ios/iphonesimulator/Runner.app/Info.plist" \
+            "android_app/build/ios/iphoneos/Runner.app/Info.plist"; do
+            plutil -lint "$plist"
+            test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$plist")" = \
+              "Easy Language Learning Tool"
+            test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")" = \
+              "com.renegreblicki.easylanguagelearningtool"
+          done
       - uses: actions/upload-artifact@v6
         with:
           name: Easy-Language-Learning-Tool-iOS-0.2.6-preview
