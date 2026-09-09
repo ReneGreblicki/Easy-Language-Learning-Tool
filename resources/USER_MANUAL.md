@@ -15,7 +15,7 @@ Choose one of the following:
 
 1.  Select the provider. 
 2.  Paste your API key. 
-3.  Optionally enable **Remember securely in Windows Credential Manager**. 
+3.  Optionally enable **Remember securely in Credential Manager or macOS Keychain**.
 4.  Click **Test connection and load models**. 
 5.  Select a model from the **Model** dropdown. 
 
@@ -336,7 +336,7 @@ Four pauses can be set from 1 to 10 seconds:
 
 Click **Preview 2 rows**.
 
-The app generates audio for exactly the first two workbook rows and opens the preview in the default Windows audio player.
+The app generates audio for exactly the first two workbook rows and opens the preview in the default system audio player.
 
 ## 3.7 Create the complete MP3
 
@@ -390,7 +390,7 @@ Select one row before using an action.
 - **Use in Flashcards:** Opens a selected workbook in Flashcards. 
 - **Use in TTS:** Opens a selected workbook in TTS. 
 - **Rename:** Renames the app-owned History file. 
-- **Delete to Recycle Bin:** Removes the app-owned copy safely. 
+- **Delete to Recycle Bin / Trash:** Removes the app-owned copy safely.
 - **Re-export:** Copies the file to another location. 
 - **Regenerate:** Restores the original workbook-generation settings. 
 
@@ -398,11 +398,92 @@ Regenerate does not overwrite the original. It creates a new output path and use
 
 Files exported outside History are not renamed or deleted when their History copies are changed.
 
-When more than 20 files of one type exist, the oldest app-owned items are moved to the Recycle Bin.
+When more than 20 files of one type exist, the oldest app-owned items are moved to the Recycle Bin or Trash.
 
 ---
 
-# 5. Offline and internet requirements
+# 5. Desktop cloud synchronization
+
+## 5.1 Account setup
+
+Open **Sync**, enter the same email address and password used by the Android app,
+and select **Sign in**. **Keep me signed in** stores only the renewable session in
+Windows Credential Manager or macOS Keychain; the password is never stored.
+
+Create an account in the Android app first if you do not already have one. Email
+confirmation may be required before the first sign-in.
+
+The confirmation link should reopen the Android app. If it opens a broken `localhost`
+page, the project administrator must add
+`com.renegreblicki.easylanguageflashcards://login-callback/**` under Supabase
+**Authentication → URL Configuration → Redirect URLs**.
+
+## 5.2 Upload a deck
+
+1. Load the workbook in **Flashcards**.
+2. Open **Sync** and sign in.
+3. Select **Upload current deck**.
+4. Sign in to the Android app with the same account and refresh **My decks**.
+5. Download the deck once to keep its cards and available audio on the phone.
+
+Deck and card identifiers remain stable when the same workbook is uploaded again.
+Interrupted uploads remain in a durable queue; use **Retry pending uploads** after
+the connection returns. Uploading never relocates, edits, archives, or deletes the
+desktop workbook.
+
+---
+
+# 6. Android study companion
+
+The Android companion does not generate workbooks. Deck text and optional desktop-generated
+TTS clips are uploaded by the Windows or macOS application.
+
+## 6.1 Upload text and optional audio
+
+In desktop **Sync**, **Upload current deck** always uploads the four text fields. Enable
+**Include available desktop TTS audio** only when you also want to transfer existing TTS
+clips for the same workbook. This option never generates audio and remains off by default.
+If no matching TTS clips exist, the text deck still uploads normally.
+
+## 6.2 Choose an activity
+
+Sign in with the same account as desktop and open a deck from **My decks**. The first menu
+offers **Flashcards**, **Listen to audio**, or **View list**. A second menu then selects
+**Words**, **Sentences**, or **Words and sentences**, plus all rows or an inclusive selected
+rank range. For Flashcards and Listen to audio, optionally enable **Download desktop TTS
+audio** to cache transferred clips for offline playback. Leaving it disabled streams
+available clips and does not automatically download them.
+
+## 6.3 Flashcards
+
+Cards retain the two-sided desktop layout. Tap the card or select **Turn** to flip it. Use
+**Previous**, **Turn**, **Next**, and **Reshuffle**. The large sound button remains centered
+at the 75% height position without a visible guide line. It plays transferred desktop audio
+when available and uses Android text-to-speech as a fallback. Playback always exits its
+loading state after success or failure.
+
+## 6.4 Audio player
+
+The audio player uses the same content and row-range choices, with Previous, Play/Pause, and
+Next. The current track is saved for each deck, mode, and range, so reopening the same
+selection resumes where the previous session stopped.
+
+## 6.5 List view
+
+List view places foreign word, word translation, foreign sentence, and sentence translation
+directly under one another. Foreign-language text uses the established blue accent;
+translations use the established light/dark foreground colour.
+
+## 6.6 Phone storage and deletion
+
+Deck text is cached when opened. Audio is cached only when explicitly enabled. **Remove
+download** affects only that Android installation. **Delete everywhere** soft-deletes only
+the cloud copy and phone download. Desktop files are never deleted, moved, or archived.
+Use **Cloud Trash** within 30 days to restore the cloud copy.
+
+---
+
+# 7. Offline and internet requirements
 
 | Feature | Internet required? |
 |---|:---:|
@@ -415,12 +496,15 @@ When more than 20 files of one type exist, the oldest app-owned items are moved 
 | Refresh Edge voices | Yes |
 | Generate TTS audio | Yes |
 | History management | No |
+| Sign in or synchronize a deck | Yes |
+| Download an Android deck and audio | Yes |
+| Study an already downloaded Android deck | No |
 
 Cloud generation sends the necessary prompt content to the selected AI provider. Edge TTS sends the text required for speech synthesis to Microsoft’s service.
 
 ---
 
-# 6. Common problems
+# 8. Common problems
 
 ## Generate workbook is disabled
 
@@ -457,10 +541,31 @@ Confirm:
 
 -  Wait for the first on-demand generation. 
 -  Confirm internet access for uncached cards. 
--  Check Windows volume and output-device settings. 
+-  Check system volume and output-device settings.
 -  Try the speaker button again; repeated playback is supported. 
 -  Confirm the workbook cells contain valid text. 
 
 ## TTS job stops
 
 The completed portion is preserved. Keep the same workbook and settings, then run **Create MP3** again to resume safely.
+
+## A desktop deck does not appear on Android
+
+- Confirm both apps use the same account.
+- In desktop **Sync**, select **Retry pending uploads**.
+- Refresh **My decks** on Android while online.
+- If the saved desktop session expired, sign in again and retry.
+
+## Android cannot reach the sign-in server
+
+Use Android v0.2.2 or newer. Versions 0.2.0 and 0.2.1 were release builds with a missing
+main-manifest internet permission; older debug versions were not affected.
+
+- Confirm that normal websites open on the phone.
+- Temporarily disable VPN, Private DNS, firewall, or ad-blocking applications.
+- Switch between Wi-Fi and mobile data, then try again.
+- If the message persists on both networks, check the Supabase project status.
+
+The Android app converts technical authentication, network, synchronization, storage, and
+audio failures into user-facing explanations. Raw server URLs and exception details are not
+displayed.

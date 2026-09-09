@@ -4,12 +4,12 @@ This map is checked against both approved project artifacts at every build gate.
 
 | Approved requirement | Implementation | Verification |
 |---|---|---|
-| Windows 10/11, Python 3.12, PySide6 | `pyproject.toml`, `ui/main_window.py` | Windows CI and packaged launch smoke test |
+| Windows 10/11 and macOS Intel/Apple Silicon, Python 3.12, PySide6 | `pyproject.toml`, `ui/main_window.py` | Windows and macOS packaged launch smoke tests |
 | Centered 50% launch; light/dark Power BI-inspired palette | `MainWindow.size_and_center()`, UI themes | Windows UI smoke test |
 | Sentence Creation, Flashcards, TTS, History, Information tabs | `MainWindow` | UI smoke test |
 | Offline numbered operating guide after History | `resources/USER_MANUAL.md`, `MainWindow` | UI and packaging tests |
 | OpenAI, Anthropic, Gemini, DeepSeek, Ollama, custom endpoint | `providers/` | provider contract tests |
-| Session keys and Windows Credential Manager | `security/credentials.py` | platform-service and redaction tests |
+| Session keys, Windows Credential Manager, and macOS Keychain | `security/credentials.py` | platform-service and redaction tests |
 | Dynamic base limit; forms 0–4; `base × (1 + forms) ≤ 5,000` | domain models and UI | boundary and UI tests |
 | A1–C2, 5/8/11/14/17/20 words, contiguous gradual ranges | enums/models/validator | rule tests |
 | Exact percentages and deterministic ascending allocation | planner/rules | allocation tests |
@@ -25,13 +25,14 @@ This map is checked against both approved project artifacts at every build gate.
 | Inclusive rank filtering and no-repeat shuffle cycles | flashcard session model | permutation and boundary tests |
 | Flashcard rows and study position persist across restarts | flashcard service and SQLite schema v2 | migration and resume integration tests |
 | Selection controls never consume page-scrolling wheel input | wheel-safe Qt controls | wheel-interaction tests before and after click |
-| Visible flashcard side has repeatable native audio | cached WAV conversion and Windows playback | audio cache and replay tests |
+| Visible flashcard side has repeatable native audio | cached WAV conversion, Windows playback, macOS `afplay` | audio cache and replay tests |
 | Edge TTS, dual voices, four pauses, 2-row preview | TTS service/UI | mocked integration tests |
 | Pause/resume/cancel and checksum recovery | TTS manifests/service | recovery tests |
 | Latest 20 files per type and safe app-owned actions | History service/UI | file-safety tests |
 | Globe rising from an open book; native Windows identity | `assets/icons/logo.png`, `logo.ico`, AppUserModelID | packaging and Windows UI tests |
 | Bundled runtime/FFmpeg and regular installer | Nuitka + Inno Setup | Windows workflow install/upgrade/uninstall acceptance |
 | Authenticode publisher signing and provenance | signing script and Windows workflow | signature verification and build provenance artifact |
+| Intel and Apple Silicon DMGs with bundled runtime/FFmpeg | Nuitka app bundle + `hdiutil` | macOS architecture, launch, checksum, and provenance gates |
 | README and example workbook included | README and `examples/` | packaging test |
 
 ## Phase status
@@ -58,3 +59,6 @@ This map is checked against both approved project artifacts at every build gate.
 - Phase 13 — v1.3.0 in-app Information guide: implemented on an isolated
   release-candidate branch; Windows CI and explicit release approval are required
   before merge or publication
+- Phase 14 — v1.4.0 native macOS edition: platform-aware audio, Keychain/Trash
+  behavior, Intel and Apple Silicon DMGs, bundled FFmpeg, and macOS CI/release
+  automation implemented on an isolated release-candidate branch

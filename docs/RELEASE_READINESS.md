@@ -27,6 +27,9 @@
 - Automated installer acceptance verifies bundled resources and preservation of
   app-owned user data across upgrade and uninstall.
 - The installer artifact receives a SHA-256 checksum.
+- macOS builds produce separate Intel and Apple Silicon app bundles and DMGs,
+  bundle FFmpeg/FFprobe, validate architecture and launch, and publish SHA-256
+  checksums and provenance.
 
 ## Frequency-data gate
 
@@ -75,3 +78,9 @@ flashcard restart recovery, Windows mouse-wheel interaction tests, and packaged
 Information-guide availability and numbering checks. Its draft
 branch and workflow artifact are not a public release. The v1.1.0 release, README
 download target, and GitHub `main` remain unchanged until explicit approval.
+
+The 1.4.0 release candidate adds Intel and Apple Silicon macOS packaging. Public
+Mac distribution is ad-hoc signed until Apple Developer ID credentials and
+notarization are configured, so first launch can display a Gatekeeper warning.
+Automated macOS acceptance verifies bundle structure, architecture, bundled
+FFmpeg/FFprobe, native playback, launch, checksums, and provenance.

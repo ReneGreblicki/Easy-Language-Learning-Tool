@@ -28,7 +28,7 @@ def test_release_support_files_are_present() -> None:
 
     manual = (root / "resources" / "USER_MANUAL.md").read_text(encoding="utf-8")
     assert manual.startswith("# 1. Sentence Creation")
-    assert "# 6. Common problems" in manual
+    assert "# 8. Common problems" in manual
     assert "# 3. Sentence Creation" not in manual
 
 
@@ -49,3 +49,37 @@ def test_windows_workflow_runs_installer_acceptance_and_supports_signing() -> No
     installer = (root / "installer" / "inno_setup.iss").read_text(encoding="utf-8")
     assert "SetupIconFile=..\\assets\\icons\\logo.ico" in installer
     assert "UninstallDisplayIcon={app}\\{#MyAppExeName}" in installer
+
+
+def test_macos_workflow_builds_both_architectures_and_bundles_runtime() -> None:
+    root = Path(__file__).resolve().parents[2]
+    workflow = (root / ".github" / "workflows" / "macos-build.yml").read_text(encoding="utf-8")
+    assert "macos-15-intel" in workflow
+    assert "macos-15" in workflow
+    assert "--macos-create-app-bundle" in workflow
+    assert "dylibbundler" in workflow
+    assert "hdiutil create" in workflow
+    assert "EasyLanguageLearningTool-$APP_VERSION-${{ matrix.architecture }}.dmg" in workflow
+    assert 'echo "APP_VERSION=$version" >> "$GITHUB_ENV"' in workflow
+    assert "codesign --verify --deep --strict" in workflow
+
+
+def test_current_release_publishes_windows_android_and_macos_installers() -> None:
+    root = Path(__file__).resolve().parents[2]
+    release = (root / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    assert "uses: ./.github/workflows/windows-build.yml" in release
+    assert "Easy-Language-Learning-Tool-Android-0.2.6" in release
+    assert "EasyLanguageLearningTool-Android-0.2.6.apk" in release
+    assert "uses: ./.github/workflows/macos-build.yml" in release
+    assert "Easy-Language-Learning-Tool-macOS-Apple-Silicon" in release
+    assert "Easy-Language-Learning-Tool-macOS-Intel" in release
+
+
+def test_ios_workflow_builds_simulator_and_unsigned_device_apps() -> None:
+    root = Path(__file__).resolve().parents[2]
+    workflow = (root / ".github" / "workflows" / "ios.yml").read_text(encoding="utf-8")
+    assert "python3 tool/configure_ios.py" in workflow
+    assert "flutter build ios --simulator --debug" in workflow
+    assert "flutter build ios --release --no-codesign" in workflow
+    assert "EasyLanguageLearningTool-iOS-Simulator-0.2.6.zip" in workflow
+    assert "EasyLanguageLearningTool-iOS-Unsigned-0.2.6.zip" in workflow

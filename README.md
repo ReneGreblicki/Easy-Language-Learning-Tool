@@ -1,17 +1,26 @@
 # Easy Language Learning Tool
 
+> **Mobile companions:** The Android app and iOS preview synchronize
+> desktop-generated decks for offline study. See the
+> [mobile project plan](docs/ANDROID_PROJECT_PLAN.md) and
+> [Apple platform plan](docs/APPLE_PLATFORM_PLAN.md).
+
 [![Download for Windows](https://img.shields.io/badge/Download_for_Windows-v1.4.1-0078D4?logo=windows&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-Setup-1.4.1.exe)
 [![Download for Android](https://img.shields.io/badge/Download_for_Android-v0.2.6-3DDC84?logo=android&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-Android-0.2.6.apk)
+[![Download for Apple Silicon](https://img.shields.io/badge/macOS-Apple_Silicon_v1.4.1-000000?logo=apple&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-1.4.1-Apple-Silicon.dmg)
+[![Download for Intel Mac](https://img.shields.io/badge/macOS-Intel_v1.4.1-555555?logo=apple&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-1.4.1-Intel.dmg)
 
-**Windows users need the `.exe`; Android users need the `.apk`.**  
+**Windows users need the `.exe`; Android users need the `.apk`; Mac users need the `.dmg` matching their processor.**
 [Release notes, checksums, and build provenance](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/tag/v1.4.1)
 
 > The installer is not yet Authenticode-signed, so Windows may display an Unknown Publisher or SmartScreen warning.
+> The macOS apps are ad-hoc signed but not Apple-notarized, so Gatekeeper may require **Open** from the app's context menu on first launch.
 
-Easy Language Learning Tool is a Windows desktop application for creating
-structured language-learning sentence workbooks, generating flashcards, and turning
-those workbooks into one natural-sounding, resumable MP3. The Android mobile app
-synchronizes desktop-generated decks for offline flashcard, list, and audio study.
+Easy Language Learning Tool is a Windows and macOS desktop application for creating
+structured language-learning sentence workbooks and turning those workbooks
+into one natural-sounding, resumable MP3 or desktop flashcards. Its Android and iOS
+companion app synchronizes desktop-generated decks for flashcards, alternating audio,
+and list study, with optional offline storage.
 
 ## What the desktop application does
 
@@ -32,8 +41,8 @@ synchronizes desktop-generated decks for offline flashcard, list, and audio stud
 - Supports all rows or selected rows, male or female voices, playback speed and pause
   controls, session progress, and the established light and dark themes.
 - Optionally downloads desktop-generated TTS audio; otherwise it uses compatible voices
-  installed on the Android device.
-- Removes decks only from the phone. The corresponding desktop files remain unchanged
+  installed on the Android or iOS device.
+- Removes decks only from the mobile device. The corresponding desktop files remain unchanged
   and are neither deleted nor archived.
 
 ## How to learn effectively with the app
@@ -235,8 +244,11 @@ Vocabulary coverage helps select material, but it is not itself a complete compr
 
 ## End-user setup
 
-1. Run `EasyLanguageLearningTool-Setup-1.4.1.exe`.
-2. Accept the default per-user installation folder and optional desktop shortcut.
+1. Windows: run `EasyLanguageLearningTool-Setup-1.4.1.exe` and accept the default
+   per-user installation folder and optional desktop shortcut.
+2. macOS: open the DMG for your processor and drag **Easy Language Learning Tool**
+   to **Applications**. On first launch, use **Open** from the context menu if
+   Gatekeeper identifies the unnotarized build.
 3. Launch the app. It opens centered at 50% of the screen; resize or maximize it normally.
 4. In Sentence Creation, choose a provider:
    - Cloud: paste your own API key, test the connection, and select a model.
@@ -247,9 +259,9 @@ Vocabulary coverage helps select material, but it is not itself a complete compr
    restrict the inclusive rank range, then flip and navigate the shuffled cards.
 7. Open TTS, import a workbook, choose Language 1 for the foreign columns and
    Language 2 for the translation columns, preview two rows, then create the MP3.
-8. For mobile study, sign in to the same account on the desktop and Android applications,
+8. For mobile study, sign in to the same account on the desktop and mobile applications,
    then upload a generated deck from the desktop. Transferring desktop TTS audio is optional.
-9. On Android, download the deck from **My decks**, choose **Flashcards**, **Listen to audio**,
+9. On Android or iOS, download the deck from **My decks**, choose **Flashcards**, **Listen to audio**,
    or **List**, then select Words, Sentences, or both and All rows or Selected rows.
 10. Choose a male or female voice where available. Audio mode also provides speed and
     inter-item pause controls and resumes from the previous saved position.
@@ -259,7 +271,7 @@ or other runtime download. Ollama itself is optional and separately installed
 only when the user chooses local generation.
 
 API keys are session-only by default. **Remember securely** stores a key in the
-current Windows account's Credential Manager. Keys are never written to SQLite,
+current operating-system account's Credential Manager or macOS Keychain. Keys are never written to SQLite,
 logs, workbooks, checkpoints, or exported settings.
 
 ## Example workbook
@@ -320,6 +332,15 @@ and `WINDOWS_SIGNING_CERTIFICATE_PASSWORD`. Both must be configured together.
 Pull-request builds remain deliberately unsigned; signed builds verify the
 standalone executable and installer before artifact publication.
 
+## macOS build and installer
+
+The macOS workflow builds separate native application bundles and DMG installers
+for Apple Silicon and Intel Macs. Each build bundles Python, Qt, application data,
+FFmpeg, and FFprobe; validates the app bundle and architecture; runs a launch smoke
+test; and publishes a SHA-256 checksum and provenance record. The apps are ad-hoc
+signed. Apple Developer ID signing and notarization can be added when publisher
+credentials are available.
+
 ## Data and release status
 
 The repository includes exactly 5,000 ranked entries for each of eight language/
@@ -332,11 +353,14 @@ the word translation. See `docs/RELEASE_READINESS.md`.
 The interface caps the base-word control dynamically according to the available
 corpus and selected extra forms, so it never accepts a job above 5,000 final rows.
 
-The current Windows desktop release is **v1.4.1**, and the current Android companion
-is **v0.2.6**. The latest workflow is: generate a deck on desktop, sign in and upload it,
-then sign in to the same account on Android and download it for offline Flashcards,
+Version 1.4.0 adds native Intel and Apple Silicon macOS packages while preserving
+the complete Information guide, hardened flashcard audio, uniform card surface,
+and mouse-wheel protections introduced in v1.3.0. The current desktop release is
+**v1.4.1**, and the current Android companion and iOS preview are **v0.2.6**. The latest
+workflow is: generate a deck on desktop, sign in and upload it, then sign in to the same
+account on mobile and download it for offline Flashcards,
 Listen to audio, or List study. Desktop TTS transfer is optional, and removing a deck
-from Android never deletes or archives the desktop file.
+from mobile never deletes or archives the desktop file.
 
 ## Project documentation
 
@@ -345,6 +369,7 @@ from Android never deletes or archives the desktop file.
 - `docs/RELEASE_READINESS.md` defines automated and external release gates.
 - `docs/ANDROID_PROJECT_PLAN.md` documents mobile synchronization and study workflows.
 - `docs/ANDROID_DEVICE_VERIFICATION.md` provides the real-device acceptance checklist.
+- `docs/APPLE_PLATFORM_PLAN.md` covers the iOS companion and macOS packaging workflow.
 - Third-party notices are under `resources/licences` and `LICENSES`.
 
 Never commit API keys or provider responses containing secrets.
@@ -370,7 +395,7 @@ Choose one of the following:
 
 1.  Select the provider. 
 2.  Paste your API key. 
-3.  Optionally enable **Remember securely in Windows Credential Manager**. 
+3.  Optionally enable **Remember securely in Credential Manager or macOS Keychain**.
 4.  Click **Test connection and load models**. 
 5.  Select a model from the **Model** dropdown. 
 
@@ -691,7 +716,7 @@ Four pauses can be set from 1 to 10 seconds:
 
 Click **Preview 2 rows**.
 
-The app generates audio for exactly the first two workbook rows and opens the preview in the default Windows audio player.
+The app generates audio for exactly the first two workbook rows and opens the preview in the default system audio player.
 
 ## 3.7 Create the complete MP3
 
@@ -745,7 +770,7 @@ Select one row before using an action.
 - **Use in Flashcards:** Opens a selected workbook in Flashcards. 
 - **Use in TTS:** Opens a selected workbook in TTS. 
 - **Rename:** Renames the app-owned History file. 
-- **Delete to Recycle Bin:** Removes the app-owned copy safely. 
+- **Delete to Recycle Bin / Trash:** Removes the app-owned copy safely.
 - **Re-export:** Copies the file to another location. 
 - **Regenerate:** Restores the original workbook-generation settings. 
 
@@ -753,11 +778,101 @@ Regenerate does not overwrite the original. It creates a new output path and use
 
 Files exported outside History are not renamed or deleted when their History copies are changed.
 
-When more than 20 files of one type exist, the oldest app-owned items are moved to the Recycle Bin.
+When more than 20 files of one type exist, the oldest app-owned items are moved to the Recycle Bin or Trash.
 
 ---
 
-# 5. Offline and internet requirements
+# 5. Desktop cloud synchronization
+
+## 5.1 Account setup
+
+Open **Sync**, enter the same email address and password used by the mobile app,
+and select **Sign in**. **Keep me signed in** stores only the renewable session in
+Windows Credential Manager or macOS Keychain; the password is never stored.
+
+Create an account in the mobile app or desktop Sync panel if you do not already have one. Email
+confirmation may be required before the first sign-in.
+
+The confirmation link should reopen the mobile app. If it opens a broken `localhost`
+page, the project administrator must add
+`com.renegreblicki.easylanguageflashcards://login-callback/**` under Supabase
+**Authentication → URL Configuration → Redirect URLs**.
+
+## 5.2 Upload a deck
+
+1. Load the workbook in **Flashcards**.
+2. Open **Sync** and sign in.
+3. Optionally enable **Include available desktop TTS audio**. It is off by default and
+   uploads only clips already generated for this workbook.
+4. Select **Upload current deck**.
+5. Sign in to the mobile app with the same account and refresh **My decks**.
+6. Open the deck once to keep its text on the device. Audio is cached only when explicitly
+   selected in the activity settings.
+
+Deck and card identifiers remain stable when the same workbook is uploaded again.
+Interrupted uploads remain in a durable queue; use **Retry pending uploads** after
+the connection returns. Uploading never relocates, edits, archives, or deletes the
+desktop workbook.
+
+---
+
+# 6. Android and iOS study companions
+
+The mobile companion provides flashcards, audio playback, and a list view. It does not
+generate workbooks; content comes from the Windows or macOS desktop application.
+
+## 6.1 Sign in, choose an activity, and optionally download audio
+
+Sign in with the same account as desktop and open a deck. Choose **Flashcards**, **Listen to
+audio**, or **View list**, then choose Words, Sentences, or both and all rows or a selected
+rank range. Desktop TTS audio is transferred only when enabled during desktop upload and is
+downloaded to the device only when **Download desktop TTS audio** is selected. If a transferred
+clip is unavailable or cannot be opened, the mobile app uses an installed voice for the learner
+language instead, so audio playback does not depend on desktop audio being uploaded. Flashcard
+and audio settings let the user select a female or male phone voice. The same selection is
+applied to both the learning and translation languages. Transferred clips are retained only
+as an offline fallback if the requested phone voice cannot be used.
+
+## 6.2 Flashcards, audio, and list
+
+Flashcards remain two-sided with Previous, Turn, Next, Reshuffle, and a large sound button
+at 75% card height without a visible guide line. Audio playback includes every selected word
+or sentence and its translation, uses the selected phone voice for both languages, and
+resumes the saved track for the same deck, mode, and range. The app matches the closest
+installed regional voice when the exact learner-language locale is unavailable. List view
+places each foreign value directly above its translation, uses distinct established palette
+colours, and shows its draggable scrollbar only while the list is moving.
+
+Audio mode alternates each learning-language item with its translation: learning word,
+translated word, learning sentence, translated sentence. A horizontal speed adjustment sits
+under Previous, Play/Stop, and Next, with only **−2×** to the left and **2×** to the right.
+The centre is normal speed but is intentionally unlabelled. Each item is followed by a
+0.5-second break by default. Use the timer button to the right of the speed control to select
+a break from 0 to 2 seconds.
+
+Use the brightness icon in **My decks** or the study screen to switch between the
+desktop application's light and dark palettes. The Android launcher uses the same
+application icon as the Windows and macOS versions. The iOS adaptation uses the same workflow,
+layout, palette, account, synchronized data, and two-language voice preference.
+
+## 6.3 Phone-only removal
+
+Choose **Remove download** to erase only that mobile installation's cached deck
+and audio. The synchronized cloud deck, the desktop database, and every desktop
+workbook remain unchanged—not deleted and not archived. The deck can be downloaded
+again later.
+
+**Delete everywhere** soft-deletes only the synchronized cloud copy and removes the
+device download. The original desktop workbook and desktop files remain unchanged.
+The cloud copy has a 30-day recovery period before permanent removal.
+
+To recover it, select the **Cloud Trash** icon in **My decks**, find the deck, and
+select **Restore**. Restoration recreates the cloud-library entry; download it again
+on any device that needs an offline copy.
+
+---
+
+# 7. Offline and internet requirements
 
 | Feature | Internet required? |
 |---|:---:|
@@ -770,12 +885,15 @@ When more than 20 files of one type exist, the oldest app-owned items are moved 
 | Refresh Edge voices | Yes |
 | Generate TTS audio | Yes |
 | History management | No |
+| Sign in or synchronize a deck | Yes |
+| Download a mobile deck and audio | Yes |
+| Study an already downloaded mobile deck | No |
 
 Cloud generation sends the necessary prompt content to the selected AI provider. Edge TTS sends the text required for speech synthesis to Microsoft’s service.
 
 ---
 
-# 6. Common problems
+# 8. Common problems
 
 ## Generate workbook is disabled
 
@@ -812,10 +930,31 @@ Confirm:
 
 -  Wait for the first on-demand generation. 
 -  Confirm internet access for uncached cards. 
--  Check Windows volume and output-device settings. 
+-  Check system volume and output-device settings.
 -  Try the speaker button again; repeated playback is supported. 
 -  Confirm the workbook cells contain valid text. 
 
 ## TTS job stops
 
 The completed portion is preserved. Keep the same workbook and settings, then run **Create MP3** again to resume safely.
+
+## A desktop deck does not appear on mobile
+
+- Confirm both apps use the same account.
+- In desktop **Sync**, select **Retry pending uploads**.
+- Refresh **My decks** on the mobile app while online.
+- If the saved desktop session expired, sign in again and retry.
+
+## The mobile app cannot reach the sign-in server
+
+On Android, use v0.2.2 or newer. Versions 0.2.0 and 0.2.1 were release builds with a missing
+main-manifest internet permission; older debug versions were not affected. On iOS, use the
+current preview generated by the iOS workflow.
+
+- Confirm that normal websites open on the phone.
+- Temporarily disable VPN, Private DNS, firewall, or ad-blocking applications.
+- Switch between Wi-Fi and mobile data, then try again.
+- If the message persists on both networks, check the Supabase project status.
+
+Technical authentication, network, synchronization, storage, and audio failures are converted
+into descriptive user-facing messages without exposing raw server URLs or exception details.

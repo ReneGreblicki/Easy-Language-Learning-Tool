@@ -10,8 +10,9 @@ from easy_language_learning_tool.persistence.database import initialize_database
 
 def _resource_path(*parts: str) -> Path:
     packaged = Path(sys.argv[0]).resolve().parent
-    if packaged.joinpath(parts[0]).exists():
-        return packaged.joinpath(*parts)
+    for root in (packaged, packaged.parent / "Resources"):
+        if root.joinpath(parts[0]).exists():
+            return root.joinpath(*parts)
     return Path(__file__).resolve().parents[2].joinpath(*parts)
 
 
@@ -44,7 +45,8 @@ def main() -> int:
     application = QApplication(sys.argv)
     application.setApplicationName("Easy Language Learning Tool")
     application.setApplicationDisplayName("Easy Language Learning Tool")
-    application.setWindowIcon(QIcon(str(_resource_path("assets", "icons", "logo.ico"))))
+    icon_name = "logo.png" if sys.platform == "darwin" else "logo.ico"
+    application.setWindowIcon(QIcon(str(_resource_path("assets", "icons", icon_name))))
     window = MainWindow()
     window.size_and_center()
     window.show()

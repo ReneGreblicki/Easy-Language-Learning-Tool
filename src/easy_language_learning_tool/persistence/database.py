@@ -5,7 +5,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 @contextmanager
@@ -83,12 +83,43 @@ def initialize_database(path: Path) -> None:
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 CHECK(from_rank <= to_rank)
             );
+            CREATE TABLE IF NOT EXISTS sync_devices (
+                installation_id TEXT PRIMARY KEY,
+                platform TEXT NOT NULL CHECK(platform IN ('windows', 'macos')),
+                display_name TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS sync_decks (
+                source_id INTEGER PRIMARY KEY
+                    REFERENCES flashcard_sources(id) ON DELETE CASCADE,
+                cloud_id TEXT NOT NULL UNIQUE,
+                revision INTEGER NOT NULL DEFAULT 1 CHECK(revision > 0),
+                sync_state TEXT NOT NULL DEFAULT 'pending'
+                    CHECK(sync_state IN ('pending', 'synced', 'failed')),
+                cloud_deleted_at TEXT,
+                last_synced_at TEXT
+            );
+            CREATE TABLE IF NOT EXISTS sync_outbox (
+                id TEXT PRIMARY KEY,
+                entity_type TEXT NOT NULL
+                    CHECK(entity_type IN ('deck', 'card', 'audio', 'progress')),
+                entity_id TEXT NOT NULL,
+                operation TEXT NOT NULL
+                    CHECK(operation IN ('upsert', 'soft_delete', 'restore')),
+                payload_json TEXT NOT NULL,
+                attempts INTEGER NOT NULL DEFAULT 0 CHECK(attempts >= 0),
+                available_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                last_error TEXT
+            );
+            CREATE INDEX IF NOT EXISTS sync_outbox_available_idx
+                ON sync_outbox(available_at, created_at);
             """
         )
         row = connection.execute("SELECT version FROM schema_version LIMIT 1").fetchone()
         if row is None:
             connection.execute("INSERT INTO schema_version(version) VALUES (?)", (SCHEMA_VERSION,))
-        elif row[0] == 1:
+        elif row[0] in (1, 2):
             connection.execute("UPDATE schema_version SET version = ?", (SCHEMA_VERSION,))
         elif row[0] != SCHEMA_VERSION:
             raise RuntimeError(f"Unsupported database schema version: {row[0]}")
