@@ -8,72 +8,26 @@
 
 > The installer is not yet Authenticode-signed, so Windows may display an Unknown Publisher or SmartScreen warning.
 
-Easy Language Learning Tool is a Windows desktop application for creating
-structured language-learning sentence workbooks and turning those workbooks
-into one natural-sounding, resumable MP3.
+Easy Language Learning Tool is a cross-platform system for creating ranked bilingual
+vocabulary and sentence decks, studying them in several formats, and producing
+natural-sounding, resumable MP3 lessons. The desktop application runs on Windows
+and macOS, while the optional Android companion provides synchronized offline study.
 
 ## What the application does
 
-### Sentence Creation
-
-- Supports US English, European Spanish, German, European Portuguese, French,
-  Italian, and Thai. Thai is available as standard Thai script or tone-marked
-  Paiboon romanization.
-- Selects ranked words across all parts of speech deterministically from an internal
-  dataset; the AI creates examples but never decides which words are most common.
-- Connects to OpenAI, Anthropic, Google Gemini, DeepSeek, Ollama, or a custom
-  OpenAI-compatible endpoint.
-- Lets the user choose base words, a single CEFR level or a contiguous
-  gradual A1–C2 range, exact level percentages, question percentage, and a
-  neutral-to-personal sentence-subject scale. Scale 0 keeps every sentence neutral
-  or impersonal; scales 1–4 use personal forms for 20%–80% of rows; scale 5 changes
-  the subject pattern on every row.
-- Allows 0–4 part-of-speech-aware extra forms and dynamically limits base words so
-  `base words × (1 + extra forms)` never exceeds 5,000 final rows.
-- Exports `.xlsx` with exactly four public columns on `Sentences` and a separate
-  audit-ready `Metadata` sheet. Optional CSV export is supported by the core API.
-- Checkpoints long AI jobs and retries only rejected or missing rows.
-
-### Flashcards
-
-- Loads an app-generated or schema-compatible `.xlsx` workbook without changing
-  the source file.
-- Studies Words, Sentences, or one combined card per row. Combined cards display
-  the larger bold word above the sentence on the learning side and translation side.
-- Uses a near-full-tab card with large uncluttered text, a compact language-pair
-  badge, progress, and responsive light/dark styling.
-- Loads from app History or Desktop and plays the visible word, sentence, or both.
-  Matching TTS cell clips are reused; missing clips are generated on demand and cached.
-- Ranks the first data row below the header as 1 and stores the ranked rows locally
-  in SQLite.
-- Supports an inclusive From rank / To rank filter through **Selected rows only**.
-- Randomizes eligible rows without repetition until the selection is exhausted;
-  Previous and Next preserve that order, while Shuffle again starts a new cycle.
-- Restores the last workbook, display mode, selected ranks, shuffled order,
-  position, and card side after restarting the app.
-
-### Text to Speech
-
-- Provides separate **Load from History** and **Load from Desktop** actions for
-  app-owned or compatible `.xlsx` workbooks.
-- Uses Microsoft Edge neural voices for the foreign columns and a separate voice
-  for the translation columns.
-- Supports voice, speed, pitch, volume, and four 1–10 second break controls.
-- Previews exactly two rows, or creates one combined MP3.
-- Supports pause, resume, and cancel. A failed or cancelled job preserves its last
-  completed row and partial MP3, and safely resumes only when checksums match.
-- Uses bundled `ffmpeg.exe` and `ffprobe.exe` in the Windows installer.
-
-### History
-
-- Retains the latest 20 app-owned spreadsheets and 20 app-owned MP3 files.
-- Renames app-owned files, exports safe copies, restores generation settings, and
-  moves deletions to the Windows Recycle Bin.
-- Never renames or deletes a file exported outside the app-owned History folder.
+- Creates structured bilingual workbooks from ranked vocabulary, with configurable
+  languages, CEFR levels, sentence styles, translations, and word forms.
+- Provides flashcards, bilingual lists, and paired audio for words, sentences, selected
+  rows, or complete decks, with light and dark themes and male or female voices.
+- Generates natural-sounding MP3 lessons with playback controls, configurable pauses,
+  progress recovery, and safe resume after interruption.
+- Synchronizes desktop-generated decks to Android through a user account while keeping
+  downloaded mobile decks available offline. Removing a deck from the phone does not
+  delete or archive the desktop copy.
 
 ## End-user setup
 
-1. Run `EasyLanguageLearningTool-Setup-1.3.0.exe`.
+1. Run `EasyLanguageLearningTool-Setup-1.4.1.exe`.
 2. Accept the default per-user installation folder and optional desktop shortcut.
 3. Launch the app. It opens centered at 50% of the screen; resize or maximize it normally.
 4. In Sentence Creation, choose a provider:
