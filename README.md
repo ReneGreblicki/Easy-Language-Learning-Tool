@@ -36,6 +36,203 @@ synchronizes desktop-generated decks for offline flashcard, list, and audio stud
 - Removes decks only from the phone. The corresponding desktop files remain unchanged
   and are neither deleted nor archived.
 
+## How to learn effectively with the app
+
+The guidance below connects the application's features to established vocabulary-learning
+research. Research findings are identified separately from practical routines suggested for
+using the app; the suggested quantities and schedules are starting points, not universal
+optimums.
+
+### 1. Build a useful high-frequency foundation
+
+Frequency matters because common words account for a large proportion of ordinary language
+input. Nation's coverage analysis supports prioritising high-frequency vocabulary, while also
+showing that substantially more than 1,000 word families are needed for high coverage of
+unsimplified speech and writing.
+
+Use **Sentence Creation** to begin with vocabulary relevant to everyday communication and your
+goals. Treat the first 1,000 ranked words as a practical milestone, not a scientifically proven
+point at which unrestricted immersion becomes optimal. Continue expanding your vocabulary
+after that milestone and adjust the material to your comprehension.
+
+### 2. Learn meanings clearly, then revisit the words in sentences
+
+A translated example sentence by itself has not consistently outperformed a direct
+word–translation pair, while repeated encounters in meaningful contexts can strengthen
+different aspects of word knowledge.
+
+Use the app in this order:
+
+1. Open **List** mode to inspect each learning-language word directly above its translation.
+2. Read the matching learning-language sentence and its translation.
+3. Notice how the word changes meaning or grammatical form in the sentence.
+4. Revisit the same word in new, understandable material outside the app.
+
+One generated sentence per word is a useful starting context, not sufficient evidence of full
+word knowledge.
+
+### 3. Use flashcards for active recall
+
+Retrieval-practice research shows that trying to recall an answer strengthens delayed
+retention more effectively than repeatedly studying material without retrieval.
+
+In **Flashcards**:
+
+1. Read the learning-language side.
+2. Pause and try to say or think of the translation before turning the card.
+3. Press **Turn** only after making a genuine retrieval attempt.
+4. Turn the card back and try the reverse direction when useful.
+5. Use **Previous**, **Next**, and **Reshuffle** to continue through the chosen set.
+
+Do not turn every card immediately. The effort to retrieve the answer is the important part of
+the exercise.
+
+### 4. Study manageable row ranges
+
+Use **Selected rows** to divide a large workbook into manageable groups. A practical starting
+point is 5–10 new rows per day, followed by older material, but this is an adjustable workload
+rather than a research-established optimum.
+
+Use:
+
+- **Words** when establishing meanings.
+- **Sentences** when practising comprehension in context.
+- **Words and sentences** when connecting both forms.
+- **All rows** for broad review after smaller ranges are becoming familiar.
+
+Increase or reduce the range according to recall accuracy, available time, and fatigue.
+
+### 5. Space reviews across days
+
+A meta-analysis of second-language vocabulary experiments found a medium-to-large advantage
+for spaced practice, with longer spacing generally helping delayed retention. The application
+remembers the mobile study position, but it does not calculate a formal spaced-repetition
+schedule automatically.
+
+A practical starting schedule is:
+
+- First review: later the same day or the next day.
+- Second review: about 2–3 days later.
+- Third review: about one week later.
+- Later reviews: extend the interval when recall is successful; shorten it when recall fails.
+
+This schedule is a usable implementation of spacing, not a uniquely proven optimal timetable.
+
+### 6. Reinforce learning through repeated, understandable context
+
+Repeated encounters can improve vocabulary knowledge, and reading, listening, and viewing can
+all produce incidental learning. Use generated workbook sentences as an initial context, then
+look for the same vocabulary in graded readers, short clips, conversations, or other material
+you can mostly understand.
+
+When encountering a studied word:
+
+1. Try to understand it from the surrounding context.
+2. Check the meaning when necessary.
+3. Replay or reread the passage.
+4. Return to the relevant app rows later.
+
+Treat guesses from context as provisional until checked.
+
+### 7. Use audio for listening and pronunciation support
+
+On desktop, generate TTS audio or include optional TTS when uploading a deck. On Android,
+choose **Listen to audio** for alternating learning-language and translation-language items, or
+use the speaker button on a flashcard. Select the same male or female voice preference for both
+languages when compatible voices are available.
+
+A practical routine is:
+
+1. Listen once without reading.
+2. Predict or recall the meaning.
+3. Listen again while viewing the text in **List** mode.
+4. Repeat the learning-language item aloud.
+5. Adjust playback speed and the pause between items until the speech remains understandable.
+6. Resume from the saved position during the next mobile session.
+
+Slower playback can help analysis, but gradually return toward a comfortable natural speed.
+Voice availability depends on the voices installed on the Android device or included with
+desktop-generated audio.
+
+### 8. Combine app study with accessible immersion
+
+Nation's Four Strands framework recommends balancing meaning-focused input,
+meaning-focused output, deliberate language study, and fluency development. Ordinary
+television can require several thousand word families for high lexical coverage, so difficulty
+should be selected by comprehension rather than by a fixed vocabulary milestone.
+
+Begin accessible listening and reading alongside app study. Use short clips, captions or
+transcripts, graded material, and repetition. Move to harder material when you can follow the
+main meaning and explain or summarise it—not merely when a counter reaches 1,000 words.
+
+### 9. Use the language yourself
+
+The app supports deliberate study and listening, but productive use must also be practised.
+After reviewing a row range:
+
+- Say or write a new sentence using several target words.
+- Describe part of your day.
+- Retell a studied sentence with one detail changed.
+- Have a short conversation or write a short message.
+- Revisit easy audio and speak along with it for fluency.
+
+Producing 3–5 sentences is a manageable starting task, not an experimentally validated daily
+dose.
+
+### 10. Recommended study cycle
+
+A balanced 20–30 minute session can be:
+
+1. **List — 3–5 minutes:** inspect 5–10 new rows and their sentences.
+2. **Flashcards — 8–10 minutes:** retrieve answers before pressing **Turn**.
+3. **Listen to audio — 5–10 minutes:** alternate both languages, then repeat the
+   learning-language items aloud.
+4. **Active use — 3–5 minutes:** produce a few original sentences.
+5. **Review:** return to older row ranges on later days using expanding intervals.
+
+For longer sessions, increase time gradually rather than adding so many new rows that careful
+retrieval and review become impossible.
+
+### Measuring progress
+
+Use several indicators rather than a single vocabulary count:
+
+- Can you recall the meaning before turning a card?
+- Can you understand the word in an unfamiliar sentence?
+- Can you recognise it in speech without seeing the text?
+- Can you produce an appropriate sentence with it?
+- Can you summarise the main meaning of accessible audio or video?
+
+Vocabulary coverage helps select material, but it is not itself a complete comprehension score.
+
+### Research references
+
+- Nation, I. S. P. (2006). *How large a vocabulary is needed for reading and listening?*
+  Canadian Modern Language Review, 63(1), 59–82.
+  [https://doi.org/10.3138/cmlr.63.1.59](https://doi.org/10.3138/cmlr.63.1.59)
+- Nation, I. S. P. (2007). *The Four Strands.* Innovation in Language Learning and
+  Teaching, 1(1), 2–13.
+  [https://doi.org/10.2167/illt039.0](https://doi.org/10.2167/illt039.0)
+- Webb, S. (2007). *Learning word pairs and glossed sentences: The effects of a single
+  context on vocabulary knowledge.* Language Teaching Research, 11(1), 63–81.
+  [https://doi.org/10.1177/1362168806072463](https://doi.org/10.1177/1362168806072463)
+- Webb, S. (2007). *The effects of repetition on vocabulary knowledge.* Applied
+  Linguistics, 28(1), 46–65.
+  [https://doi.org/10.1093/applin/aml048](https://doi.org/10.1093/applin/aml048)
+- Karpicke, J. D., & Roediger, H. L. III (2008). *The critical importance of retrieval
+  for learning.* Science, 319(5865), 966–968.
+  [https://doi.org/10.1126/science.1152408](https://doi.org/10.1126/science.1152408)
+- Webb, S., & Rodgers, M. P. H. (2009). *Vocabulary demands of television programs.*
+  Language Learning, 59(2), 335–366.
+  [https://doi.org/10.1111/j.1467-9922.2009.00509.x](https://doi.org/10.1111/j.1467-9922.2009.00509.x)
+- Feng, Y., & Webb, S. (2020). *Learning vocabulary through reading, listening, and
+  viewing: Which mode of input is most effective?* Studies in Second Language
+  Acquisition, 42(3), 499–523.
+  [https://doi.org/10.1017/S0272263119000494](https://doi.org/10.1017/S0272263119000494)
+- Kim, S. K., & Webb, S. (2022). *The effects of spaced practice on second language
+  learning: A meta-analysis.* Language Learning, 72(1), 269–319.
+  [https://doi.org/10.1111/lang.12479](https://doi.org/10.1111/lang.12479)
+
 ## End-user setup
 
 1. Run `EasyLanguageLearningTool-Setup-1.4.1.exe`.
