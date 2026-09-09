@@ -56,7 +56,7 @@ class _StartupFailureApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'Easy Language Flashcards',
+        title: 'Easy Language Learning Tool',
         darkTheme: ThemeData.dark(),
         themeMode: ThemeMode.dark,
         home: Scaffold(
@@ -96,7 +96,7 @@ class _EasyLanguageFlashcardsState extends State<EasyLanguageFlashcards> {
   Widget build(BuildContext context) {
     final fallback = MemoryDeckRepository(<Deck>[]);
     return MaterialApp(
-      title: 'Easy Language Flashcards',
+      title: 'Easy Language Learning Tool',
       theme: ThemeData(
         brightness: Brightness.light,
         scaffoldBackgroundColor: const Color(0xFFF7F9FC),

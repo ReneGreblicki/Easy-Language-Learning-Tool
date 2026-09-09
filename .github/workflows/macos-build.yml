@@ -63,7 +63,7 @@ jobs:
         run: |
           uv run python -m nuitka --standalone --enable-plugin=pyside6 \
             --macos-create-app-bundle --macos-app-name="Easy Language Learning Tool" \
-            --macos-app-version=1.4.0 --macos-app-icon=build/AppIcon.icns \
+            --macos-app-version=1.4.1 --macos-app-icon=build/AppIcon.icns \
             --output-dir=dist --output-filename=EasyLanguageLearningTool \
             --include-data-dir=resources=resources \
             --include-data-dir=assets=assets \
@@ -106,11 +106,11 @@ jobs:
           mkdir -p dist/dmg-root dist/release
           cp -R "dist/Easy Language Learning Tool.app" dist/dmg-root/
           ln -s /Applications dist/dmg-root/Applications
-          dmg="dist/release/EasyLanguageLearningTool-1.4.0-${{ matrix.architecture }}.dmg"
+          dmg="dist/release/EasyLanguageLearningTool-1.4.1-${{ matrix.architecture }}.dmg"
           hdiutil create -volname "Easy Language Learning Tool" \
             -srcfolder dist/dmg-root -ov -format UDZO "$dmg"
           shasum -a 256 "$dmg" > "dist/release/SHA256SUMS-${{ matrix.architecture }}.txt"
-          printf 'version=1.4.0\ncommit=%s\nworkflow_run=%s\nbuilt_utc=%s\narchitecture=%s\ncodesign=ad-hoc\nnotarized=false\n' \
+          printf 'version=1.4.1\ncommit=%s\nworkflow_run=%s\nbuilt_utc=%s\narchitecture=%s\ncodesign=ad-hoc\nnotarized=false\n' \
             "${{ github.event.pull_request.head.sha || github.sha }}" \
             "${{ github.run_id }}" \
             "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \

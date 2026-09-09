@@ -4,12 +4,13 @@
 > desktop-generated decks for offline study. See the
 > [complete Android project plan and workflow](docs/ANDROID_PROJECT_PLAN.md).
 
-[![Download for Windows](https://img.shields.io/badge/Download_for_Windows-v1.4.0-0078D4?logo=windows&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.0/EasyLanguageLearningTool-Setup-1.4.0.exe)
-[![Download for Apple Silicon](https://img.shields.io/badge/macOS-Apple_Silicon-000000?logo=apple&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.0/EasyLanguageLearningTool-1.4.0-Apple-Silicon.dmg)
-[![Download for Intel Mac](https://img.shields.io/badge/macOS-Intel-555555?logo=apple&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.0/EasyLanguageLearningTool-1.4.0-Intel.dmg)
+[![Download for Windows](https://img.shields.io/badge/Download_for_Windows-v1.4.1-0078D4?logo=windows&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-Setup-1.4.1.exe)
+[![Download for Android](https://img.shields.io/badge/Download_for_Android-v0.2.6-3DDC84?logo=android&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-Android-0.2.6.apk)
+[![Download for Apple Silicon](https://img.shields.io/badge/macOS-Apple_Silicon-000000?logo=apple&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-1.4.1-Apple-Silicon.dmg)
+[![Download for Intel Mac](https://img.shields.io/badge/macOS-Intel-555555?logo=apple&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-1.4.1-Intel.dmg)
 
-**Windows users need the `.exe`; Mac users need the `.dmg` matching their processor.**
-[Release notes, checksums, and build provenance](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/tag/v1.4.0)
+**Windows users need the `.exe`; Android users need the `.apk`; Mac users need the `.dmg` matching their processor.**
+[Release notes, checksums, and build provenance](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/tag/v1.4.1)
 
 > The installer is not yet Authenticode-signed, so Windows may display an Unknown Publisher or SmartScreen warning.
 > The macOS apps are ad-hoc signed but not Apple-notarized, so Gatekeeper may require **Open** from the app's context menu on first launch.
@@ -79,7 +80,7 @@ into one natural-sounding, resumable MP3.
 
 ## End-user setup
 
-1. Windows: run `EasyLanguageLearningTool-Setup-1.4.0.exe` and accept the default
+1. Windows: run `EasyLanguageLearningTool-Setup-1.4.1.exe` and accept the default
    per-user installation folder and optional desktop shortcut.
 2. macOS: open the DMG for your processor and drag **Easy Language Learning Tool**
    to **Applications**. On first launch, use **Open** from the context menu if

@@ -11,6 +11,7 @@ REQUIRED_PERMISSIONS = (
     "android.permission.INTERNET",
     "android.permission.ACCESS_NETWORK_STATE",
 )
+APP_LABEL = "Easy Language Learning Tool"
 
 
 def configure_manifest(manifest_path: Path, icon_source: Path, icon_target: Path) -> None:
@@ -47,6 +48,7 @@ def configure_manifest(manifest_path: Path, icon_source: Path, icon_target: Path
     application = root.find("application")
     if application is None:
         raise RuntimeError("Generated Android manifest has no application element.")
+    application.set(f"{{{ANDROID}}}label", APP_LABEL)
     activity = application.find("activity")
     if activity is None:
         raise RuntimeError("Generated Android manifest has no activity element.")

@@ -5,7 +5,12 @@ import unittest
 from pathlib import Path
 from xml.etree import ElementTree
 
-from tool.configure_android_deep_link import ANDROID, REQUIRED_PERMISSIONS, configure_manifest
+from tool.configure_android_deep_link import (
+    ANDROID,
+    APP_LABEL,
+    REQUIRED_PERMISSIONS,
+    configure_manifest,
+)
 
 
 class ConfigureAndroidManifestTest(unittest.TestCase):
@@ -28,6 +33,9 @@ class ConfigureAndroidManifestTest(unittest.TestCase):
             configure_manifest(manifest, icon_source, icon_target)
 
             parsed = ElementTree.parse(manifest).getroot()
+            application = parsed.find("application")
+            self.assertIsNotNone(application)
+            self.assertEqual(application.get(f"{{{ANDROID}}}label"), APP_LABEL)
             permissions = [
                 item.get(f"{{{ANDROID}}}name") for item in parsed.findall("uses-permission")
             ]

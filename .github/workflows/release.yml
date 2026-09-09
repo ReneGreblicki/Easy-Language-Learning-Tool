@@ -2,8 +2,12 @@ name: Production release
 on:
   workflow_dispatch:
   push:
+    branches:
+      - "feature/android-sync"
     tags:
       - "v*"
+    paths:
+      - "pyproject.toml"
 
 permissions:
   contents: write
@@ -34,9 +38,12 @@ jobs:
   package-macos:
     needs: verify
     uses: ./.github/workflows/macos-build.yml
+  package-android:
+    needs: verify
+    uses: ./.github/workflows/android.yml
   publish:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [package-windows, package-macos]
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/feature/android-sync'
+    needs: [package-windows, package-macos, package-android]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
@@ -49,25 +56,43 @@ jobs:
           pattern: Easy-Language-Learning-Tool-macOS-*
           path: release-artifacts/macos
           merge-multiple: true
+      - uses: actions/download-artifact@v8
+        with:
+          name: Easy-Language-Learning-Tool-Android-0.2.6
+          path: release-artifacts/android
       - name: Prepare portable archive
         shell: pwsh
         run: |
+          $versionMatch = Select-String -Path pyproject.toml -Pattern '^version = "([^"]+)"$' | Select-Object -First 1
+          if (-not $versionMatch) { throw "Project version was not found in pyproject.toml." }
+          $releaseTag = "v$($versionMatch.Matches[0].Groups[1].Value)"
           Compress-Archive -Path release-artifacts\\EasyLanguageLearningTool `
-            -DestinationPath release-artifacts\\EasyLanguageLearningTool-Portable-${{ github.ref_name }}.zip
+            -DestinationPath "release-artifacts\\EasyLanguageLearningTool-Portable-$releaseTag.zip"
+          Move-Item release-artifacts\\android\\app-release.apk `
+            release-artifacts\\android\\EasyLanguageLearningTool-Android-0.2.6.apk
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
+          $versionMatch = Select-String -Path pyproject.toml -Pattern '^version = "([^"]+)"$' | Select-Object -First 1
+          if (-not $versionMatch) { throw "Project version was not found in pyproject.toml." }
+          $releaseTag = "v$($versionMatch.Matches[0].Groups[1].Value)"
           $installer = Get-ChildItem release-artifacts\\installer\\*.exe | Select-Object -First 1
-          gh release create "${{ github.ref_name }}" `
+          $targetArguments = if ("${{ github.ref }}" -like "refs/tags/v*") {
+            @("--verify-tag")
+          } else {
+            @("--target", "${{ github.sha }}")
+          }
+          gh release create "$releaseTag" `
             $installer.FullName `
             release-artifacts\\installer\\SHA256SUMS.txt `
             release-artifacts\\installer\\BUILD_PROVENANCE.txt `
-            release-artifacts\\EasyLanguageLearningTool-Portable-${{ github.ref_name }}.zip `
+            "release-artifacts\\EasyLanguageLearningTool-Portable-$releaseTag.zip" `
+            release-artifacts\\android\\EasyLanguageLearningTool-Android-0.2.6.apk `
             release-artifacts\\macos\\*.dmg `
             release-artifacts\\macos\\SHA256SUMS-*.txt `
             release-artifacts\\macos\\BUILD_PROVENANCE-*.txt `
-            --title "Easy Language Learning Tool ${{ github.ref_name }}" `
+            --title "Easy Language Learning Tool $releaseTag" `
             --notes-file RELEASE_NOTES.md `
-            --verify-tag
+            @targetArguments

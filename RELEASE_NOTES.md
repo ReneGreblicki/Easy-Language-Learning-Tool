@@ -1,6 +1,8 @@
-# Easy Language Learning Tool 1.4.0 RC
+# Easy Language Learning Tool 1.4.1
 
-Version 1.4.0 adds native macOS application bundles and DMG installers for Apple
+Version 1.4.1 adds the renamed Easy Language Learning Tool Android companion and
+publishes Windows, Android, Apple Silicon, and Intel installers together. Version
+1.4.0 added native macOS application bundles and DMG installers for Apple
 Silicon and Intel Macs while preserving the Windows edition and every v1.3.0
 feature. Flashcard audio uses macOS `afplay`, bundled FFmpeg supports TTS without
 a separate installation, credentials use macOS Keychain, and file deletion uses
@@ -104,3 +106,9 @@ candidate passes automated Windows acceptance and receives explicit approval.
   and sentence.
 - Simplifies the speed control to a bare horizontal bar with −2× on its left and 2× on its
   right, removing the centre/current value and every label above the bar.
+
+## Android companion 0.2.6
+
+- Renames the visible Android application and launcher label to **Easy Language Learning Tool**.
+- Keeps the existing package identity, local data, sign-in callback, and synchronized deck history compatible.
+- Publishes the installable APK alongside the desktop installers in the v1.4.1 GitHub release.

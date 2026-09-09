@@ -1,4 +1,4 @@
-# Easy Language Flashcards for Android
+# Easy Language Learning Tool for Android
 
 ## Development build
 
