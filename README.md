@@ -1,14 +1,14 @@
 # Easy Language Learning Tool
 
-> **Mobile companions:** The Android app and iOS preview synchronize
-> desktop-generated decks for offline study. See the
+> **Mobile companion:** The Android app synchronizes desktop-generated decks for
+> offline study. The iOS adaptation is paused for a future release. See the
 > [mobile project plan](docs/ANDROID_PROJECT_PLAN.md) and
 > [Apple platform plan](docs/APPLE_PLATFORM_PLAN.md).
 
 [![Download for Windows](https://img.shields.io/badge/Download_for_Windows-v1.4.1-0078D4?logo=windows&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-Setup-1.4.1.exe)
-[![Download for Android](https://img.shields.io/badge/Download_for_Android-v0.2.6-3DDC84?logo=android&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-Android-0.2.6.apk)
 [![Download for Apple Silicon](https://img.shields.io/badge/macOS-Apple_Silicon_v1.4.1-000000?logo=apple&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-1.4.1-Apple-Silicon.dmg)
 [![Download for Intel Mac](https://img.shields.io/badge/macOS-Intel_v1.4.1-555555?logo=apple&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-1.4.1-Intel.dmg)
+[![Download for Android](https://img.shields.io/badge/Download_for_Android-v0.2.6-3DDC84?logo=android&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-Android-0.2.6.apk)
 
 **Windows users need the `.exe`; Android users need the `.apk`; Mac users need the `.dmg` matching their processor.**
 [Release notes, checksums, and build provenance](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/tag/v1.4.1)
@@ -18,7 +18,7 @@
 
 Easy Language Learning Tool is a Windows and macOS desktop application for creating
 structured language-learning sentence workbooks and turning those workbooks
-into one natural-sounding, resumable MP3 or desktop flashcards. Its Android and iOS
+into one natural-sounding, resumable MP3 or desktop flashcards. Its Android
 companion app synchronizes desktop-generated decks for flashcards, alternating audio,
 and list study, with optional offline storage.
 
@@ -261,7 +261,7 @@ Vocabulary coverage helps select material, but it is not itself a complete compr
    Language 2 for the translation columns, preview two rows, then create the MP3.
 8. For mobile study, sign in to the same account on the desktop and mobile applications,
    then upload a generated deck from the desktop. Transferring desktop TTS audio is optional.
-9. On Android or iOS, download the deck from **My decks**, choose **Flashcards**, **Listen to audio**,
+9. On Android, download the deck from **My decks**, choose **Flashcards**, **Listen to audio**,
    or **List**, then select Words, Sentences, or both and All rows or Selected rows.
 10. Choose a male or female voice where available. Audio mode also provides speed and
     inter-item pause controls and resumes from the previous saved position.
@@ -345,6 +345,9 @@ notarization when the complete protected-secret set documented in
 
 ## iOS signed distribution
 
+**Status: paused for a future release.** The existing implementation and workflows are retained
+so work can resume when iOS distribution is requested.
+
 The regular iOS workflow produces tested Simulator and unsigned device bundles without exposing
 signing material. Maintainers can run **iOS signed distribution** manually after configuring the
 Apple Distribution certificate, App Store provisioning profile, Team ID, and optional App Store
@@ -366,7 +369,8 @@ corpus and selected extra forms, so it never accepts a job above 5,000 final row
 Version 1.4.0 adds native Intel and Apple Silicon macOS packages while preserving
 the complete Information guide, hardened flashcard audio, uniform card surface,
 and mouse-wheel protections introduced in v1.3.0. The current desktop release is
-**v1.4.1**, and the current Android companion and iOS preview are **v0.2.6**. The latest
+**v1.4.1**, and the current Android companion is **v0.2.6**. iOS distribution is paused
+for a future release. The latest
 workflow is: generate a deck on desktop, sign in and upload it, then sign in to the same
 account on mobile and download it for offline Flashcards,
 Listen to audio, or List study. Desktop TTS transfer is optional, and removing a deck
