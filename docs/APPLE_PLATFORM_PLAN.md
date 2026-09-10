@@ -18,7 +18,9 @@
 6. Ad-hoc sign the application when Developer ID secrets are unavailable.
 7. Validate the bundle, architecture, metadata, bundled tools, and offscreen launch.
 8. Create separate Apple Silicon and Intel DMGs with checksums and provenance.
-9. Developer ID sign and notarize before unrestricted public distribution.
+9. When the signing secrets are configured, import the Developer ID certificate, enable the
+   hardened runtime, sign the app and DMG, submit the DMG to Apple, staple the notarization
+   ticket, validate it, and record the result in build provenance.
 
 ## 3. iOS companion workflow
 
@@ -31,8 +33,11 @@
    application.
 6. Publish both ZIPs, their checksums, and provenance as CI artifacts. The unsigned iPhone
    bundle is a signing input and cannot be installed on a physical device as distributed.
-7. After Apple credentials are supplied, import the distribution certificate and provisioning
-   profile, build a signed IPA, upload it to TestFlight, and complete physical-device checks.
+7. The manual `iOS signed distribution` workflow validates the Apple secrets, imports the
+   distribution certificate and provisioning profile into an ephemeral keychain, configures
+   manual Xcode signing, builds a signed IPA, and optionally uploads it to TestFlight.
+8. Signing material is removed from the runner after every workflow outcome.
+9. Complete authentication, audio, offline-storage, and deletion checks on a physical iPhone.
 
 ## 4. Shared mobile behavior
 
@@ -63,6 +68,20 @@ iPhone distribution requires:
 macOS Gatekeeper-free distribution additionally requires a Developer ID Application certificate
 and Apple notarization credentials.
 
+Repository secret names:
+
+- iOS: `APPLE_DISTRIBUTION_CERTIFICATE_BASE64`,
+  `APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD`, `APPLE_KEYCHAIN_PASSWORD`,
+  `APPLE_PROVISIONING_PROFILE_BASE64`, and `APPLE_TEAM_ID`.
+- macOS: `MACOS_DEVELOPER_ID_CERTIFICATE_BASE64`,
+  `MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD`, `MACOS_KEYCHAIN_PASSWORD`, and
+  `MACOS_SIGNING_IDENTITY`.
+- TestFlight and notarization: `APP_STORE_CONNECT_KEY_ID`,
+  `APP_STORE_CONNECT_ISSUER_ID`, and `APP_STORE_CONNECT_API_KEY_BASE64`.
+
+The Base64 values must contain only the encoded P12, provisioning profile, or App Store Connect
+private-key bytes. The workflows decode them only on an ephemeral GitHub-hosted runner.
+
 ## 6. Definition of done
 
 - Both macOS architectures build, launch, and package successfully.
@@ -70,5 +89,5 @@ and Apple notarization credentials.
 - Authentication confirmation and password reset return to the iOS app.
 - Both language sides play with the selected voice gender where compatible system voices exist.
 - Offline deck, list, flashcard, audio-resume, theme, and local-removal tests pass.
-- Signed physical-device and TestFlight delivery remain explicitly blocked until Apple
-  credentials are available.
+- Signed physical-device, TestFlight, Developer ID, and notarized delivery workflows are ready;
+  execution remains blocked until Apple credentials are configured.

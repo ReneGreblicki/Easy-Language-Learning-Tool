@@ -1,0 +1,129 @@
+name: iOS signed distribution
+
+on:
+  workflow_dispatch:
+    inputs:
+      upload_to_testflight:
+        description: Upload the signed IPA to TestFlight
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  signed-ipa:
+    runs-on: macos-15
+    env:
+      APPLE_DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_BASE64 }}
+      APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+      APPLE_KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+      APPLE_PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Validate Apple distribution secrets
+        run: |
+          required=(
+            APPLE_DISTRIBUTION_CERTIFICATE_BASE64
+            APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD
+            APPLE_KEYCHAIN_PASSWORD
+            APPLE_PROVISIONING_PROFILE_BASE64
+            APPLE_TEAM_ID
+          )
+          if [[ "${{ inputs.upload_to_testflight }}" == "true" ]]; then
+            required+=(
+              APP_STORE_CONNECT_KEY_ID
+              APP_STORE_CONNECT_ISSUER_ID
+              APP_STORE_CONNECT_API_KEY_BASE64
+            )
+          fi
+          for name in "${required[@]}"; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Required repository secret $name is not configured."
+              exit 1
+            fi
+          done
+      - name: Import distribution certificate and provisioning profile
+        run: |
+          certificate="$RUNNER_TEMP/apple-distribution.p12"
+          profile="$RUNNER_TEMP/app-store.mobileprovision"
+          keychain="$RUNNER_TEMP/apple-signing.keychain-db"
+          printf '%s' "$APPLE_DISTRIBUTION_CERTIFICATE_BASE64" | base64 --decode > "$certificate"
+          printf '%s' "$APPLE_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$profile"
+          security create-keychain -p "$APPLE_KEYCHAIN_PASSWORD" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$APPLE_KEYCHAIN_PASSWORD" "$keychain"
+          security import "$certificate" -P "$APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$keychain"
+          security set-key-partition-list -S apple-tool:,apple: -k "$APPLE_KEYCHAIN_PASSWORD" \
+            "$keychain"
+          security list-keychains -d user -s "$keychain"
+          security cms -D -i "$profile" > "$RUNNER_TEMP/profile.plist"
+          profile_uuid=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
+          profile_name=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$profile" "$HOME/Library/MobileDevice/Provisioning Profiles/$profile_uuid.mobileprovision"
+          echo "APPLE_PROFILE_NAME=$profile_name" >> "$GITHUB_ENV"
+          echo "APPLE_KEYCHAIN_PATH=$keychain" >> "$GITHUB_ENV"
+      - name: Create and configure iOS platform shell
+        working-directory: android_app
+        run: |
+          flutter create --platforms=ios --org com.renegreblicki .
+          python3 tool/configure_ios.py \
+            --team-id "$APPLE_TEAM_ID" \
+            --profile-name "$APPLE_PROFILE_NAME" \
+            --export-options ios/ExportOptions.plist
+      - name: Resolve dependencies and run checks
+        working-directory: android_app
+        run: |
+          python3 -m unittest discover -s tool/tests -p "test_*.py"
+          flutter pub get
+          flutter analyze
+          flutter test
+      - name: Build signed IPA
+        working-directory: android_app
+        run: flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+      - name: Validate and package signed IPA
+        run: |
+          ipa=$(find android_app/build/ios/ipa -maxdepth 1 -name '*.ipa' -print -quit)
+          test -n "$ipa"
+          mkdir -p ios-distribution
+          cp "$ipa" ios-distribution/EasyLanguageLearningTool-iOS-0.2.6.ipa
+          shasum -a 256 ios-distribution/*.ipa > ios-distribution/SHA256SUMS-iOS.txt
+          printf 'mobile_version=0.2.6\ncommit=%s\nworkflow_run=%s\nbuilt_utc=%s\nplatform=iOS-device\nsigned=true\n' \
+            "${{ github.sha }}" \
+            "${{ github.run_id }}" \
+            "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            > ios-distribution/BUILD_PROVENANCE-iOS.txt
+      - name: Upload to TestFlight
+        if: ${{ inputs.upload_to_testflight }}
+        run: |
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          key="$HOME/.appstoreconnect/private_keys/AuthKey_$APP_STORE_CONNECT_KEY_ID.p8"
+          printf '%s' "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode > "$key"
+          chmod 600 "$key"
+          xcrun altool --upload-app --type ios \
+            --file ios-distribution/EasyLanguageLearningTool-iOS-0.2.6.ipa \
+            --apiKey "$APP_STORE_CONNECT_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: Easy-Language-Learning-Tool-iOS-0.2.6-signed
+          path: ios-distribution/*
+          if-no-files-found: error
+      - name: Remove temporary signing material
+        if: ${{ always() }}
+        run: |
+          security delete-keychain "$APPLE_KEYCHAIN_PATH" 2>/dev/null || true
+          rm -rf "$HOME/.appstoreconnect/private_keys"
+          rm -f "$HOME/Library/MobileDevice/Provisioning Profiles"/*.mobileprovision
+

@@ -16,6 +16,7 @@ from tool.configure_ios import (
     configure_podfile,
     configure_xcode_project,
     install_icons,
+    write_export_options,
 )
 
 
@@ -56,6 +57,43 @@ class ConfigureIosTest(unittest.TestCase):
             self.assertIn(f"PRODUCT_BUNDLE_IDENTIFIER = {BUNDLE_ID};", text)
             self.assertIn(f"PRODUCT_BUNDLE_IDENTIFIER = {BUNDLE_ID}.RunnerTests;", text)
             self.assertIn("DEVELOPMENT_TEAM = ABCDE12345;", text)
+
+    def test_xcode_project_supports_manual_distribution_profile(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory) / "project.pbxproj"
+            project.write_text(
+                "CODE_SIGN_STYLE = Automatic;\n"
+                'CODE_SIGN_IDENTITY[sdk=iphoneos*] = "iPhone Developer";\n'
+                "DEVELOPMENT_TEAM = OLDTEAM;\n"
+                "PRODUCT_BUNDLE_IDENTIFIER = com.example.app;\n",
+                encoding="utf-8",
+            )
+            configure_xcode_project(
+                project,
+                team_id="ABCDE12345",
+                profile_name="Easy Language Learning Tool App Store",
+            )
+            text = project.read_text(encoding="utf-8")
+            self.assertIn("CODE_SIGN_STYLE = Manual;", text)
+            self.assertIn(
+                'CODE_SIGN_IDENTITY[sdk=iphoneos*] = "Apple Distribution";',
+                text,
+            )
+            self.assertIn(
+                'PROVISIONING_PROFILE_SPECIFIER = "Easy Language Learning Tool App Store";',
+                text,
+            )
+
+    def test_export_options_are_ready_for_app_store_connect(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "ExportOptions.plist"
+            write_export_options(path, "ABCDE12345", "ELLT App Store")
+            with path.open("rb") as handle:
+                payload = plistlib.load(handle)
+            self.assertEqual(payload["method"], "app-store-connect")
+            self.assertEqual(payload["teamID"], "ABCDE12345")
+            self.assertEqual(payload["signingStyle"], "manual")
+            self.assertEqual(payload["provisioningProfiles"][BUNDLE_ID], "ELLT App Store")
 
     def test_podfile_platform_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
