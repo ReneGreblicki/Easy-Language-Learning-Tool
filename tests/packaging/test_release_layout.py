@@ -15,6 +15,7 @@ def test_release_support_files_are_present() -> None:
         root / "installer" / "inno_setup.iss",
         root / "installer" / "sign_windows_artifacts.ps1",
         root / "installer" / "windows_acceptance.ps1",
+        root / ".github" / "workflows" / "ios-distribution.yml",
         root / "resources" / "licences" / "FFMPEG_NOTICE.md",
         root / "resources" / "licences" / "WORDFREQ_NOTICE.md",
         root / "resources" / "licences" / "WIKTIONARY_NOTICE.md",
@@ -62,6 +63,11 @@ def test_macos_workflow_builds_both_architectures_and_bundles_runtime() -> None:
     assert "EasyLanguageLearningTool-$APP_VERSION-${{ matrix.architecture }}.dmg" in workflow
     assert 'echo "APP_VERSION=$version" >> "$GITHUB_ENV"' in workflow
     assert "codesign --verify --deep --strict" in workflow
+    assert "MACOS_SIGNING_IDENTITY" in workflow
+    assert "github.event_name != 'pull_request'" in workflow
+    assert "--options runtime --timestamp" in workflow
+    assert "xcrun notarytool submit" in workflow
+    assert "xcrun stapler staple" in workflow
 
 
 def test_current_release_publishes_windows_android_and_macos_installers() -> None:
@@ -73,6 +79,7 @@ def test_current_release_publishes_windows_android_and_macos_installers() -> Non
     assert "uses: ./.github/workflows/macos-build.yml" in release
     assert "Easy-Language-Learning-Tool-macOS-Apple-Silicon" in release
     assert "Easy-Language-Learning-Tool-macOS-Intel" in release
+    assert "secrets: inherit" in release
 
 
 def test_ios_workflow_builds_simulator_and_unsigned_device_apps() -> None:
@@ -83,3 +90,14 @@ def test_ios_workflow_builds_simulator_and_unsigned_device_apps() -> None:
     assert "flutter build ios --release --no-codesign" in workflow
     assert "EasyLanguageLearningTool-iOS-Simulator-0.2.6.zip" in workflow
     assert "EasyLanguageLearningTool-iOS-Unsigned-0.2.6.zip" in workflow
+
+
+def test_ios_distribution_workflow_builds_signed_ipa_and_supports_testflight() -> None:
+    root = Path(__file__).resolve().parents[2]
+    workflow = (root / ".github" / "workflows" / "ios-distribution.yml").read_text(encoding="utf-8")
+    assert "APPLE_DISTRIBUTION_CERTIFICATE_BASE64" in workflow
+    assert "APPLE_PROVISIONING_PROFILE_BASE64" in workflow
+    assert "flutter build ipa --release" in workflow
+    assert "EasyLanguageLearningTool-iOS-0.2.6.ipa" in workflow
+    assert "xcrun altool --upload-app --type ios" in workflow
+    assert "Remove temporary signing material" in workflow

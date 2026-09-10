@@ -33,7 +33,11 @@ def configure_info_plist(plist_path: Path) -> None:
         plistlib.dump(payload, handle, sort_keys=False)
 
 
-def configure_xcode_project(project_path: Path, team_id: str = "") -> None:
+def configure_xcode_project(
+    project_path: Path,
+    team_id: str = "",
+    profile_name: str = "",
+) -> None:
     text = project_path.read_text(encoding="utf-8")
     text = re.sub(
         r"IPHONEOS_DEPLOYMENT_TARGET = [^;]+;",
@@ -55,7 +59,48 @@ def configure_xcode_project(project_path: Path, team_id: str = "") -> None:
                 "CODE_SIGN_STYLE = Automatic;",
                 f"CODE_SIGN_STYLE = Automatic;\n\t\t\t\tDEVELOPMENT_TEAM = {team_id};",
             )
+    if profile_name:
+        text = text.replace("CODE_SIGN_STYLE = Automatic;", "CODE_SIGN_STYLE = Manual;")
+        if "PROVISIONING_PROFILE_SPECIFIER =" in text:
+            text = re.sub(
+                r"(PROVISIONING_PROFILE_SPECIFIER(?:\[[^\]]+\])? = )[^;]*;",
+                rf'\1"{profile_name}";',
+                text,
+            )
+        else:
+            text = text.replace(
+                "CODE_SIGN_STYLE = Manual;",
+                "CODE_SIGN_STYLE = Manual;\n"
+                f'\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = "{profile_name}";',
+            )
+        if "CODE_SIGN_IDENTITY" in text:
+            text = re.sub(
+                r"(CODE_SIGN_IDENTITY(?:\[[^\]]+\])? = )[^;]*;",
+                r'\1"Apple Distribution";',
+                text,
+            )
+        else:
+            text = text.replace(
+                "CODE_SIGN_STYLE = Manual;",
+                'CODE_SIGN_STYLE = Manual;\n\t\t\t\tCODE_SIGN_IDENTITY = "Apple Distribution";',
+            )
     project_path.write_text(text, encoding="utf-8")
+
+
+def write_export_options(path: Path, team_id: str, profile_name: str) -> None:
+    payload = {
+        "destination": "export",
+        "manageAppVersionAndBuildNumber": False,
+        "method": "app-store-connect",
+        "provisioningProfiles": {BUNDLE_ID: profile_name},
+        "signingStyle": "manual",
+        "stripSwiftSymbols": True,
+        "teamID": team_id,
+        "uploadBitcode": False,
+        "uploadSymbols": True,
+    }
+    with path.open("wb") as handle:
+        plistlib.dump(payload, handle, sort_keys=False)
 
 
 def configure_podfile(podfile_path: Path) -> None:
@@ -113,17 +158,26 @@ def install_icons(
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--team-id", default="")
+    parser.add_argument("--profile-name", default="")
+    parser.add_argument("--export-options", default="")
     args = parser.parse_args()
+    team_id = args.team_id.strip()
+    profile_name = args.profile_name.strip()
     configure_info_plist(Path("ios/Runner/Info.plist"))
     configure_xcode_project(
         Path("ios/Runner.xcodeproj/project.pbxproj"),
-        team_id=args.team_id.strip(),
+        team_id=team_id,
+        profile_name=profile_name,
     )
     configure_podfile(Path("ios/Podfile"))
     install_icons(
         Path("../assets/icons/logo.png"),
         Path("ios/Runner/Assets.xcassets/AppIcon.appiconset"),
     )
+    if args.export_options:
+        if not team_id or not profile_name:
+            parser.error("--export-options requires --team-id and --profile-name")
+        write_export_options(Path(args.export_options), team_id, profile_name)
 
 
 if __name__ == "__main__":

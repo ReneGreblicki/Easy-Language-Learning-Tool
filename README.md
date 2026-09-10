@@ -339,7 +339,17 @@ for Apple Silicon and Intel Macs. Each build bundles Python, Qt, application dat
 FFmpeg, and FFprobe; validates the app bundle and architecture; runs a launch smoke
 test; and publishes a SHA-256 checksum and provenance record. The apps are ad-hoc
 signed. Apple Developer ID signing and notarization can be added when publisher
-credentials are available.
+credentials are available. The workflow automatically switches to Developer ID signing and
+notarization when the complete protected-secret set documented in
+`docs/APPLE_PLATFORM_PLAN.md` is configured; otherwise it preserves the tested ad-hoc build.
+
+## iOS signed distribution
+
+The regular iOS workflow produces tested Simulator and unsigned device bundles without exposing
+signing material. Maintainers can run **iOS signed distribution** manually after configuring the
+Apple Distribution certificate, App Store provisioning profile, Team ID, and optional App Store
+Connect API credentials listed in `docs/APPLE_PLATFORM_PLAN.md`. It produces a signed IPA and can
+optionally upload that IPA to TestFlight. Physical-iPhone acceptance remains a required human gate.
 
 ## Data and release status
 

@@ -37,6 +37,13 @@ jobs:
     runs-on: ${{ matrix.runner }}
     env:
       QT_QPA_PLATFORM: offscreen
+      MACOS_DEVELOPER_ID_CERTIFICATE_BASE64: ${{ github.event_name != 'pull_request' && secrets.MACOS_DEVELOPER_ID_CERTIFICATE_BASE64 || '' }}
+      MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD: ${{ github.event_name != 'pull_request' && secrets.MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD || '' }}
+      MACOS_KEYCHAIN_PASSWORD: ${{ github.event_name != 'pull_request' && secrets.MACOS_KEYCHAIN_PASSWORD || '' }}
+      MACOS_SIGNING_IDENTITY: ${{ github.event_name != 'pull_request' && secrets.MACOS_SIGNING_IDENTITY || '' }}
+      APP_STORE_CONNECT_KEY_ID: ${{ github.event_name != 'pull_request' && secrets.APP_STORE_CONNECT_KEY_ID || '' }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ github.event_name != 'pull_request' && secrets.APP_STORE_CONNECT_ISSUER_ID || '' }}
+      APP_STORE_CONNECT_API_KEY_BASE64: ${{ github.event_name != 'pull_request' && secrets.APP_STORE_CONNECT_API_KEY_BASE64 || '' }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v7
@@ -49,6 +56,40 @@ jobs:
         run: uv sync --locked --extra dev --extra build
       - name: Install macOS packaging dependencies
         run: brew install ffmpeg dylibbundler
+      - name: Configure optional Developer ID signing
+        run: |
+          values=(
+            "$MACOS_DEVELOPER_ID_CERTIFICATE_BASE64"
+            "$MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD"
+            "$MACOS_KEYCHAIN_PASSWORD"
+            "$MACOS_SIGNING_IDENTITY"
+          )
+          configured=0
+          for value in "${values[@]}"; do
+            [[ -n "$value" ]] && configured=$((configured + 1))
+          done
+          if [[ "$configured" -ne 0 && "$configured" -ne 4 ]]; then
+            echo "::error::Configure all four macOS signing secrets or leave all four unset."
+            exit 1
+          fi
+          if [[ "$configured" -eq 0 ]]; then
+            echo "MACOS_SIGNING_ENABLED=false" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          certificate="$RUNNER_TEMP/developer-id.p12"
+          keychain="$RUNNER_TEMP/macos-signing.keychain-db"
+          printf '%s' "$MACOS_DEVELOPER_ID_CERTIFICATE_BASE64" | base64 --decode > "$certificate"
+          security create-keychain -p "$MACOS_KEYCHAIN_PASSWORD" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$MACOS_KEYCHAIN_PASSWORD" "$keychain"
+          security import "$certificate" -P "$MACOS_DEVELOPER_ID_CERTIFICATE_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$keychain"
+          security set-key-partition-list -S apple-tool:,apple: -k "$MACOS_KEYCHAIN_PASSWORD" \
+            "$keychain"
+          security list-keychains -d user -s "$keychain"
+          security find-identity -v -p codesigning "$keychain"
+          echo "MACOS_KEYCHAIN_PATH=$keychain" >> "$GITHUB_ENV"
+          echo "MACOS_SIGNING_ENABLED=true" >> "$GITHUB_ENV"
       - name: Run quality and macOS tests
         run: |
           uv run ruff format --check .
@@ -100,7 +141,12 @@ jobs:
             -x "$target/ffmpeg" -x "$target/ffprobe" \
             -d "$app_path/Contents/Frameworks" \
             -p "@executable_path/../Frameworks/"
-          codesign --force --deep --sign - "$app_path"
+          if [[ "$MACOS_SIGNING_ENABLED" == "true" ]]; then
+            codesign --force --deep --options runtime --timestamp \
+              --sign "$MACOS_SIGNING_IDENTITY" "$app_path"
+          else
+            codesign --force --deep --sign - "$app_path"
+          fi
       - name: Validate application bundle
         run: |
           app_path="dist/Easy Language Learning Tool.app"
@@ -123,15 +169,54 @@ jobs:
           dmg="dist/release/EasyLanguageLearningTool-$APP_VERSION-${{ matrix.architecture }}.dmg"
           hdiutil create -volname "Easy Language Learning Tool" \
             -srcfolder dist/dmg-root -ov -format UDZO "$dmg"
+          signing="ad-hoc"
+          notarized="false"
+          if [[ "$MACOS_SIGNING_ENABLED" == "true" ]]; then
+            codesign --force --timestamp --sign "$MACOS_SIGNING_IDENTITY" "$dmg"
+            signing="developer-id"
+            notary_values=(
+              "$APP_STORE_CONNECT_KEY_ID"
+              "$APP_STORE_CONNECT_ISSUER_ID"
+              "$APP_STORE_CONNECT_API_KEY_BASE64"
+            )
+            notary_configured=0
+            for value in "${notary_values[@]}"; do
+              [[ -n "$value" ]] && notary_configured=$((notary_configured + 1))
+            done
+            if [[ "$notary_configured" -ne 0 && "$notary_configured" -ne 3 ]]; then
+              echo "::error::Configure all three App Store Connect API secrets for notarization."
+              exit 1
+            fi
+            if [[ "$notary_configured" -eq 3 ]]; then
+              key="$RUNNER_TEMP/AuthKey_$APP_STORE_CONNECT_KEY_ID.p8"
+              printf '%s' "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode > "$key"
+              chmod 600 "$key"
+              xcrun notarytool submit "$dmg" \
+                --key "$key" \
+                --key-id "$APP_STORE_CONNECT_KEY_ID" \
+                --issuer "$APP_STORE_CONNECT_ISSUER_ID" \
+                --wait
+              xcrun stapler staple "$dmg"
+              xcrun stapler validate "$dmg"
+              notarized="true"
+            fi
+          fi
           shasum -a 256 "$dmg" > "dist/release/SHA256SUMS-${{ matrix.architecture }}.txt"
-          printf 'version=%s\ncommit=%s\nworkflow_run=%s\nbuilt_utc=%s\narchitecture=%s\ncodesign=ad-hoc\nnotarized=false\n' \
+          printf 'version=%s\ncommit=%s\nworkflow_run=%s\nbuilt_utc=%s\narchitecture=%s\ncodesign=%s\nnotarized=%s\n' \
             "$APP_VERSION" \
             "${{ github.event.pull_request.head.sha || github.sha }}" \
             "${{ github.run_id }}" \
             "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             "${{ matrix.architecture }}" \
+            "$signing" \
+            "$notarized" \
             > "dist/release/BUILD_PROVENANCE-${{ matrix.architecture }}.txt"
       - uses: actions/upload-artifact@v6
         with:
           name: Easy-Language-Learning-Tool-macOS-${{ matrix.architecture }}
           path: dist/release/*
+      - name: Remove temporary signing material
+        if: ${{ always() }}
+        run: |
+          security delete-keychain "$MACOS_KEYCHAIN_PATH" 2>/dev/null || true
+          rm -f "$RUNNER_TEMP"/*.p12 "$RUNNER_TEMP"/AuthKey_*.p8
