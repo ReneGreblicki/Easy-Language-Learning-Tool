@@ -8,6 +8,7 @@
 [![Download for Windows](https://img.shields.io/badge/Download_for_Windows-v1.4.1-0078D4?logo=windows&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-Setup-1.4.1.exe)
 [![Download for Apple Silicon](https://img.shields.io/badge/macOS-Apple_Silicon_v1.4.1-000000?logo=apple&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-1.4.1-Apple-Silicon.dmg)
 [![Download for Intel Mac](https://img.shields.io/badge/macOS-Intel_v1.4.1-555555?logo=apple&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-1.4.1-Intel.dmg)
+
 [![Download for Android](https://img.shields.io/badge/Download_for_Android-v0.2.6-3DDC84?logo=android&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-Android-0.2.6.apk)
 
 **Windows users need the `.exe`; Android users need the `.apk`; Mac users need the `.dmg` matching their processor.**
