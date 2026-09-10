@@ -2,6 +2,10 @@
 
 ## 1. Scope
 
+> **Current status (2026-09-10):** iOS distribution is paused for a future release.
+> Preserve the existing iOS implementation, tests, and signing workflow, but perform no
+> additional iOS release work until it is requested.
+
 - Native macOS desktop packages for Apple Silicon and Intel Macs.
 - Native iOS companion with the same synchronized flashcards, paired list, audio player,
   offline deck storage, deletion rules, themes, and icon as Android.
