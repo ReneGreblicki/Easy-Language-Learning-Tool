@@ -113,10 +113,12 @@ class _GenerateDeckScreenState extends State<GenerateDeckScreen> {
       final deck = await widget.service.generate(
         settings,
         onProgress: (completed, total) {
-          if (mounted) setState(() {
-            _completed = completed;
-            _total = total;
-          });
+          if (mounted) {
+            setState(() {
+              _completed = completed;
+              _total = total;
+            });
+          }
         },
       );
       if (!mounted) return;
