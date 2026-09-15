@@ -601,7 +601,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
     final service = widget.generationService;
     if (service == null) {
       _showError(
-        const StateError('Generation requires a signed-in account.'),
+        StateError('Generation requires a signed-in account.'),
         'Sign in to generate and synchronize a deck.',
       );
       return;
