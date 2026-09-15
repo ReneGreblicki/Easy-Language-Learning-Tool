@@ -32,6 +32,11 @@ OPENAI_MODEL=gpt-5-mini
 Dart defines, logs, and the APK. The Edge Function validates the signed-in user and enforces a
 5,000-row rolling 24-hour quota before calling the provider.
 
+For automated deployment, add `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, and
+`OPENAI_API_KEY` as protected GitHub Actions secrets. Optionally add `OPENAI_MODEL`.
+Run **Deploy mobile deck generation** manually; it applies pending migrations, configures the
+server-only provider secret, and deploys the authenticated function.
+
 Then open **Authentication → URL Configuration** and add this redirect
 URL:
 
