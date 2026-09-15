@@ -2,9 +2,10 @@
 
 ## 1. Goal
 
-Add an Android study companion to Easy Language Learning Tool. The desktop remains the
-generator of record. Android offers flashcards, a paired list, and resumable playback of
-desktop-generated TTS audio.
+Add an Android companion to Easy Language Learning Tool. Android can generate synchronized
+decks through the protected cloud generation service and can study phone- or desktop-generated
+decks through flashcards, a paired list, and resumable audio. Desktop remains the workbook and
+desktop-TTS generator of record.
 
 ## 2. Locked product rules
 
@@ -28,13 +29,23 @@ desktop-generated TTS audio.
 15. Flashcard and audio setup must offer female and male phone-voice preferences. One selection
     applies to both learning and translation languages. Transferred clips are fallback-only
     because their fixed desktop voice cannot guarantee the selected phone gender.
+16. **Generate a new deck** appears beneath the final deck in **My decks**, including when the
+    library is empty.
+17. Mobile generation uses the desktop language, row-count, extra-form, CEFR, question, and
+    pronoun controls in a vertically scrolling phone layout.
+18. Mobile users never choose or connect an AI provider and never enter an API key.
+19. The AI provider key must never be compiled into the APK. It is stored as a Supabase Edge
+    Function secret and accessed only after validating the signed-in user session.
+20. A successfully generated deck is saved to the user's cloud library and downloaded to the
+    generating phone. A failed or incomplete generation is not saved.
 
 ## 3. Architecture
 
 | Layer | Technology | Responsibility |
 |---|---|---|
 | Desktop | Python, PySide6, SQLite | Generate decks and enqueue synchronization |
-| Android | Flutter, SQLite | Offline study, audio, progress, device-local removal |
+| Android | Flutter, SQLite | Phone generation, offline study, audio, progress, device-local removal |
+| Generation API | Supabase Edge Function | Authenticate, enforce quotas and call the configured AI model |
 | Identity | Supabase Auth | Email/password authentication and recovery |
 | Cloud data | Supabase PostgreSQL | User-owned decks, cards, progress and sync metadata |
 | Cloud files | Supabase Storage | User-owned flashcard audio |
@@ -68,6 +79,20 @@ Android database under the device installation ID.
 6. If **Include available desktop TTS audio** is enabled, discover matching cached word and
    sentence clips and upload them to private user storage with checksums.
 7. Mark each outbox operation complete only after server acknowledgement.
+
+### Android generation
+
+1. Sign in and select **Generate a new deck** beneath the deck list.
+2. Enter the deck name and choose learning language, translation language, base words, extra
+   forms, CEFR configuration, question percentage, and pronoun-change scale.
+3. Load the packaged production frequency ranking and build the deterministic row plan locally.
+4. Send batches of at most 20 planned rows to the JWT-protected generation function.
+5. The function validates the session and request, enforces the per-user quota, and calls the
+   server-configured AI model without returning or exposing its API key.
+6. Validate every returned row and save only a complete deck.
+7. Insert the deck and cards into the user's RLS-protected cloud records, then save the same deck
+   in the phone's offline cache.
+8. Refresh **My decks** with the new deck above the generation button.
 
 ### Android download
 
@@ -161,6 +186,11 @@ remain human-gated Phase E work.
 - Resumable word/sentence/combined audio playlists
 - Audio timeout recovery and invisible sound-button positioning anchor
 - Central user-facing error translation for authentication, network, sync, storage, and audio
+- Generate-new-deck action below the cloud library
+- Phone-scaled desktop-equivalent generation settings
+- Packaged production frequency data and deterministic row planning
+- JWT-protected server generation with per-user quota enforcement
+- Atomic cloud save followed by local offline caching
 
 ### Phase D — Bidirectional progress sync
 
@@ -195,6 +225,8 @@ Every pull request must run:
 10. Activity chooser, list ordering/colour, and flashcard loading-state widget tests.
 11. Error-message tests proving raw exceptions, server URLs, and internal codes are not displayed.
 12. Generated release-manifest tests proving Supabase network access is declared.
+13. Mobile generation validation, 5,000-row limit, deterministic planning, button placement,
+    authentication, quota, incomplete-response, cloud-save, and local-cache tests.
 
 Release candidates additionally require:
 
@@ -212,6 +244,10 @@ Development proceeds automatically until credentials or physical-device verifica
 The human gate requires:
 
 - Supabase project URL and public anonymous key
+- Protected GitHub secrets `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, and
+  `OPENAI_API_KEY`; `OPENAI_MODEL` is optional
+- Successful manual **Deploy mobile deck generation** workflow execution, applying the
+  Supabase migration and deploying the `generate-deck` Edge Function
 - Android application ID approval
 - Tests on at least one supported Android phone
 - Google Play developer account and signing decision for publication
@@ -226,6 +262,8 @@ The human gate requires:
 - Delete everywhere is recoverable for 30 days.
 - RLS isolation and synchronization tests pass.
 - Signed Android release is installable and documented.
+- Phone generation exposes no provider configuration or reusable provider secret.
+- A complete generated deck appears in cloud sync and remains available offline on its phone.
 
 
 ## 10. iOS parity extension

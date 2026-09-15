@@ -36,6 +36,8 @@ and list study, with optional offline storage.
 
 ## What the mobile application does
 
+- Generates a new synchronized deck directly on the phone using desktop-equivalent language,
+  row, extra-form, CEFR, question, and pronoun settings.
 - Downloads synchronized desktop-generated decks and keeps them available offline.
 - Presents each deck as flashcards, a bilingual list, or paired learning-and-translation
   audio for words, sentences, or both.
@@ -831,12 +833,28 @@ desktop workbook.
 
 ---
 
-# 6. Android and iOS study companions
+# 6. Android study companion
 
-The mobile companion provides flashcards, audio playback, and a list view. It does not
-generate workbooks; content comes from the Windows or macOS desktop application.
+The Android companion can generate synchronized study decks directly on the phone and provides
+flashcards, audio playback, and a list view for both phone- and desktop-generated decks. iOS
+distribution remains paused for a future release.
 
-## 6.1 Sign in, choose an activity, and optionally download audio
+## 6.1 Generate a deck on Android
+
+1. Sign in and scroll below the final item in **My decks**.
+2. Select **Generate a new deck**.
+3. Enter a deck name and choose the learning language, translation language, base words, extra
+   forms, CEFR mode and levels, question percentage, and pronoun-change scale.
+4. Check the calculated output and select **Generate deck**.
+5. Keep the app open while the progress bar advances.
+
+The AI provider and model are configured by the application administrator. The mobile app has no
+provider-selection or API-key menu, and the reusable provider key is never stored in the APK.
+It remains in the protected generation service. A completed deck is synchronized to the user's
+account and downloaded to the generating phone automatically. Incomplete generations are not
+saved.
+
+## 6.2 Sign in, choose an activity, and optionally download audio
 
 Sign in with the same account as desktop and open a deck. Choose **Flashcards**, **Listen to
 audio**, or **View list**, then choose Words, Sentences, or both and all rows or a selected
@@ -848,7 +866,7 @@ and audio settings let the user select a female or male phone voice. The same se
 applied to both the learning and translation languages. Transferred clips are retained only
 as an offline fallback if the requested phone voice cannot be used.
 
-## 6.2 Flashcards, audio, and list
+## 6.3 Flashcards, audio, and list
 
 Flashcards remain two-sided with Previous, Turn, Next, Reshuffle, and a large sound button
 at 75% card height without a visible guide line. Audio playback includes every selected word
@@ -867,10 +885,10 @@ a break from 0 to 2 seconds.
 
 Use the brightness icon in **My decks** or the study screen to switch between the
 desktop application's light and dark palettes. The Android launcher uses the same
-application icon as the Windows and macOS versions. The iOS adaptation uses the same workflow,
-layout, palette, account, synchronized data, and two-language voice preference.
+application icon as the Windows and macOS versions. The paused iOS adaptation retains the
+same intended workflow, layout, palette, account, synchronized data, and voice preference.
 
-## 6.3 Phone-only removal
+## 6.4 Phone-only removal
 
 Choose **Remove download** to erase only that mobile installation's cached deck
 and audio. The synchronized cloud deck, the desktop database, and every desktop

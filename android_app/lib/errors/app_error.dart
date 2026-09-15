@@ -41,6 +41,19 @@ String describeAppError(
   if (message.contains('invalid email') || message.contains('email_address_invalid')) {
     return 'Enter a valid email address, for example name@example.com.';
   }
+  if (message.contains('5,000-row mobile generation limit') ||
+      message.contains('5000-row mobile generation limit')) {
+    return 'The 5,000-row phone generation allowance for the last 24 hours has been used. '
+        'Try again after the oldest generated rows leave that period.';
+  }
+  if (message.contains('deck generation is not enabled')) {
+    return 'Phone deck generation has not been enabled by the application administrator yet.';
+  }
+  if (message.contains('incomplete deck') ||
+      message.contains('incomplete batch') ||
+      message.contains('generated data was incomplete')) {
+    return 'The language service returned incomplete data, so no deck was saved. Try again.';
+  }
   if (message.contains('rate limit') ||
       message.contains('too many requests') ||
       message.contains('over_email_send_rate_limit') ||

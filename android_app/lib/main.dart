@@ -9,6 +9,8 @@ import 'data/local_deck_store.dart';
 import 'data/supabase_deck_source.dart';
 import 'data/sync_deck_repository.dart';
 import 'errors/app_error.dart';
+import 'generation/generation_screen.dart';
+import 'generation/mobile_generation_service.dart';
 import 'models/deck.dart';
 import 'study/audio_screen.dart';
 import 'study/list_screen.dart';
@@ -38,13 +40,18 @@ Future<void> main() async {
     return;
   }
   final client = Supabase.instance.client;
+  final repository = SyncDeckRepository(
+    local: LocalDeckStore(),
+    cloud: SupabaseDeckSource(client),
+  );
   runApp(
     EasyLanguageFlashcards(
-      repository: SyncDeckRepository(
-        local: LocalDeckStore(),
-        cloud: SupabaseDeckSource(client),
-      ),
+      repository: repository,
       authService: AuthService(client),
+      generationService: MobileGenerationService(
+        client: client,
+        repository: repository,
+      ),
     ),
   );
 }
@@ -75,11 +82,13 @@ class EasyLanguageFlashcards extends StatefulWidget {
   const EasyLanguageFlashcards({
     this.repository,
     this.authService,
+    this.generationService,
     super.key,
   });
 
   final DeckRepository? repository;
   final AuthService? authService;
+  final MobileGenerationService? generationService;
 
   @override
   State<EasyLanguageFlashcards> createState() => _EasyLanguageFlashcardsState();
@@ -117,6 +126,7 @@ class _EasyLanguageFlashcardsState extends State<EasyLanguageFlashcards> {
           : AuthGate(
               repository: widget.repository!,
               authService: widget.authService!,
+              generationService: widget.generationService,
               onToggleTheme: _toggleTheme,
             ),
     );
@@ -128,11 +138,13 @@ class AuthGate extends StatelessWidget {
     required this.repository,
     required this.authService,
     required this.onToggleTheme,
+    this.generationService,
     super.key,
   });
 
   final DeckRepository repository;
   final AuthService authService;
+  final MobileGenerationService? generationService;
   final VoidCallback onToggleTheme;
 
   @override
@@ -143,6 +155,7 @@ class AuthGate extends StatelessWidget {
             : DeckLibrary(
                 repository: repository,
                 authService: authService,
+                generationService: generationService,
                 onToggleTheme: onToggleTheme,
               ),
       );
@@ -368,11 +381,13 @@ class DeckLibrary extends StatefulWidget {
     required this.repository,
     required this.onToggleTheme,
     this.authService,
+    this.generationService,
     super.key,
   });
 
   final DeckRepository repository;
   final AuthService? authService;
+  final MobileGenerationService? generationService;
   final VoidCallback onToggleTheme;
 
   @override
@@ -582,6 +597,27 @@ class _DeckLibraryState extends State<DeckLibrary> {
     );
   }
 
+  Future<void> _openGenerator() async {
+    final service = widget.generationService;
+    if (service == null) {
+      _showError(
+        StateError('Generation requires a signed-in account.'),
+        'Sign in to generate and synchronize a deck.',
+      );
+      return;
+    }
+    final generated = await Navigator.push<Deck>(
+      context,
+      MaterialPageRoute(builder: (_) => GenerateDeckScreen(service: service)),
+    );
+    if (generated != null && mounted) {
+      setState(_refresh);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${generated.title} was generated and downloaded.')),
+      );
+    }
+  }
+
   Future<void> _signOut() async {
     try {
       await widget.authService?.signOut();
@@ -645,16 +681,37 @@ class _DeckLibraryState extends State<DeckLibrary> {
               return const Center(child: CircularProgressIndicator());
             }
             final decks = snapshot.data!;
-            if (decks.isEmpty) {
-              return const Center(
-                child: Text('Generate a deck on desktop, then synchronize it here.'),
-              );
-            }
             return RefreshIndicator(
               onRefresh: () async => setState(_refresh),
               child: ListView.builder(
-                itemCount: decks.length,
+                physics: const AlwaysScrollableScrollPhysics(),
+                itemCount: decks.length + 1,
                 itemBuilder: (context, index) {
+                  if (index == decks.length) {
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
+                      child: Column(
+                        children: [
+                          if (decks.isEmpty) ...[
+                            const Text(
+                              'No decks yet. Generate one here or synchronize one from desktop.',
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              key: const Key('generate-new-deck'),
+                              onPressed: _openGenerator,
+                              icon: const Icon(Icons.auto_awesome),
+                              label: const Text('Generate a new deck'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
                   final deck = decks[index];
                   return ListTile(
                     onTap: () => _openDeck(deck),
