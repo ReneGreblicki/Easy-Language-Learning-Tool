@@ -14,6 +14,10 @@ abstract interface class DeckRepository {
   });
   Future<int> loadAudioPosition(String sessionKey);
   Future<void> saveAudioPosition(String sessionKey, int position);
+  Future<void> createGeneratedDeck(
+    Deck deck, {
+    required Map<String, Object?> settings,
+  });
 
   /// Removes only this Android installation's cached cards and audio.
   ///
@@ -68,6 +72,14 @@ class MemoryDeckRepository implements DeckRepository {
   @override
   Future<void> saveAudioPosition(String sessionKey, int position) async {
     _audioPositions[sessionKey] = position;
+  }
+
+  @override
+  Future<void> createGeneratedDeck(
+    Deck deck, {
+    required Map<String, Object?> settings,
+  }) async {
+    _decks.insert(0, deck.copyWith(isDownloaded: true));
   }
 
   @override
