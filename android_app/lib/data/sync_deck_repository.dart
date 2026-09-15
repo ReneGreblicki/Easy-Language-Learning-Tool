@@ -72,6 +72,15 @@ class SyncDeckRepository implements DeckRepository {
       local.saveAudioPosition(sessionKey, position);
 
   @override
+  Future<void> createGeneratedDeck(
+    Deck deck, {
+    required Map<String, Object?> settings,
+  }) async {
+    await cloud.createDeck(deck, settings: settings);
+    await local.saveDeck(deck, downloadAudio: false);
+  }
+
+  @override
   Future<void> removeDownload(String deckId) => local.removeDownload(deckId);
 
   @override
