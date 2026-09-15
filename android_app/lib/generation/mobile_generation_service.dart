@@ -16,7 +16,7 @@ class MobileGenerationService {
   MobileGenerationService({
     required this.client,
     required this.repository,
-    this.assetPath = 'resources/frequency_data/production/words.jsonl.gz',
+    this.assetPath = 'assets/frequency/words.jsonl.gz',
   });
 
   final SupabaseClient client;
