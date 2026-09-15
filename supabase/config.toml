@@ -1,0 +1,4 @@
+project_id = "jmnsrikmqopdhmnkjmah"
+
+[functions.generate-deck]
+verify_jwt = true
