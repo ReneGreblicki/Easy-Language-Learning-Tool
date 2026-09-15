@@ -833,7 +833,7 @@ desktop workbook.
 
 ---
 
-# 6. Android and iOS study companions
+# 6. Android study companion
 
 The Android companion can generate synchronized study decks directly on the phone and provides
 flashcards, audio playback, and a list view for both phone- and desktop-generated decks. iOS
@@ -855,8 +855,6 @@ account and downloaded to the generating phone automatically. Incomplete generat
 saved.
 
 ## 6.2 Sign in, choose an activity, and optionally download audio
-
-## 6.1 Sign in, choose an activity, and optionally download audio
 
 Sign in with the same account as desktop and open a deck. Choose **Flashcards**, **Listen to
 audio**, or **View list**, then choose Words, Sentences, or both and all rows or a selected
@@ -887,8 +885,8 @@ a break from 0 to 2 seconds.
 
 Use the brightness icon in **My decks** or the study screen to switch between the
 desktop application's light and dark palettes. The Android launcher uses the same
-application icon as the Windows and macOS versions. The iOS adaptation uses the same workflow,
-layout, palette, account, synchronized data, and two-language voice preference.
+application icon as the Windows and macOS versions. The paused iOS adaptation retains the
+same intended workflow, layout, palette, account, synchronized data, and voice preference.
 
 ## 6.4 Phone-only removal
 
