@@ -228,7 +228,7 @@ List<GenerationCefrLevel> _levelSchedule(MobileGenerationSettings settings) {
       level: settings.baseWords * (settings.levelPercentages[level] ?? 0) / 100,
   };
   final counts = {for (final level in levels) level: exact[level]!.floor()};
-  var remainder = settings.baseWords - counts.values.fold<int>(0, (a, b) => a + b);
+  final remainder = settings.baseWords - counts.values.fold<int>(0, (a, b) => a + b);
   final order = List<GenerationCefrLevel>.from(levels)
     ..sort((a, b) {
       final af = exact[a]! - exact[a]!.floor();
