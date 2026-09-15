@@ -20,7 +20,19 @@ manifest used by release APKs. Do not rely on Flutter's debug-only manifest: deb
 connect even when a release build has no network permission.
 
 Before connecting the app, execute every file in `../supabase/migrations` in numeric order in
-the Supabase SQL editor. Then open **Authentication → URL Configuration** and add this redirect
+the Supabase SQL editor. Mobile generation additionally requires deployment of
+`../supabase/functions/generate-deck` and these Supabase project secrets:
+
+```text
+OPENAI_API_KEY=<server-side provider key>
+OPENAI_MODEL=gpt-5-mini
+```
+
+`OPENAI_MODEL` is optional. The provider key is intentionally absent from Flutter assets,
+Dart defines, logs, and the APK. The Edge Function validates the signed-in user and enforces a
+5,000-row rolling 24-hour quota before calling the provider.
+
+Then open **Authentication → URL Configuration** and add this redirect
 URL:
 
 ```text
@@ -36,8 +48,12 @@ to `localhost`.
 - The cloud and desktop copies remain unchanged.
 - **Delete everywhere** is a separate cloud operation and is not exposed without confirmation.
 
-## Implemented study behavior
+## Implemented generation and study behavior
 
+- Generate a new deck button beneath the final library item
+- Phone-scaled desktop-equivalent language, count, forms, CEFR, question, and pronoun controls
+- No mobile provider selector, provider connection, or API-key field
+- Authenticated server-side generation followed by cloud save and offline phone caching
 - Two-stage deck launch: activity first, then content and row settings
 - Flashcards, resumable audio playback, and paired list view
 - Launch choice: Words, Sentences, or Words and sentences
