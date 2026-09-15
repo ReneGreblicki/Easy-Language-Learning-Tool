@@ -244,8 +244,10 @@ Development proceeds automatically until credentials or physical-device verifica
 The human gate requires:
 
 - Supabase project URL and public anonymous key
-- A server-side `OPENAI_API_KEY` Supabase secret and optional `OPENAI_MODEL`
-- Supabase migration and `generate-deck` Edge Function deployment
+- Protected GitHub secrets `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, and
+  `OPENAI_API_KEY`; `OPENAI_MODEL` is optional
+- Successful manual **Deploy mobile deck generation** workflow execution, applying the
+  Supabase migration and deploying the `generate-deck` Edge Function
 - Android application ID approval
 - Tests on at least one supported Android phone
 - Google Play developer account and signing decision for publication
