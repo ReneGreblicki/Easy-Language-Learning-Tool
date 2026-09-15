@@ -104,6 +104,46 @@ class SupabaseDeckSource {
     return result;
   }
 
+  Future<void> createDeck(
+    Deck deck, {
+    required Map<String, Object?> settings,
+  }) async {
+    final userId = client.auth.currentUser?.id;
+    if (userId == null) throw const AuthException('Sign in is required.');
+    await client.from('decks').insert({
+      'id': deck.id,
+      'user_id': userId,
+      'title': deck.title,
+      'source_language': deck.sourceLanguage,
+      'translation_language': deck.translationLanguage,
+      'cefr_level': settings['cefr_mode'] == 'single'
+          ? settings['single_level']
+          : '${settings['gradual_start']}–${settings['gradual_end']}',
+      'settings': settings,
+    });
+    try {
+      for (var start = 0; start < deck.cards.length; start += 200) {
+        final end = start + 200 < deck.cards.length ? start + 200 : deck.cards.length;
+        await client.from('cards').insert([
+          for (final card in deck.cards.sublist(start, end))
+            {
+              'id': card.id,
+              'deck_id': deck.id,
+              'user_id': userId,
+              'rank': card.rank,
+              'foreign_word': card.foreignWord,
+              'word_translation': card.wordTranslation,
+              'foreign_sentence': card.foreignSentence,
+              'sentence_translation': card.sentenceTranslation,
+            },
+        ]);
+      }
+    } catch (_) {
+      await client.from('decks').delete().eq('id', deck.id);
+      rethrow;
+    }
+  }
+
   Future<List<Deck>> fetchTrash() async {
     final response = await client
         .from('decks')
