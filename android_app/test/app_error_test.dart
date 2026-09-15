@@ -37,6 +37,25 @@ void main() {
     expect(result, contains('has not been confirmed'));
   });
 
+  test('explains the rolling mobile generation allowance', () {
+    final result = describeAppError(
+      Exception('The 5,000-row mobile generation limit for the last 24 hours has been reached.'),
+      fallback: fallback,
+    );
+
+    expect(result, contains('last 24 hours'));
+    expect(result, contains('Try again'));
+  });
+
+  test('explains when phone generation is not configured', () {
+    final result = describeAppError(
+      Exception('Deck generation is not enabled yet.'),
+      fallback: fallback,
+    );
+
+    expect(result, contains('has not been enabled'));
+  });
+
   test('uses a safe fallback for unknown failures', () {
     final result = describeAppError(Exception('secret technical detail'), fallback: fallback);
 
