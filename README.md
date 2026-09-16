@@ -1,7 +1,7 @@
 # Easy Language Learning Tool
 
-> **Mobile companion:** The Android app synchronizes desktop-generated decks for
-> offline study. The iOS adaptation is paused for a future release. See the
+> **Mobile companion:** The Android app generates synchronized decks and supports
+> offline study of phone- or desktop-generated decks. The iOS adaptation is paused for a future release. See the
 > [mobile project plan](docs/ANDROID_PROJECT_PLAN.md) and
 > [Apple platform plan](docs/APPLE_PLATFORM_PLAN.md).
 
@@ -9,7 +9,7 @@
 [![Download for Apple Silicon](https://img.shields.io/badge/macOS-Apple_Silicon_v1.4.1-000000?logo=apple&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-1.4.1-Apple-Silicon.dmg)
 [![Download for Intel Mac](https://img.shields.io/badge/macOS-Intel_v1.4.1-555555?logo=apple&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-1.4.1-Intel.dmg)
 
-[![Download for Android](https://img.shields.io/badge/Download_for_Android-v0.2.6-3DDC84?logo=android&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-Android-0.2.6.apk)
+[![Download for Android](https://img.shields.io/badge/Download_for_Android-v0.3.0-3DDC84?logo=android&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-Android-0.3.0.apk)
 
 **Windows users need the `.exe`; Android users need the `.apk`; Mac users need the `.dmg` matching their processor.**
 [Release notes, checksums, and build provenance](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/tag/v1.4.1)
@@ -372,7 +372,7 @@ corpus and selected extra forms, so it never accepts a job above 5,000 final row
 Version 1.4.0 adds native Intel and Apple Silicon macOS packages while preserving
 the complete Information guide, hardened flashcard audio, uniform card surface,
 and mouse-wheel protections introduced in v1.3.0. The current desktop release is
-**v1.4.1**, and the current Android companion is **v0.2.6**. iOS distribution is paused
+**v1.4.1**, and the current Android companion is **v0.3.0**. iOS distribution is paused
 for a future release. The latest
 workflow is: generate a deck on desktop, sign in and upload it, then sign in to the same
 account on mobile and download it for offline Flashcards,
