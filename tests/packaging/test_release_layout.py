@@ -88,8 +88,8 @@ def test_ios_workflow_builds_simulator_and_unsigned_device_apps() -> None:
     assert "python3 tool/configure_ios.py" in workflow
     assert "flutter build ios --simulator --debug" in workflow
     assert "flutter build ios --release --no-codesign" in workflow
-    assert "EasyLanguageLearningTool-iOS-Simulator-0.3.0.zip" in workflow
-    assert "EasyLanguageLearningTool-iOS-Unsigned-0.3.0.zip" in workflow
+    assert "EasyLanguageLearningTool-iOS-Simulator-0.2.6.zip" in workflow
+    assert "EasyLanguageLearningTool-iOS-Unsigned-0.2.6.zip" in workflow
 
 
 def test_ios_distribution_workflow_builds_signed_ipa_and_supports_testflight() -> None:
@@ -98,6 +98,6 @@ def test_ios_distribution_workflow_builds_signed_ipa_and_supports_testflight() -
     assert "APPLE_DISTRIBUTION_CERTIFICATE_BASE64" in workflow
     assert "APPLE_PROVISIONING_PROFILE_BASE64" in workflow
     assert "flutter build ipa --release" in workflow
-    assert "EasyLanguageLearningTool-iOS-0.3.0.ipa" in workflow
+    assert "EasyLanguageLearningTool-iOS-0.2.6.ipa" in workflow
     assert "xcrun altool --upload-app --type ios" in workflow
     assert "Remove temporary signing material" in workflow
