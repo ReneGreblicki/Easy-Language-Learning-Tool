@@ -10,9 +10,18 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.scrollUntilVisible(find.text('Media duration'), 250);
+    final scrollable = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(
+      find.text('Media duration'),
+      250,
+      scrollable: scrollable,
+    );
     expect(find.text('Media duration'), findsOneWidget);
-    await tester.scrollUntilVisible(find.byKey(const Key('media-song')), -250);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('media-song')),
+      -250,
+      scrollable: scrollable,
+    );
     await tester.tap(find.byKey(const Key('media-song')));
     await tester.pumpAndSettle();
     expect(find.text('Media duration'), findsNothing);
