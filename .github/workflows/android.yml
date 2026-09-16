@@ -55,6 +55,16 @@ jobs:
         run: flutter build apk --release
       - uses: actions/upload-artifact@v6
         with:
-          name: Easy-Language-Learning-Tool-Android-0.2.6
+          name: Easy-Language-Learning-Tool-Android-0.3.0
           path: android_app/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
+      - name: Publish Android installer
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android_app/build/app/outputs/flutter-apk/app-release.apk \
+            EasyLanguageLearningTool-Android-0.3.0.apk
+          gh release upload v1.4.1 \
+            EasyLanguageLearningTool-Android-0.3.0.apk \
+            --clobber
