@@ -2,9 +2,21 @@ name: Deploy mobile deck generation
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "supabase/functions/generate-deck/**"
+      - "supabase/migrations/**"
+      - "supabase/config.toml"
+      - ".github/workflows/supabase-generation-deploy.yml"
 
 permissions:
   contents: read
+
+concurrency:
+  group: mobile-generation-production
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -35,6 +47,9 @@ jobs:
       - name: Configure server-only provider
         run: |
           model="${OPENAI_MODEL:-gpt-5-mini}"
-          supabase secrets set             OPENAI_API_KEY="$OPENAI_API_KEY"             OPENAI_MODEL="$model"             --project-ref "$PROJECT_REF"
+          supabase secrets set \
+            OPENAI_API_KEY="$OPENAI_API_KEY" \
+            OPENAI_MODEL="$model" \
+            --project-ref "$PROJECT_REF"
       - name: Deploy authenticated generation function
         run: supabase functions deploy generate-deck --project-ref "$PROJECT_REF"
