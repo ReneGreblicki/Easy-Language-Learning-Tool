@@ -10,7 +10,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(find.text('Media duration'), 250);
     expect(find.text('Media duration'), findsOneWidget);
+    await tester.scrollUntilVisible(find.byKey(const Key('media-song')), -250);
     await tester.tap(find.byKey(const Key('media-song')));
     await tester.pumpAndSettle();
     expect(find.text('Media duration'), findsNothing);
@@ -24,6 +26,10 @@ void main() {
 
     expect(find.byKey(const Key('learning-roadmap')), findsOneWidget);
     expect(find.text('1. Choose a language and goal'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('9. Measure functional progress'),
+      300,
+    );
     expect(find.text('9. Measure functional progress'), findsOneWidget);
   });
 }

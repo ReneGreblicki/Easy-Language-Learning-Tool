@@ -27,10 +27,12 @@ class LandingMenu extends StatelessWidget {
   final VoidCallback onInstructions;
 
   @override
-  Widget build(BuildContext context) => ListView(
+  Widget build(BuildContext context) => SingleChildScrollView(
         key: const Key('landing-menu'),
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 32),
-        children: [
+        child: Column(
+          children: [
           Card(
             color: Theme.of(context).colorScheme.secondaryContainer,
             child: Padding(
@@ -116,7 +118,8 @@ class LandingMenu extends StatelessWidget {
             subtitle: 'Follow the roadmap to language fluency',
             onTap: onInstructions,
           ),
-        ],
+          ],
+        ),
       );
 }
 
