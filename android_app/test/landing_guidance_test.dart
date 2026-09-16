@@ -32,6 +32,7 @@ void main() {
       const MaterialApp(home: FurtherLearningScreen(language: 'European Spanish')),
     );
     await tester.pumpAndSettle();
+    final scrollable = find.byType(Scrollable).first;
 
     await tester.tap(find.byKey(const Key('media-movie')));
     await tester.pumpAndSettle();
@@ -39,6 +40,11 @@ void main() {
 
     await tester.tap(find.byKey(const Key('media-series')));
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Episode duration'),
+      250,
+      scrollable: scrollable,
+    );
     expect(find.text('Episode duration'), findsOneWidget);
   });
 
