@@ -119,7 +119,17 @@ candidate passes automated Windows acceptance and receives explicit approval.
 - Simplifies the speed control to a bare horizontal bar with −2× on its left and 2× on its
   right, removing the centre/current value and every label above the bar.
 
-## Android companion 0.2.6
+## Android companion 0.3.0
+
+- Added secure phone-side deck generation with the desktop-equivalent language,
+  row-count, extra-form, CEFR, question, and pronoun controls.
+- Added **Generate a new deck** beneath the final item in **My decks**.
+- Generation uses an authenticated Supabase Edge Function; the reusable provider
+  key is never stored in the APK.
+- Completed phone-generated decks synchronize to the account and remain available
+  offline on the generating phone.
+
+### Changes retained from 0.2.6
 
 - Renames the visible Android application and launcher label to **Easy Language Learning Tool**.
 - Keeps the existing package identity, local data, sign-in callback, and synchronized deck history compatible.
