@@ -53,13 +53,29 @@ to `localhost`.
 - The cloud and desktop copies remain unchanged.
 - **Delete everywhere** is a separate cloud operation and is not exposed without confirmation.
 
+## Mobile landing page and navigation
+
+- A phone-scaled landing page provides **Select a language**, **Select a deck**,
+  **Generate a new deck**, three practice modes, **Further learning**, and
+  **Learning instructions**.
+- Selecting a language filters the deck picker by the deck's learning language.
+- The active deck is shared by Flashcards, Audio, and List, while the last active deck is
+  remembered separately for each language.
+- Opening a practice mode without an active deck first opens the filtered deck picker and then
+  continues to the requested setup screen.
+- A newly generated deck becomes the active deck automatically.
+- Further learning records the selected media type, genre, CEFR level, and duration (duration is
+  omitted for songs). Live provider-backed recommendations remain a separate backend increment.
+- Learning instructions present the in-app cycle: List → Flashcards → Audio → spaced review →
+  suitable external media → active language use.
+
 ## Implemented generation and study behavior
 
-- Generate a new deck button beneath the final library item
+- Generate a new deck from the main landing page
 - Phone-scaled desktop-equivalent language, count, forms, CEFR, question, and pronoun controls
 - No mobile provider selector, provider connection, or API-key field
 - Authenticated server-side generation followed by cloud save and offline phone caching
-- Two-stage deck launch: activity first, then content and row settings
+- Direct practice launch from the landing page, followed by the existing content and row settings
 - Flashcards, resumable audio playback, and paired list view
 - Launch choice: Words, Sentences, or Words and sentences
 - Launch choice: all rows or an inclusive selected rank range

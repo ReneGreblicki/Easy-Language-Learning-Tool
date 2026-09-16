@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('chooses activity before study settings', (tester) async {
+  testWidgets('missing deck selection continues into requested activity', (tester) async {
     const deck = Deck(
       id: 'deck-1',
       title: 'Spanish deck',
@@ -32,13 +32,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Spanish deck'));
+    await tester.tap(find.text('Practice flashcards'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Choose activity'), findsOneWidget);
-    expect(find.text('Flashcards'), findsOneWidget);
-    expect(find.text('Listen to audio'), findsOneWidget);
-    expect(find.text('View list'), findsOneWidget);
+    expect(find.text('Select a deck'), findsOneWidget);
+    await tester.tap(find.text('Spanish deck'));
+    await tester.pumpAndSettle();
+    expect(find.text('Flashcard settings'), findsOneWidget);
   });
 
   testWidgets('flashcard and audio settings offer phone voice gender', (tester) async {
@@ -58,18 +58,19 @@ void main() {
         ),
       ],
     );
+    final repository = MemoryDeckRepository(const [deck]);
+    await repository.savePreferredLanguage('European Spanish');
+    await repository.savePreferredDeck('European Spanish', deck.id);
     await tester.pumpWidget(
       MaterialApp(
         home: DeckLibrary(
-          repository: MemoryDeckRepository(const [deck]),
+          repository: repository,
           onToggleTheme: () {},
         ),
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Voice deck'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Flashcards'));
+    await tester.tap(find.text('Practice flashcards'));
     await tester.pumpAndSettle();
 
     expect(find.text('Flashcard settings'), findsOneWidget);

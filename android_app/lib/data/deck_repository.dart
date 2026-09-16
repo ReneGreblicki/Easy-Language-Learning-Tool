@@ -18,6 +18,10 @@ abstract interface class DeckRepository {
     Deck deck, {
     required Map<String, Object?> settings,
   });
+  Future<String?> loadPreferredLanguage();
+  Future<void> savePreferredLanguage(String? language);
+  Future<String?> loadPreferredDeck(String language);
+  Future<void> savePreferredDeck(String language, String? deckId);
 
   /// Removes only this Android installation's cached cards and audio.
   ///
@@ -35,6 +39,8 @@ class MemoryDeckRepository implements DeckRepository {
 
   final List<Deck> _decks;
   final Map<String, int> _audioPositions = {};
+  String? _preferredLanguage;
+  final Map<String, String> _preferredDecks = {};
 
   @override
   Future<List<Deck>> cloudLibrary() async =>
@@ -80,6 +86,26 @@ class MemoryDeckRepository implements DeckRepository {
     required Map<String, Object?> settings,
   }) async {
     _decks.insert(0, deck.copyWith(isDownloaded: true));
+  }
+
+  @override
+  Future<String?> loadPreferredLanguage() async => _preferredLanguage;
+
+  @override
+  Future<void> savePreferredLanguage(String? language) async {
+    _preferredLanguage = language;
+  }
+
+  @override
+  Future<String?> loadPreferredDeck(String language) async => _preferredDecks[language];
+
+  @override
+  Future<void> savePreferredDeck(String language, String? deckId) async {
+    if (deckId == null) {
+      _preferredDecks.remove(language);
+    } else {
+      _preferredDecks[language] = deckId;
+    }
   }
 
   @override

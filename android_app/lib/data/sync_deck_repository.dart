@@ -81,6 +81,21 @@ class SyncDeckRepository implements DeckRepository {
   }
 
   @override
+  Future<String?> loadPreferredLanguage() => local.loadMetadata('home:learning-language');
+
+  @override
+  Future<void> savePreferredLanguage(String? language) =>
+      local.saveMetadata('home:learning-language', language);
+
+  @override
+  Future<String?> loadPreferredDeck(String language) =>
+      local.loadMetadata('home:selected-deck:${Uri.encodeComponent(language)}');
+
+  @override
+  Future<void> savePreferredDeck(String language, String? deckId) =>
+      local.saveMetadata('home:selected-deck:${Uri.encodeComponent(language)}', deckId);
+
+  @override
   Future<void> removeDownload(String deckId) => local.removeDownload(deckId);
 
   @override

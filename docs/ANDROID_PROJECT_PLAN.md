@@ -38,6 +38,20 @@ desktop-TTS generator of record.
     Function secret and accessed only after validating the signed-in user session.
 20. A successfully generated deck is saved to the user's cloud library and downloaded to the
     generating phone. A failed or incomplete generation is not saved.
+21. The Android home screen is a task-oriented landing page with actions for language, deck,
+    generation, Flashcards, Audio, List, Further Learning, and Learning Instructions.
+22. The selected learning language filters decks by `sourceLanguage`; translation language must
+    never affect that filter.
+23. Android remembers the last selected deck separately for each learning language. Switching
+    languages restores a valid previous selection and never exposes a deck from another language.
+24. Flashcards, Audio, and List share the active deck. When none is selected, the requested
+    activity routes through the filtered deck picker and then continues to its existing setup.
+25. A newly generated deck becomes the active deck and learning language automatically.
+26. Further Learning collects media type, media-specific genre, CEFR level, and duration. The
+    duration control is hidden for songs. External provider credentials remain server-side.
+27. Learning Instructions presents the research-grounded app roadmap: high-frequency foundation,
+    List comprehension, Flashcard retrieval, Audio listening/repetition, spaced review,
+    understandable external input, active production, and functional progress checks.
 
 ## 3. Architecture
 
@@ -105,20 +119,39 @@ Android database under the device installation ID.
 6. Download audio only when the user explicitly enables offline audio.
 7. Mark deck text available offline.
 
-### Android activity workflow
+### Android landing and activity workflow
 
-1. Select a deck from the unchanged **My decks** home page.
-2. Choose **Flashcards**, **Listen to audio**, or **View list**.
-3. Choose Words, Sentences, or both.
-4. Choose all rows or an inclusive rank range.
-5. Optionally download transferred desktop audio for offline use.
-6. Flashcards use two sides and an invisible 75% anchor for the sound button.
-7. Audio playback alternates learning and translation items within each selected row and
+1. Select a learning language from the landing page.
+2. Select a matching deck or generate a new one.
+3. Choose **Practice flashcards**, **Practice audio**, or **Practice list**.
+4. If no valid deck is active, select one from the language-filtered picker and continue.
+5. Choose Words, Sentences, or both.
+6. Choose all rows or an inclusive rank range.
+7. Optionally download transferred desktop audio for offline use.
+8. Flashcards use two sides and an invisible 75% anchor for the sound button.
+9. Audio playback alternates learning and translation items within each selected row and
    persists position by deck, mode, and range. Its horizontal speed control shows only −2×
    to the left and 2× to the right; the normal centre is unlabelled. Its inter-item break
    defaults to 0.5 seconds with selectable values from 0 to 2 seconds.
-8. List view renders each foreign value immediately above its translation and uses an
+10. List view renders each foreign value immediately above its translation and uses an
    auto-hiding, draggable scrollbar that appears only during scrolling.
+
+### Learning roadmap
+
+1. Choose one learning language and a practical comprehension or communication goal.
+2. Generate a manageable high-frequency foundation, initially about 100–300 rows at A1.
+3. Understand new rows in List before testing them.
+4. Attempt active recall before pressing **Turn** in Flashcards.
+5. Use Audio to listen without text, recall meaning, hear the translation, and repeat aloud.
+6. Review across expanding intervals; shorten intervals after failed recall.
+7. Use Further Learning to choose understandable external material near the current CEFR level.
+8. Produce original speech or writing with studied vocabulary.
+9. Judge progress through recall, listening recognition, unfamiliar-context comprehension,
+   original production, and the ability to summarize suitable media.
+
+Suggested row counts and review intervals are practical starting points, not fixed scientific
+optima. Android does not claim to implement automatic spaced repetition until a scheduling model
+and review queue are explicitly added.
 
 ### Study progress
 
@@ -180,17 +213,21 @@ remain human-gated Phase E work.
 - All rows or inclusive selected-rank range
 - Previous, Turn, Next, Reshuffle and in-card audio controls
 - Desktop-matched light/dark palettes and application icon
-- Activity chooser followed by activity-specific settings
+- Landing-page practice action followed by activity-specific settings
 - Paired, colour-coded list view
 - Desktop TTS audio transfer as an explicit opt-in
 - Resumable word/sentence/combined audio playlists
 - Audio timeout recovery and invisible sound-button positioning anchor
 - Central user-facing error translation for authentication, network, sync, storage, and audio
-- Generate-new-deck action below the cloud library
+- Generate-new-deck action on the landing page
 - Phone-scaled desktop-equivalent generation settings
 - Packaged production frequency data and deterministic row planning
 - JWT-protected server generation with per-user quota enforcement
 - Atomic cloud save followed by local offline caching
+- Task-oriented landing page and per-language active-deck state
+- Language-filtered deck selection and activity continuation routing
+- Further Learning preference form
+- In-app learning roadmap
 
 ### Phase D — Bidirectional progress sync
 
@@ -222,11 +259,14 @@ Every pull request must run:
 7. Device-local removal test proving cloud and desktop records remain unchanged.
 8. Delete-everywhere restoration and retention tests.
 9. Optional audio upload/download tests and audio-session resume tests.
-10. Activity chooser, list ordering/colour, and flashcard loading-state widget tests.
+10. Landing activity routing, list ordering/colour, and flashcard loading-state widget tests.
 11. Error-message tests proving raw exceptions, server URLs, and internal codes are not displayed.
 12. Generated release-manifest tests proving Supabase network access is declared.
 13. Mobile generation validation, 5,000-row limit, deterministic planning, button placement,
     authentication, quota, incomplete-response, cloud-save, and local-cache tests.
+14. Landing-page action, learning-language filter, per-language deck restoration, missing-deck
+    continuation, generated-deck activation, Further Learning conditional-duration, and Learning
+    Instructions navigation tests.
 
 Release candidates additionally require:
 

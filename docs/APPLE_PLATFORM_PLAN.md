@@ -46,7 +46,7 @@
 ## 4. Shared mobile behavior
 
 - Same email/password account and Supabase data as Android and desktop.
-- Same home library, activity chooser, content mode, and inclusive row selection.
+- Same task-oriented landing page, filtered deck selection, content mode, and inclusive row selection.
 - Same two-sided flashcards with Previous, Turn, Next, Reshuffle, and sound.
 - Same paired list with auto-hiding draggable scrollbar.
 - Same resumable alternating learning/translation audio, speed, pause, and voice-gender controls.

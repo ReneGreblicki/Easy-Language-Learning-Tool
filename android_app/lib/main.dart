@@ -10,7 +10,12 @@ import 'data/supabase_deck_source.dart';
 import 'data/sync_deck_repository.dart';
 import 'errors/app_error.dart';
 import 'generation/generation_screen.dart';
+import 'generation/generation_settings.dart';
 import 'generation/mobile_generation_service.dart';
+import 'home/further_learning_screen.dart';
+import 'home/landing_menu.dart';
+import 'home/learning_instructions_screen.dart';
+import 'home/selection_screens.dart';
 import 'models/deck.dart';
 import 'study/audio_screen.dart';
 import 'study/list_screen.dart';
@@ -395,7 +400,12 @@ class DeckLibrary extends StatefulWidget {
 }
 
 class _DeckLibraryState extends State<DeckLibrary> {
-  late Future<List<Deck>> _decks;
+  List<Deck> _decks = const [];
+  bool _loading = true;
+  Object? _loadError;
+  String? _selectedLanguage;
+  String? _selectedDeckId;
+  bool _selectionLoaded = false;
 
   @override
   void initState() {
@@ -403,9 +413,50 @@ class _DeckLibraryState extends State<DeckLibrary> {
     _refresh();
   }
 
-  void _refresh() {
-    _decks = widget.repository.cloudLibrary();
+  Future<void> _refresh() async {
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _loadError = null;
+      });
+    }
+    try {
+      final decks = await widget.repository.cloudLibrary();
+      var language = _selectedLanguage;
+      var deckId = _selectedDeckId;
+      if (!_selectionLoaded) {
+        language = await widget.repository.loadPreferredLanguage();
+        language ??= decks.isEmpty
+            ? GenerationLanguage.europeanSpanish.label
+            : decks.first.sourceLanguage;
+        deckId = await widget.repository.loadPreferredDeck(language);
+      }
+      final validDeck = decks.where(
+        (deck) => deck.id == deckId && deck.sourceLanguage == language,
+      );
+      if (validDeck.isEmpty) {
+        deckId = null;
+        await widget.repository.savePreferredDeck(language, null);
+      }
+      if (!mounted) return;
+      setState(() {
+        _decks = decks;
+        _selectedLanguage = language;
+        _selectedDeckId = deckId;
+        _selectionLoaded = true;
+        _loading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = error;
+        _loading = false;
+      });
+    }
   }
+
+  Deck? get _selectedDeck =>
+      _decks.where((deck) => deck.id == _selectedDeckId).firstOrNull;
 
   void _showError(Object error, String fallback) {
     if (!mounted) return;
@@ -417,7 +468,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
   Future<void> _removeDownload(Deck deck) async {
     try {
       await widget.repository.removeDownload(deck.id);
-      if (mounted) setState(_refresh);
+      await _refresh();
     } catch (error) {
       _showError(error, 'The phone download could not be removed. Try again.');
     }
@@ -472,24 +523,84 @@ class _DeckLibraryState extends State<DeckLibrary> {
     if (confirmed != true) return;
     try {
       await widget.repository.deleteEverywhere(deck.id);
-      if (mounted) setState(_refresh);
+      if (_selectedDeckId == deck.id && _selectedLanguage != null) {
+        await widget.repository.savePreferredDeck(_selectedLanguage!, null);
+        _selectedDeckId = null;
+      }
+      await _refresh();
     } catch (error) {
       _showError(error, 'The cloud copy could not be deleted. Refresh and try again.');
     }
   }
 
-  Future<void> _openDeck(Deck deck) async {
+  List<String> get _languages {
+    final values = <String>{
+      for (final language in GenerationLanguage.values) language.label,
+      for (final deck in _decks) deck.sourceLanguage,
+    }.toList(growable: false)
+      ..sort();
+    return values;
+  }
+
+  Future<bool> _selectLanguage() async {
+    final language = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LanguageSelectionScreen(
+          languages: _languages,
+          selectedLanguage: _selectedLanguage,
+        ),
+      ),
+    );
+    if (language == null || !mounted) return false;
+    final rememberedDeck = await widget.repository.loadPreferredDeck(language);
+    final validDeck = _decks.where(
+      (deck) => deck.id == rememberedDeck && deck.sourceLanguage == language,
+    );
+    await widget.repository.savePreferredLanguage(language);
+    if (!mounted) return false;
+    setState(() {
+      _selectedLanguage = language;
+      _selectedDeckId = validDeck.isEmpty ? null : validDeck.first.id;
+    });
+    return true;
+  }
+
+  Future<Deck?> _selectDeck() async {
+    if (_selectedLanguage == null && !await _selectLanguage()) return null;
+    if (!mounted) return null;
+    final deck = await Navigator.push<Deck>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DeckSelectionScreen(
+          language: _selectedLanguage!,
+          decks: _decks,
+          selectedDeckId: _selectedDeckId,
+        ),
+      ),
+    );
+    if (deck == null || !mounted) return null;
+    await widget.repository.savePreferredDeck(deck.sourceLanguage, deck.id);
+    if (!mounted) return null;
+    setState(() => _selectedDeckId = deck.id);
+    return deck;
+  }
+
+  Future<Deck?> _requireDeck() async => _selectedDeck ?? await _selectDeck();
+
+  Future<void> _startActivity(_DeckActivity activity) async {
+    final deck = await _requireDeck();
+    if (deck == null || !mounted) return;
+    await _openDeck(deck, activity);
+  }
+
+  Future<void> _openDeck(Deck deck, _DeckActivity activity) async {
     if (deck.cards.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('This deck has no cards.')),
       );
       return;
     }
-    final activity = await showDialog<_DeckActivity>(
-      context: context,
-      builder: (context) => const _ActivityDialog(),
-    );
-    if (activity == null || !mounted) return;
     final configuration = await showDialog<_StudyConfiguration>(
       context: context,
       builder: (context) => _StudySetupDialog(deck: deck, activity: activity),
@@ -542,6 +653,22 @@ class _DeckLibraryState extends State<DeckLibrary> {
     await Navigator.push<void>(context, MaterialPageRoute(builder: (_) => screen));
   }
 
+  Future<void> _openFurtherLearning() async {
+    if (_selectedLanguage == null && !await _selectLanguage()) return;
+    if (!mounted) return;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FurtherLearningScreen(language: _selectedLanguage!),
+      ),
+    );
+  }
+
+  Future<void> _openInstructions() => Navigator.push<void>(
+        context,
+        MaterialPageRoute(builder: (_) => const LearningInstructionsScreen()),
+      );
+
   Future<void> _showTrash() async {
     List<Deck> trashed;
     try {
@@ -572,7 +699,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
                           try {
                             await widget.repository.restore(deck.id);
                             if (dialogContext.mounted) Navigator.pop(dialogContext);
-                            if (mounted) setState(_refresh);
+                            await _refresh();
                           } catch (error) {
                             if (dialogContext.mounted) Navigator.pop(dialogContext);
                             _showError(
@@ -611,7 +738,11 @@ class _DeckLibraryState extends State<DeckLibrary> {
       MaterialPageRoute(builder: (_) => GenerateDeckScreen(service: service)),
     );
     if (generated != null && mounted) {
-      setState(_refresh);
+      await widget.repository.savePreferredLanguage(generated.sourceLanguage);
+      await widget.repository.savePreferredDeck(generated.sourceLanguage, generated.id);
+      _selectedLanguage = generated.sourceLanguage;
+      _selectedDeckId = generated.id;
+      await _refresh();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${generated.title} was generated and downloaded.')),
       );
@@ -626,15 +757,95 @@ class _DeckLibraryState extends State<DeckLibrary> {
     }
   }
 
+  Future<void> _showDeckManager() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Manage decks'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: _decks.isEmpty
+              ? const Text('No synchronized decks are available.')
+              : ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _decks.length,
+                  itemBuilder: (_, index) {
+                    final deck = _decks[index];
+                    return ListTile(
+                      title: Text(deck.title),
+                      subtitle: Text('${deck.sourceLanguage} · ${deck.cards.length} cards'),
+                      onTap: () async {
+                        await widget.repository.savePreferredLanguage(deck.sourceLanguage);
+                        await widget.repository.savePreferredDeck(deck.sourceLanguage, deck.id);
+                        if (!mounted) return;
+                        setState(() {
+                          _selectedLanguage = deck.sourceLanguage;
+                          _selectedDeckId = deck.id;
+                        });
+                        if (dialogContext.mounted) Navigator.pop(dialogContext);
+                      },
+                      trailing: deck.isDownloaded
+                          ? PopupMenuButton<String>(
+                              onSelected: (value) async {
+                                if (dialogContext.mounted) Navigator.pop(dialogContext);
+                                if (value == 'remove') {
+                                  await _confirmRemoveDownload(deck);
+                                } else if (value == 'delete_everywhere') {
+                                  await _confirmDeleteEverywhere(deck);
+                                }
+                              },
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(value: 'remove', child: Text('Remove download')),
+                                PopupMenuItem(
+                                  value: 'delete_everywhere',
+                                  child: Text('Delete everywhere'),
+                                ),
+                              ],
+                            )
+                          : IconButton(
+                              tooltip: 'Download',
+                              onPressed: () async {
+                                if (dialogContext.mounted) Navigator.pop(dialogContext);
+                                try {
+                                  await widget.repository.download(deck.id);
+                                  await _refresh();
+                                } catch (error) {
+                                  _showError(
+                                    error,
+                                    'The deck could not be downloaded. Try again.',
+                                  );
+                                }
+                              },
+                              icon: const Icon(Icons.cloud_download_outlined),
+                            ),
+                    );
+                  },
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
-          title: const Text('My decks'),
+          title: const Text('Easy Language Learning Tool'),
           actions: [
             IconButton(
               tooltip: 'Switch light/dark theme',
               onPressed: widget.onToggleTheme,
               icon: const Icon(Icons.brightness_6_outlined),
+            ),
+            IconButton(
+              tooltip: 'Manage decks',
+              onPressed: _showDeckManager,
+              icon: const Icon(Icons.folder_open_outlined),
             ),
             IconButton(
               tooltip: 'Cloud Trash',
@@ -649,154 +860,51 @@ class _DeckLibraryState extends State<DeckLibrary> {
               ),
           ],
         ),
-        body: FutureBuilder<List<Deck>>(
-          future: _decks,
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        describeAppError(
-                          snapshot.error!,
-                          fallback: 'Deck synchronization failed. Try again.',
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 16),
-                      FilledButton.icon(
-                        onPressed: () => setState(_refresh),
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Try again'),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final decks = snapshot.data!;
-            return RefreshIndicator(
-              onRefresh: () async => setState(_refresh),
-              child: ListView.builder(
-                physics: const AlwaysScrollableScrollPhysics(),
-                itemCount: decks.length + 1,
-                itemBuilder: (context, index) {
-                  if (index == decks.length) {
-                    return Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
+        body: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _loadError != null
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
                       child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (decks.isEmpty) ...[
-                            const Text(
-                              'No decks yet. Generate one here or synchronize one from desktop.',
-                              textAlign: TextAlign.center,
+                          Text(
+                            describeAppError(
+                              _loadError!,
+                              fallback: 'Deck synchronization failed. Try again.',
                             ),
-                            const SizedBox(height: 16),
-                          ],
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton.icon(
-                              key: const Key('generate-new-deck'),
-                              onPressed: _openGenerator,
-                              icon: const Icon(Icons.auto_awesome),
-                              label: const Text('Generate a new deck'),
-                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          FilledButton.icon(
+                            onPressed: _refresh,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Try again'),
                           ),
                         ],
                       ),
-                    );
-                  }
-                  final deck = decks[index];
-                  return ListTile(
-                    onTap: () => _openDeck(deck),
-                    title: Text(deck.title),
-                    subtitle: Text(
-                      '${deck.sourceLanguage} → ${deck.translationLanguage} · '
-                      '${deck.cards.length} cards',
                     ),
-                    trailing: deck.isDownloaded
-                        ? PopupMenuButton<String>(
-                            onSelected: (value) {
-                              if (value == 'remove') {
-                                _confirmRemoveDownload(deck);
-                              } else if (value == 'delete_everywhere') {
-                                _confirmDeleteEverywhere(deck);
-                              }
-                            },
-                            itemBuilder: (_) => const [
-                                  PopupMenuItem(
-                                    value: 'remove',
-                                    child: Text('Remove download'),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'delete_everywhere',
-                                    child: Text('Delete everywhere'),
-                                  ),
-                                ],
-                          )
-                        : IconButton(
-                            tooltip: 'Download',
-                            onPressed: () async {
-                              try {
-                                await widget.repository.download(deck.id);
-                                if (mounted) setState(_refresh);
-                              } catch (error) {
-                                _showError(
-                                  error,
-                                  'The deck could not be downloaded. Try again.',
-                                );
-                              }
-                            },
-                            icon: const Icon(Icons.cloud_download_outlined),
-                          ),
-                  );
-                },
-              ),
-            );
-          },
-        ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: LandingMenu(
+                      selectedLanguage: _selectedLanguage,
+                      selectedDeckTitle: _selectedDeck?.title,
+                      onSelectLanguage: _selectLanguage,
+                      onSelectDeck: _selectDeck,
+                      onGenerate: _openGenerator,
+                      onFlashcards: () => _startActivity(_DeckActivity.flashcards),
+                      onAudio: () => _startActivity(_DeckActivity.audio),
+                      onList: () => _startActivity(_DeckActivity.list),
+                      onFurtherLearning: _openFurtherLearning,
+                      onInstructions: _openInstructions,
+                    ),
+                  ),
       );
 }
 
 enum _DeckActivity { flashcards, audio, list }
-
-class _ActivityDialog extends StatelessWidget {
-  const _ActivityDialog();
-
-  @override
-  Widget build(BuildContext context) => SimpleDialog(
-        title: const Text('Choose activity'),
-        children: [
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, _DeckActivity.flashcards),
-            child: const ListTile(
-              leading: Icon(Icons.style_outlined),
-              title: Text('Flashcards'),
-            ),
-          ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, _DeckActivity.audio),
-            child: const ListTile(
-              leading: Icon(Icons.headphones_outlined),
-              title: Text('Listen to audio'),
-            ),
-          ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(context, _DeckActivity.list),
-            child: const ListTile(
-              leading: Icon(Icons.list_alt_outlined),
-              title: Text('View list'),
-            ),
-          ),
-        ],
-      );
-}
 
 class _StudyConfiguration {
   const _StudyConfiguration(

@@ -107,4 +107,33 @@ void main() {
     expect(await repository.loadAudioPosition('deck:words:1-100'), 17);
     expect(await repository.loadAudioPosition('deck:sentences:1-100'), 0);
   });
+
+  test('preferred language and deck are remembered per language', () async {
+    final repository = MemoryDeckRepository([]);
+
+    await repository.savePreferredLanguage('German');
+    await repository.savePreferredDeck('German', 'german-a1');
+    await repository.savePreferredDeck('European Spanish', 'spanish-a1');
+
+    expect(await repository.loadPreferredLanguage(), 'German');
+    expect(await repository.loadPreferredDeck('German'), 'german-a1');
+    expect(
+      await repository.loadPreferredDeck('European Spanish'),
+      'spanish-a1',
+    );
+  });
+
+  test('clearing one preferred deck leaves other languages unchanged', () async {
+    final repository = MemoryDeckRepository([]);
+    await repository.savePreferredDeck('German', 'german-a1');
+    await repository.savePreferredDeck('European Spanish', 'spanish-a1');
+
+    await repository.savePreferredDeck('German', null);
+
+    expect(await repository.loadPreferredDeck('German'), isNull);
+    expect(
+      await repository.loadPreferredDeck('European Spanish'),
+      'spanish-a1',
+    );
+  });
 }
