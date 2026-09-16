@@ -7,6 +7,8 @@ on:
       - main
     paths:
       - "supabase/functions/generate-deck/**"
+      - "supabase/functions/recommend-media/**"
+      - "supabase/functions/deck-maintenance/**"
       - "supabase/migrations/**"
       - "supabase/config.toml"
       - ".github/workflows/supabase-generation-deploy.yml"
@@ -57,3 +59,7 @@ jobs:
             --project-ref "$PROJECT_REF"
       - name: Deploy authenticated generation function
         run: supabase functions deploy generate-deck --project-ref "$PROJECT_REF"
+      - name: Deploy authenticated recommendation function
+        run: supabase functions deploy recommend-media --project-ref "$PROJECT_REF"
+      - name: Deploy authenticated deck-maintenance function
+        run: supabase functions deploy deck-maintenance --project-ref "$PROJECT_REF"

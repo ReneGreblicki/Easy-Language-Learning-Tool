@@ -12,6 +12,7 @@ class LandingMenu extends StatelessWidget {
     required this.onList,
     required this.onFurtherLearning,
     required this.onInstructions,
+    this.generationStatus,
     super.key,
   });
 
@@ -25,6 +26,7 @@ class LandingMenu extends StatelessWidget {
   final VoidCallback onList;
   final VoidCallback onFurtherLearning;
   final VoidCallback onInstructions;
+  final String? generationStatus;
 
   @override
   Widget build(BuildContext context) => SingleChildScrollView(
@@ -56,6 +58,20 @@ class LandingMenu extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
+          if (generationStatus != null) ...[
+            Card(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              child: ListTile(
+                leading: const SizedBox.square(
+                  dimension: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                title: const Text('Generating in the background'),
+                subtitle: Text(generationStatus!),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           _LandingAction(
             key: const Key('select-language'),
             icon: Icons.translate,

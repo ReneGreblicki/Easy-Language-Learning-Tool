@@ -1,4 +1,5 @@
 import 'package:easy_language_flashcards/data/deck_repository.dart';
+import 'package:easy_language_flashcards/home/app_line_logo.dart';
 import 'package:easy_language_flashcards/main.dart';
 import 'package:easy_language_flashcards/models/deck.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,7 +9,8 @@ void main() {
     await tester.pumpWidget(const EasyLanguageFlashcards());
     await tester.pumpAndSettle();
 
-    expect(find.text('Easy Language Learning Tool'), findsOneWidget);
+    expect(find.text('Easy Language Learning Tool'), findsNothing);
+    expect(find.byType(AppLineLogo), findsOneWidget);
     expect(find.text('Select a language'), findsOneWidget);
     expect(find.text('Select a deck'), findsOneWidget);
     expect(find.text('Generate a new deck'), findsOneWidget);

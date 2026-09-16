@@ -49,6 +49,14 @@ String describeAppError(
   if (message.contains('deck generation is not enabled')) {
     return 'Phone deck generation has not been enabled by the application administrator yet.';
   }
+  if (message.contains('10 active') && message.contains('decks')) {
+    return 'This language already has 10 active decks. Remove one from the folder manager '
+        'before generating another.';
+  }
+  if (message.contains('recommendation') || message.contains('suitable media')) {
+    return 'Three suitable media options could not be found right now. '
+        'Try a different genre, level, or duration.';
+  }
   if (message.contains('incomplete deck') ||
       message.contains('incomplete batch') ||
       message.contains('generated data was incomplete')) {

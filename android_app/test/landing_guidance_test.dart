@@ -27,6 +27,21 @@ void main() {
     expect(find.text('Media duration'), findsNothing);
   });
 
+  testWidgets('movie hides duration and series names episode duration', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: FurtherLearningScreen(language: 'European Spanish')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('media-movie')));
+    await tester.pumpAndSettle();
+    expect(find.text('Media duration'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('media-series')));
+    await tester.pumpAndSettle();
+    expect(find.text('Episode duration'), findsOneWidget);
+  });
+
   testWidgets('learning instructions contain the full roadmap', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(home: LearningInstructionsScreen()),

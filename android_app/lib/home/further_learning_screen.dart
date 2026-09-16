@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import '../errors/app_error.dart';
+import 'further_learning_service.dart';
 
 enum LearningMedia {
   youtube('YouTube video', Icons.ondemand_video_outlined),
@@ -21,9 +25,10 @@ const _genres = <LearningMedia, List<String>>{
 };
 
 class FurtherLearningScreen extends StatefulWidget {
-  const FurtherLearningScreen({required this.language, super.key});
+  const FurtherLearningScreen({required this.language, this.service, super.key});
 
   final String language;
+  final FurtherLearningService? service;
 
   @override
   State<FurtherLearningScreen> createState() => _FurtherLearningScreenState();
@@ -34,31 +39,58 @@ class _FurtherLearningScreenState extends State<FurtherLearningScreen> {
   String _genre = _genres[LearningMedia.youtube]!.first;
   String _level = 'A1';
   String _duration = '5–15 minutes';
+  bool _loading = false;
+  String? _error;
+  List<MediaRecommendation> _results = const [];
 
   void _selectMedia(LearningMedia media) {
     setState(() {
       _media = media;
       _genre = _genres[media]!.first;
+      _results = const [];
+      _error = null;
     });
   }
 
-  void _showSummary() {
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Learning media preferences'),
-        content: Text(
-          'Find ${_level.toUpperCase()} ${widget.language} ${_media.label.toLowerCase()} '
-          'content in the $_genre genre${_media == LearningMedia.song ? '.' : ' lasting $_duration.'}\n\n'
-          'Provider-backed recommendations will be connected through the protected '
-          'recommendation service. Until then, use these preferences when searching your '
-          'preferred media platform.',
-        ),
-        actions: [
-          FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
-        ],
-      ),
-    );
+  Future<void> _find() async {
+    final service = widget.service;
+    if (service == null) {
+      setState(() => _error = 'Sign in to receive current media recommendations.');
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+      _results = const [];
+    });
+    try {
+      final results = await service.recommend(
+        language: widget.language,
+        media: _media.name,
+        genre: _genre,
+        level: _level,
+        duration: _media == LearningMedia.movie || _media == LearningMedia.song
+            ? null
+            : _duration,
+      );
+      if (mounted) setState(() => _results = results);
+    } catch (error) {
+      if (mounted) {
+        setState(() => _error = describeAppError(
+              error,
+              fallback: 'Suitable media could not be found right now. Try different settings.',
+            ));
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _open(MediaRecommendation recommendation) async {
+    final uri = Uri.tryParse(recommendation.url);
+    if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) setState(() => _error = 'This recommendation link could not be opened.');
+    }
   }
 
   @override
@@ -91,7 +123,7 @@ class _FurtherLearningScreenState extends State<FurtherLearningScreen> {
                     selected: media == _media,
                     child: FilledButton.tonalIcon(
                       key: Key('media-${media.name}'),
-                      onPressed: () => _selectMedia(media),
+                      onPressed: _loading ? null : () => _selectMedia(media),
                       icon: Icon(media.icon),
                       label: Text(media.label),
                       style: media == _media
@@ -107,14 +139,11 @@ class _FurtherLearningScreenState extends State<FurtherLearningScreen> {
             DropdownButtonFormField<String>(
               key: ValueKey('genre-${_media.name}'),
               initialValue: _genre,
-              decoration: const InputDecoration(
-                labelText: 'Genre',
-                border: OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(labelText: 'Genre', border: OutlineInputBorder()),
               items: _genres[_media]!
                   .map((genre) => DropdownMenuItem(value: genre, child: Text(genre)))
                   .toList(growable: false),
-              onChanged: (genre) => setState(() => _genre = genre!),
+              onChanged: _loading ? null : (genre) => setState(() => _genre = genre!),
             ),
             const SizedBox(height: 14),
             DropdownButtonFormField<String>(
@@ -126,35 +155,76 @@ class _FurtherLearningScreenState extends State<FurtherLearningScreen> {
               items: const ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
                   .map((level) => DropdownMenuItem(value: level, child: Text(level)))
                   .toList(growable: false),
-              onChanged: (level) => setState(() => _level = level!),
+              onChanged: _loading ? null : (level) => setState(() => _level = level!),
             ),
-            if (_media != LearningMedia.song) ...[
+            if (_media != LearningMedia.song && _media != LearningMedia.movie) ...[
               const SizedBox(height: 14),
               DropdownButtonFormField<String>(
                 initialValue: _duration,
-                decoration: const InputDecoration(
-                  labelText: 'Media duration',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: _media == LearningMedia.series ? 'Episode duration' : 'Media duration',
+                  border: const OutlineInputBorder(),
                 ),
                 items: const [
-                  'Under 5 minutes',
-                  '5–15 minutes',
-                  '15–30 minutes',
-                  '30–60 minutes',
-                  '60+ minutes',
-                ]
-                    .map((duration) => DropdownMenuItem(value: duration, child: Text(duration)))
+                  'Under 5 minutes', '5–15 minutes', '15–30 minutes',
+                  '30–60 minutes', '60+ minutes',
+                ].map((duration) => DropdownMenuItem(value: duration, child: Text(duration)))
                     .toList(growable: false),
-                onChanged: (duration) => setState(() => _duration = duration!),
+                onChanged: _loading ? null : (duration) => setState(() => _duration = duration!),
               ),
             ],
             const SizedBox(height: 22),
             FilledButton.icon(
               key: const Key('find-suitable-media'),
-              onPressed: _showSummary,
-              icon: const Icon(Icons.search),
-              label: const Text('Find suitable media'),
+              onPressed: _loading ? null : _find,
+              icon: _loading
+                  ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.search),
+              label: Text(_loading ? 'Finding three options…' : 'Find suitable media'),
             ),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 14),
+                child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+              ),
+            for (final result in _results) ...[
+              const SizedBox(height: 14),
+              Card(
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (result.imageUrl != null && result.imageUrl!.isNotEmpty)
+                      Image.network(
+                        result.imageUrl!,
+                        height: 150,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                      ),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(result.title, style: Theme.of(context).textTheme.titleMedium),
+                          const SizedBox(height: 8),
+                          Text(result.description),
+                          const SizedBox(height: 10),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: FilledButton.tonalIcon(
+                              onPressed: () => _open(result),
+                              icon: const Icon(Icons.open_in_new),
+                              label: const Text('Open'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       );

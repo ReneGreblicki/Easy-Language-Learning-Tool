@@ -20,8 +20,9 @@ manifest used by release APKs. Do not rely on Flutter's debug-only manifest: deb
 connect even when a release build has no network permission.
 
 Before connecting the app, execute every file in `../supabase/migrations` in numeric order in
-the Supabase SQL editor. Mobile generation additionally requires deployment of
-`../supabase/functions/generate-deck` and these Supabase project secrets:
+the Supabase SQL editor. Mobile generation, current media recommendations, and retention cleanup
+additionally require deployment of `../supabase/functions/generate-deck`, `recommend-media`, and
+`deck-maintenance`, plus these Supabase project secrets:
 
 ```text
 OPENAI_API_KEY=<server-side provider key>
@@ -30,7 +31,8 @@ OPENAI_MODEL=gpt-5-mini
 
 `OPENAI_MODEL` is optional. The provider key is intentionally absent from Flutter assets,
 Dart defines, logs, and the APK. The Edge Function validates the signed-in user and enforces a
-5,000-row rolling 24-hour quota before calling the provider.
+5,000-row rolling 24-hour quota before calling the provider. Generation is persisted server-side,
+processes multiple batches concurrently, and continues when the app is closed.
 
 For automated deployment, add `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, and
 `OPENAI_API_KEY` as protected GitHub Actions secrets. Optionally add `OPENAI_MODEL`.
@@ -49,9 +51,10 @@ to `localhost`.
 
 ## Current deletion behavior
 
-- **Remove download** deletes only this mobile installation's cached deck and audio.
-- The cloud and desktop copies remain unchanged.
-- **Delete everywhere** is a separate cloud operation and is not exposed without confirmation.
+- **Remove download** immediately deletes this mobile installation's cached deck and audio.
+- The synchronized mobile deck is hidden and scheduled for complete Supabase cleanup after 14 days.
+- Reusing or downloading the deck during that period cancels cleanup.
+- Desktop workbooks and desktop-local files remain unchanged.
 
 ## Mobile landing page and navigation
 
@@ -63,19 +66,24 @@ to `localhost`.
   remembered separately for each language.
 - Opening a practice mode without an active deck first opens the filtered deck picker and then
   continues to the requested setup screen.
-- A newly generated deck becomes the active deck automatically.
-- Further learning records the selected media type, genre, CEFR level, and duration (duration is
-  omitted for songs). Live provider-backed recommendations remain a separate backend increment.
+- Background generation status appears on the landing page and the completed deck is refreshed
+  automatically.
+- Further learning requests exactly three current GPT/web-search-backed options with a title,
+  description, direct link, and optional image. Duration is omitted for songs and movies and is
+  labelled **Episode duration** for series.
 - Learning instructions present the in-app cycle: List → Flashcards → Audio → spaced review →
   suitable external media → active language use.
 
 ## Implemented generation and study behavior
 
 - Generate a new deck from the main landing page
-- Phone-scaled desktop-equivalent language, count, forms, CEFR, question, and pronoun controls
+- Phone-scaled desktop-equivalent language, starting frequency rank, count, forms, CEFR,
+  question, and pronoun controls with automatic maximum-row clamping
 - No mobile provider selector, provider connection, or API-key field
-- Authenticated server-side generation followed by cloud save and offline phone caching
-- Direct practice launch from the landing page, followed by the existing content and row settings
+- Authenticated persistent server-side generation with concurrent provider batches
+- Full intermediate settings page for every Flashcards, Audio, and List launch
+- Ten active decks per learning language
+- `last_used_at` tracking prepared for, but not yet enforcing, a future 90-day inactivity policy
 - Flashcards, resumable audio playback, and paired list view
 - Launch choice: Words, Sentences, or Words and sentences
 - Launch choice: all rows or an inclusive selected rank range

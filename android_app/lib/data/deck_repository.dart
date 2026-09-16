@@ -22,10 +22,13 @@ abstract interface class DeckRepository {
   Future<void> savePreferredLanguage(String? language);
   Future<String?> loadPreferredDeck(String language);
   Future<void> savePreferredDeck(String language, String? deckId);
+  Future<void> markDeckUsed(String deckId);
+  Future<void> runMaintenance();
 
   /// Removes only this Android installation's cached cards and audio.
   ///
-  /// This method must never send a cloud delete or archive operation.
+  /// The synchronized mobile deck is scheduled for deletion after 14 days.
+  /// Desktop workbooks and desktop files are never changed.
   Future<void> removeDownload(String deckId);
 
   Future<void> deleteEverywhere(String deckId);
@@ -112,6 +115,12 @@ class MemoryDeckRepository implements DeckRepository {
   Future<void> removeDownload(String deckId) async {
     _replace(deckId, (deck) => deck.copyWith(isDownloaded: false));
   }
+
+  @override
+  Future<void> markDeckUsed(String deckId) async {}
+
+  @override
+  Future<void> runMaintenance() async {}
 
   @override
   Future<void> deleteEverywhere(String deckId) async {

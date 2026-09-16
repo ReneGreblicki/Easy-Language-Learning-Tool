@@ -17,6 +17,7 @@ class GenerateDeckScreen extends StatefulWidget {
 
 class _GenerateDeckScreenState extends State<GenerateDeckScreen> {
   final _title = TextEditingController(text: 'New language deck');
+  final _startRank = TextEditingController(text: '1');
   final _baseWords = TextEditingController(text: '100');
   GenerationLanguage _learning = GenerationLanguage.europeanSpanish;
   GenerationLanguage _translation = GenerationLanguage.usEnglish;
@@ -29,9 +30,8 @@ class _GenerateDeckScreenState extends State<GenerateDeckScreen> {
   GenerationCefrLevel _gradualEnd = GenerationCefrLevel.b2;
   final Map<GenerationCefrLevel, TextEditingController> _percentages = {};
   bool _busy = false;
-  int _completed = 0;
-  int _total = 0;
   String? _error;
+  String? _limitMessage;
 
   @override
   void initState() {
@@ -45,6 +45,7 @@ class _GenerateDeckScreenState extends State<GenerateDeckScreen> {
   @override
   void dispose() {
     _title.dispose();
+    _startRank.dispose();
     _baseWords.dispose();
     for (final controller in _percentages.values) {
       controller.dispose();
@@ -59,9 +60,29 @@ class _GenerateDeckScreenState extends State<GenerateDeckScreen> {
     return start <= end ? levels.sublist(start, end + 1) : const [];
   }
 
-  int get _maximumBaseWords => 5000 ~/ (1 + _extraForms);
+  int get _startRankValue => int.tryParse(_startRank.text) ?? 0;
+  int get _maximumBaseWords {
+    final formLimit = 5000 ~/ (1 + _extraForms);
+    final rankLimit = 5001 - _startRankValue;
+    if (rankLimit < 0) return 0;
+    return min(formLimit, rankLimit);
+  }
   int get _baseWordValue => int.tryParse(_baseWords.text) ?? 0;
   int get _finalRows => _baseWordValue * (1 + _extraForms);
+
+  void _enforceMaximum() {
+    final maximum = _maximumBaseWords;
+    if (maximum > 0 && _baseWordValue > maximum) {
+      _baseWords.value = TextEditingValue(
+        text: maximum.toString(),
+        selection: TextSelection.collapsed(offset: maximum.toString().length),
+      );
+      _limitMessage = 'Maximum for these settings is $maximum base words '
+          '(${maximum * (1 + _extraForms)} final rows).';
+    } else {
+      _limitMessage = null;
+    }
+  }
 
   void _resetPercentages() {
     final levels = _selectedLevels;
@@ -80,6 +101,7 @@ class _GenerateDeckScreenState extends State<GenerateDeckScreen> {
         title: _title.text,
         learningLanguage: _learning,
         translationLanguage: _translation,
+        startRank: _startRankValue,
         baseWords: _baseWordValue,
         extraForms: _extraForms,
         questionPercentage: _questionPercentage,
@@ -105,24 +127,12 @@ class _GenerateDeckScreenState extends State<GenerateDeckScreen> {
     }
     setState(() {
       _busy = true;
-      _completed = 0;
-      _total = settings.finalRows;
       _error = null;
     });
     try {
-      final deck = await widget.service.generate(
-        settings,
-        onProgress: (completed, total) {
-          if (mounted) {
-            setState(() {
-              _completed = completed;
-              _total = total;
-            });
-          }
-        },
-      );
+      final job = await widget.service.start(settings);
       if (!mounted) return;
-      Navigator.pop(context, deck);
+      Navigator.pop(context, job);
     } catch (error) {
       if (mounted) {
         setState(() {
@@ -139,9 +149,7 @@ class _GenerateDeckScreenState extends State<GenerateDeckScreen> {
   @override
   Widget build(BuildContext context) {
     final gradual = _cefrMode == GenerationCefrMode.gradual;
-    return PopScope(
-      canPop: !_busy,
-      child: Scaffold(
+    return Scaffold(
         appBar: AppBar(title: const Text('Generate a new deck')),
         body: ListView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
@@ -193,10 +201,26 @@ class _GenerateDeckScreenState extends State<GenerateDeckScreen> {
             ),
             const SizedBox(height: 14),
             TextField(
+              controller: _startRank,
+              enabled: !_busy,
+              keyboardType: TextInputType.number,
+              onChanged: (_) => setState(() {
+                _enforceMaximum();
+              }),
+              decoration: const InputDecoration(
+                labelText: 'Starting frequency rank',
+                helperText: 'Example: rank 500 starts with the 500th most frequent word',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextField(
               controller: _baseWords,
               enabled: !_busy,
               keyboardType: TextInputType.number,
-              onChanged: (_) => setState(() {}),
+              onChanged: (_) => setState(() {
+                _enforceMaximum();
+              }),
               decoration: InputDecoration(
                 labelText: 'Base words',
                 helperText: 'Maximum $_maximumBaseWords with $_extraForms extra forms',
@@ -218,9 +242,7 @@ class _GenerateDeckScreenState extends State<GenerateDeckScreen> {
                   ? null
                   : (value) => setState(() {
                         _extraForms = value!;
-                        if (_baseWordValue > _maximumBaseWords) {
-                          _baseWords.text = _maximumBaseWords.toString();
-                        }
+                        _enforceMaximum();
                       }),
             ),
             const SizedBox(height: 14),
@@ -361,6 +383,14 @@ class _GenerateDeckScreenState extends State<GenerateDeckScreen> {
                 ),
               ),
             ),
+            if (_limitMessage != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Text(
+                  _limitMessage!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 12),
@@ -369,26 +399,14 @@ class _GenerateDeckScreenState extends State<GenerateDeckScreen> {
                   style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
               ),
-            if (_busy) ...[
-              const SizedBox(height: 18),
-              LinearProgressIndicator(
-                value: _total == 0 ? null : _completed / _total,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Generated $_completed of $_total rows. Keep the app open.',
-                textAlign: TextAlign.center,
-              ),
-            ],
             const SizedBox(height: 20),
             FilledButton.icon(
               onPressed: _busy ? null : _generate,
               icon: const Icon(Icons.auto_awesome),
-              label: Text(_busy ? 'Generating…' : 'Generate deck'),
+              label: Text(_busy ? 'Starting…' : 'Generate deck'),
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 }

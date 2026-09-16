@@ -9,7 +9,7 @@
 [![Download for Apple Silicon](https://img.shields.io/badge/macOS-Apple_Silicon_v1.4.1-000000?logo=apple&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-1.4.1-Apple-Silicon.dmg)
 [![Download for Intel Mac](https://img.shields.io/badge/macOS-Intel_v1.4.1-555555?logo=apple&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-1.4.1-Intel.dmg)
 
-[![Download for Android](https://img.shields.io/badge/Download_for_Android-v0.3.0-3DDC84?logo=android&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-Android-0.3.0.apk)
+[![Download for Android](https://img.shields.io/badge/Download_for_Android-v0.4.0-3DDC84?logo=android&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-Android-0.4.0.apk)
 
 **Windows users need the `.exe`; Android users need the `.apk`; Mac users need the `.dmg` matching their processor.**
 [Release notes, checksums, and build provenance](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/tag/v1.4.1)
@@ -36,8 +36,8 @@ and list study, with optional offline storage.
 
 ## What the mobile application does
 
-- Generates a new synchronized deck directly on the phone using desktop-equivalent language,
-  row, extra-form, CEFR, question, and pronoun settings.
+- Generates a new synchronized deck in a persistent background job using desktop-equivalent
+  language, starting-rank, row, extra-form, CEFR, question, and pronoun settings.
 - Downloads synchronized desktop-generated decks and keeps them available offline.
 - Presents each deck as flashcards, a bilingual list, or paired learning-and-translation
   audio for words, sentences, or both.
@@ -45,8 +45,10 @@ and list study, with optional offline storage.
   controls, session progress, and the established light and dark themes.
 - Optionally downloads desktop-generated TTS audio; otherwise it uses compatible voices
   installed on the Android or iOS device.
-- Removes decks only from the mobile device. The corresponding desktop files remain unchanged
-  and are neither deleted nor archived.
+- Removes local mobile files immediately and schedules the synchronized Supabase deck and its
+  associated data for cleanup after 14 days. Desktop files remain unchanged.
+- Finds three current external-learning options through a protected GPT/web-search service,
+  with a title, description, direct link, and image when available.
 
 ## How to learn effectively with the app
 
@@ -366,18 +368,19 @@ can add part-of-speech, form, and dictionary-translation evidence; when evidence
 is unavailable, the generation model infers a valid grammatical use and supplies
 the word translation. See `docs/RELEASE_READINESS.md`.
 
-The interface caps the base-word control dynamically according to the available
-corpus and selected extra forms, so it never accepts a job above 5,000 final rows.
+The interface caps the base-word control dynamically according to the selected starting rank,
+remaining approved corpus, and selected extra forms, so it never accepts a job above 5,000
+final rows.
 
 Version 1.4.0 adds native Intel and Apple Silicon macOS packages while preserving
 the complete Information guide, hardened flashcard audio, uniform card surface,
 and mouse-wheel protections introduced in v1.3.0. The current desktop release is
-**v1.4.1**, and the current Android companion is **v0.3.0**. iOS distribution is paused
+**v1.4.1**, and Android **v0.4.0** is the current development version. iOS distribution is paused
 for a future release. The latest
-workflow is: generate a deck on desktop, sign in and upload it, then sign in to the same
-account on mobile and download it for offline Flashcards,
-Listen to audio, or List study. Desktop TTS transfer is optional, and removing a deck
-from mobile never deletes or archives the desktop file.
+workflow is: select a language and deck on the mobile landing page, then open Flashcards,
+Audio, or List through its full settings page. Generate-new-deck jobs continue server-side while
+the user studies or closes the app. Desktop TTS transfer is optional. Removing a mobile deck
+starts a 14-day Supabase cleanup window and never deletes or archives desktop files.
 
 ## Project documentation
 
@@ -843,16 +846,20 @@ distribution remains paused for a future release.
 
 1. Sign in and scroll below the final item in **My decks**.
 2. Select **Generate a new deck**.
-3. Enter a deck name and choose the learning language, translation language, base words, extra
-   forms, CEFR mode and levels, question percentage, and pronoun-change scale.
+3. Enter a deck name and choose the learning language, translation language, starting frequency
+   rank, base words, extra forms, CEFR mode and levels, question percentage, and pronoun-change
+   scale. If the requested range exceeds approved ranking data, the app reduces it and shows the
+   maximum in red.
 4. Check the calculated output and select **Generate deck**.
-5. Keep the app open while the progress bar advances.
+5. Return to the landing page. Generation continues in the background, and you may use another
+   deck or close the app. The landing page shows progress and refreshes when the deck is ready.
 
 The AI provider and model are configured by the application administrator. The mobile app has no
 provider-selection or API-key menu, and the reusable provider key is never stored in the APK.
-It remains in the protected generation service. A completed deck is synchronized to the user's
-account and downloaded to the generating phone automatically. Incomplete generations are not
-saved.
+It remains in the protected generation service. The server runs multiple batches concurrently,
+then publishes only a complete deck to the account. The current model remains `gpt-5-mini` until
+a different model is explicitly approved. Each learning language is limited to 10 active decks;
+remove one before creating another.
 
 ## 6.2 Sign in, choose an activity, and optionally download audio
 
@@ -890,18 +897,15 @@ same intended workflow, layout, palette, account, synchronized data, and voice p
 
 ## 6.4 Phone-only removal
 
-Choose **Remove download** to erase only that mobile installation's cached deck
-and audio. The synchronized cloud deck, the desktop database, and every desktop
-workbook remain unchanged—not deleted and not archived. The deck can be downloaded
-again later.
+Choose **Remove download** from the folder manager to erase that mobile installation's cached
+deck and audio immediately. The app hides the synchronized mobile deck and starts a 14-day
+cleanup window. Downloading or using the deck again during that period cancels cleanup. After
+14 days, the app's startup/six-hour maintenance timer removes the deck, cards, progress, audio
+metadata, and stored audio from Supabase. Desktop workbooks and desktop-local data remain
+unchanged throughout.
 
-**Delete everywhere** soft-deletes only the synchronized cloud copy and removes the
-device download. The original desktop workbook and desktop files remain unchanged.
-The cloud copy has a 30-day recovery period before permanent removal.
-
-To recover it, select the **Cloud Trash** icon in **My decks**, find the deck, and
-select **Restore**. Restoration recreates the cloud-library entry; download it again
-on any device that needs an offline copy.
+The app records `last_used_at` to support a possible future 90-day inactivity policy, but the
+90-day deletion rule is not active.
 
 ---
 

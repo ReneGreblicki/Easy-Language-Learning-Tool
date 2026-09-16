@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -13,6 +15,8 @@ import 'generation/generation_screen.dart';
 import 'generation/generation_settings.dart';
 import 'generation/mobile_generation_service.dart';
 import 'home/further_learning_screen.dart';
+import 'home/further_learning_service.dart';
+import 'home/app_line_logo.dart';
 import 'home/landing_menu.dart';
 import 'home/learning_instructions_screen.dart';
 import 'home/selection_screens.dart';
@@ -55,7 +59,6 @@ Future<void> main() async {
       authService: AuthService(client),
       generationService: MobileGenerationService(
         client: client,
-        repository: repository,
       ),
     ),
   );
@@ -406,11 +409,91 @@ class _DeckLibraryState extends State<DeckLibrary> {
   String? _selectedLanguage;
   String? _selectedDeckId;
   bool _selectionLoaded = false;
+  bool _jobsLoaded = false;
+  List<GenerationJob> _generationJobs = const [];
+  Timer? _jobTimer;
+  Timer? _maintenanceTimer;
 
   @override
   void initState() {
     super.initState();
     _refresh();
+    _pollJobs();
+    _runMaintenance();
+    _jobTimer = Timer.periodic(const Duration(seconds: 5), (_) => _pollJobs());
+    _maintenanceTimer = Timer.periodic(const Duration(hours: 6), (_) => _runMaintenance());
+  }
+
+  @override
+  void dispose() {
+    _jobTimer?.cancel();
+    _maintenanceTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _runMaintenance() async {
+    try {
+      await widget.repository.runMaintenance();
+    } on Exception {
+      // The timer retries later; routine cleanup must not block normal app use.
+    }
+  }
+
+  Future<void> _pollJobs() async {
+    final service = widget.generationService;
+    if (service == null) return;
+    try {
+      final previous = {for (final job in _generationJobs) job.id: job.status};
+      final jobs = await service.jobs();
+      for (final job in jobs.where((job) => job.isActive)) {
+        if (DateTime.now().toUtc().difference(job.updatedAt) > const Duration(minutes: 2)) {
+          await service.resume(job.id);
+        }
+      }
+      if (!mounted) return;
+      if (!_jobsLoaded) {
+        setState(() {
+          _generationJobs = jobs;
+          _jobsLoaded = true;
+        });
+        return;
+      }
+      final completed = jobs.where(
+        (job) => job.status == 'completed' && previous[job.id] != 'completed',
+      );
+      final failed = jobs.where(
+        (job) => job.status == 'failed' && previous[job.id] != 'failed',
+      );
+      setState(() => _generationJobs = jobs);
+      if (completed.isNotEmpty) {
+        final job = completed.first;
+        try {
+          await widget.repository.download(job.deckId);
+          await widget.repository.savePreferredLanguage(job.sourceLanguage);
+          await widget.repository.savePreferredDeck(job.sourceLanguage, job.deckId);
+          _selectedLanguage = job.sourceLanguage;
+          _selectedDeckId = job.deckId;
+        } on Exception {
+          // The complete cloud deck remains available if automatic offline caching fails.
+        }
+        await _refresh();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${completed.first.title} is ready.')),
+        );
+      } else if (failed.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${failed.first.title} could not be generated. '
+              '${failed.first.errorMessage ?? 'Try again.'}',
+            ),
+          ),
+        );
+      }
+    } on Exception {
+      // Background polling is best effort and retries automatically.
+    }
   }
 
   Future<void> _refresh() async {
@@ -484,7 +567,8 @@ class _DeckLibraryState extends State<DeckLibrary> {
         title: const Text('Remove download?'),
         content: const Text(
           'This removes only the files stored on this phone. '
-          'The desktop and cloud copies remain unchanged.',
+          'The synchronized mobile deck will be deleted after 14 days unless it is downloaded again. '
+          'Desktop workbooks and desktop files remain unchanged.',
         ),
         actions: [
           TextButton(
@@ -499,41 +583,6 @@ class _DeckLibraryState extends State<DeckLibrary> {
       ),
     );
     if (confirmed == true) await _removeDownload(deck);
-  }
-
-  Future<void> _confirmDeleteEverywhere(Deck deck) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete everywhere?'),
-        content: const Text(
-          'This removes the synchronized cloud copy and this phone’s download. '
-          'The original workbook and all desktop files remain unchanged. '
-          'The cloud copy can be restored for 30 days.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete everywhere'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    try {
-      await widget.repository.deleteEverywhere(deck.id);
-      if (_selectedDeckId == deck.id && _selectedLanguage != null) {
-        await widget.repository.savePreferredDeck(_selectedLanguage!, null);
-        _selectedDeckId = null;
-      }
-      await _refresh();
-    } catch (error) {
-      _showError(error, 'The cloud copy could not be deleted. Refresh and try again.');
-    }
   }
 
   List<String> get _languages {
@@ -604,11 +653,18 @@ class _DeckLibraryState extends State<DeckLibrary> {
       );
       return;
     }
-    final configuration = await showDialog<_StudyConfiguration>(
-      context: context,
-      builder: (context) => _StudySetupDialog(deck: deck, activity: activity),
+    final configuration = await Navigator.push<_StudyConfiguration>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => _StudySetupScreen(deck: deck, activity: activity),
+      ),
     );
     if (configuration == null || !mounted) return;
+    try {
+      await widget.repository.markDeckUsed(deck.id);
+    } on Exception {
+      // Usage tracking retries through later deck activity and must not block study.
+    }
     final includeAudio = activity != _DeckActivity.list;
     Deck sourceDeck;
     try {
@@ -662,7 +718,13 @@ class _DeckLibraryState extends State<DeckLibrary> {
     await Navigator.push<void>(
       context,
       MaterialPageRoute(
-        builder: (_) => FurtherLearningScreen(language: _selectedLanguage!),
+        builder: (_) => FurtherLearningScreen(
+          language: _selectedLanguage!,
+          service: widget.generationService == null
+              ? null
+              : FurtherLearningService(widget.generationService!.client),
+        ),
+        settings: const RouteSettings(name: 'further-learning'),
       ),
     );
   }
@@ -671,61 +733,6 @@ class _DeckLibraryState extends State<DeckLibrary> {
         context,
         MaterialPageRoute(builder: (_) => const LearningInstructionsScreen()),
       );
-
-  Future<void> _showTrash() async {
-    List<Deck> trashed;
-    try {
-      trashed = await widget.repository.trashedDecks();
-    } catch (error) {
-      _showError(error, 'Cloud Trash could not be loaded. Try again.');
-      return;
-    }
-    if (!mounted) return;
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Cloud Trash'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: trashed.isEmpty
-              ? const Text('Trash is empty.')
-              : ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: trashed.length,
-                  itemBuilder: (_, index) {
-                    final deck = trashed[index];
-                    return ListTile(
-                      title: Text(deck.title),
-                      subtitle: const Text('Recoverable for 30 days'),
-                      trailing: TextButton(
-                        onPressed: () async {
-                          try {
-                            await widget.repository.restore(deck.id);
-                            if (dialogContext.mounted) Navigator.pop(dialogContext);
-                            await _refresh();
-                          } catch (error) {
-                            if (dialogContext.mounted) Navigator.pop(dialogContext);
-                            _showError(
-                              error,
-                              'The deck could not be restored. Refresh and try again.',
-                            );
-                          }
-                        },
-                        child: const Text('Restore'),
-                      ),
-                    );
-                  },
-                ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
 
   Future<void> _openGenerator() async {
     final service = widget.generationService;
@@ -736,19 +743,19 @@ class _DeckLibraryState extends State<DeckLibrary> {
       );
       return;
     }
-    final generated = await Navigator.push<Deck>(
+    final job = await Navigator.push<GenerationJob>(
       context,
       MaterialPageRoute(builder: (_) => GenerateDeckScreen(service: service)),
     );
-    if (generated != null && mounted) {
-      await widget.repository.savePreferredLanguage(generated.sourceLanguage);
-      await widget.repository.savePreferredDeck(generated.sourceLanguage, generated.id);
-      _selectedLanguage = generated.sourceLanguage;
-      _selectedDeckId = generated.id;
-      await _refresh();
+    if (job != null && mounted) {
+      await _pollJobs();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${generated.title} was generated and downloaded.')),
+        SnackBar(
+          content: Text(
+            '${job.title} is generating in the background. You can use other decks or close the app.',
+          ),
+        ),
       );
     }
   }
@@ -794,16 +801,10 @@ class _DeckLibraryState extends State<DeckLibrary> {
                                 if (dialogContext.mounted) Navigator.pop(dialogContext);
                                 if (value == 'remove') {
                                   await _confirmRemoveDownload(deck);
-                                } else if (value == 'delete_everywhere') {
-                                  await _confirmDeleteEverywhere(deck);
                                 }
                               },
                               itemBuilder: (_) => const [
                                 PopupMenuItem(value: 'remove', child: Text('Remove download')),
-                                PopupMenuItem(
-                                  value: 'delete_everywhere',
-                                  child: Text('Delete everywhere'),
-                                ),
                               ],
                             )
                           : IconButton(
@@ -839,7 +840,11 @@ class _DeckLibraryState extends State<DeckLibrary> {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
-          title: const Text('Easy Language Learning Tool'),
+          leadingWidth: 60,
+          leading: const Padding(
+            padding: EdgeInsets.all(9),
+            child: AppLineLogo(),
+          ),
           actions: [
             IconButton(
               tooltip: 'Switch light/dark theme',
@@ -850,11 +855,6 @@ class _DeckLibraryState extends State<DeckLibrary> {
               tooltip: 'Manage decks',
               onPressed: _showDeckManager,
               icon: const Icon(Icons.folder_open_outlined),
-            ),
-            IconButton(
-              tooltip: 'Cloud Trash',
-              onPressed: _showTrash,
-              icon: const Icon(Icons.restore_from_trash_outlined),
             ),
             if (widget.authService != null)
               IconButton(
@@ -903,6 +903,11 @@ class _DeckLibraryState extends State<DeckLibrary> {
                       onList: () => _startActivity(_DeckActivity.list),
                       onFurtherLearning: _openFurtherLearning,
                       onInstructions: _openInstructions,
+                      generationStatus: _generationJobs.where((job) => job.isActive).firstOrNull == null
+                          ? null
+                          : '${_generationJobs.where((job) => job.isActive).first.title}: '
+                              '${_generationJobs.where((job) => job.isActive).first.completedRows} of '
+                              '${_generationJobs.where((job) => job.isActive).first.totalRows} rows',
                     ),
                   ),
       );
@@ -926,17 +931,17 @@ class _StudyConfiguration {
   final SpeechVoiceGender voiceGender;
 }
 
-class _StudySetupDialog extends StatefulWidget {
-  const _StudySetupDialog({required this.deck, required this.activity});
+class _StudySetupScreen extends StatefulWidget {
+  const _StudySetupScreen({required this.deck, required this.activity});
 
   final Deck deck;
   final _DeckActivity activity;
 
   @override
-  State<_StudySetupDialog> createState() => _StudySetupDialogState();
+  State<_StudySetupScreen> createState() => _StudySetupScreenState();
 }
 
-class _StudySetupDialogState extends State<_StudySetupDialog> {
+class _StudySetupScreenState extends State<_StudySetupScreen> {
   StudyContentMode _mode = StudyContentMode.both;
   bool _selectedRows = false;
   bool _downloadAudio = false;
@@ -978,15 +983,16 @@ class _StudySetupDialogState extends State<_StudySetupDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-        title: Text(switch (widget.activity) {
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: Text(switch (widget.activity) {
           _DeckActivity.flashcards => 'Flashcard settings',
           _DeckActivity.audio => 'Audio settings',
           _DeckActivity.list => 'List settings',
-        }),
-        content: SingleChildScrollView(
+        })),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               DropdownButtonFormField<StudyContentMode>(
                 initialValue: _mode,
@@ -1051,12 +1057,10 @@ class _StudySetupDialogState extends State<_StudySetupDialog> {
                   padding: const EdgeInsets.only(top: 12),
                   child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
                 ),
+              const SizedBox(height: 24),
+              FilledButton(onPressed: _start, child: const Text('Start')),
             ],
           ),
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(onPressed: _start, child: const Text('Start')),
-        ],
       );
 }

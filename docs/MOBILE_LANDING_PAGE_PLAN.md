@@ -104,3 +104,50 @@ fixed optima. The app does not claim automatic spaced repetition.
 - Existing audio, list, flashcard, synchronization, removal, Trash, and generation tests remain
   green.
 - No release is published until the redesigned navigation is reviewed.
+
+## Background generation and retention extension
+
+### Generation jobs
+
+- Deck generation is a persistent Supabase job, not a screen-bound mobile request.
+- Submitting a valid request immediately returns the user to the landing page.
+- The server processes multiple generation batches concurrently and continues after the app is
+  backgrounded or closed.
+- The landing page displays queued, running, completed, and failed jobs while the app is open.
+- Reopening the app restores job progress and refreshes completed decks.
+- The configured model remains `gpt-5-mini` until a model change is explicitly approved.
+
+### Further Learning results
+
+- Further Learning calls an authenticated server function backed by the configured GPT model and
+  web search.
+- Each request returns exactly three current options with a title, concise description, direct
+  link, and optional image URL.
+- Songs and movies have no duration field. Series use an **Episode duration** field. YouTube and
+  podcasts use **Media duration**.
+
+### Deck lifecycle
+
+- A user may have at most 10 active decks for one learning language.
+- A locally removed deck is marked for cloud cleanup after 14 days. Redownloading or using it
+  before the deadline cancels pending cleanup.
+- App startup and a periodic in-app timer invoke authenticated maintenance. Purging removes the
+  Supabase deck, cards, progress, metadata, and stored audio belonging to that deck.
+- `last_used_at` is updated whenever a deck is opened. A future 90-day inactivity policy may use
+  it, but no inactivity-based deletion is enabled in this increment.
+- Desktop source files remain outside this lifecycle and are never deleted by mobile cleanup.
+
+### Ranked-word range
+
+- Generation accepts a one-based starting frequency rank.
+- The selected base words begin at that rank; for example, 300 rows starting at rank 500 use
+  ranks 500–799.
+- The maximum base-word count is the smaller of the 5,000-row output limit and the remaining
+  approved frequency range. The form shows a red limit message and clamps invalid values.
+
+### Navigation and header
+
+- Flashcards, Audio, and List always open a full intermediate settings page before study.
+- The landing header has no text title and no Cloud Trash action.
+- A line-only open-book/globe mark appears at the left. Theme, folder management, and sign-out
+  remain available.

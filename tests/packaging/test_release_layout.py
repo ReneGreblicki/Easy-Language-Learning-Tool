@@ -74,8 +74,8 @@ def test_current_release_publishes_windows_android_and_macos_installers() -> Non
     root = Path(__file__).resolve().parents[2]
     release = (root / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
     assert "uses: ./.github/workflows/windows-build.yml" in release
-    assert "Easy-Language-Learning-Tool-Android-0.3.0" in release
-    assert "EasyLanguageLearningTool-Android-0.3.0.apk" in release
+    assert "Easy-Language-Learning-Tool-Android-0.4.0" in release
+    assert "EasyLanguageLearningTool-Android-0.4.0.apk" in release
     assert "uses: ./.github/workflows/macos-build.yml" in release
     assert "Easy-Language-Learning-Tool-macOS-Apple-Silicon" in release
     assert "Easy-Language-Learning-Tool-macOS-Intel" in release

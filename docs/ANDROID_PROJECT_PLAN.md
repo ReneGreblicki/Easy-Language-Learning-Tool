@@ -12,11 +12,14 @@ desktop-TTS generator of record.
 1. A deck is saved locally on desktop before any upload is attempted.
 2. Generation never depends on cloud availability.
 3. Android keeps downloaded decks and audio offline.
-4. **Remove download** removes only the Android device's local files.
-5. Removing a phone download never modifies, archives, or deletes the desktop copy.
-6. Removing a phone download never deletes the cloud recovery copy.
-7. **Delete everywhere** is a separate, explicit, confirmed operation.
-8. Delete everywhere soft-deletes the cloud copy for 30 days before permanent removal.
+4. **Remove download** immediately removes the Android device's local files and schedules the
+   synchronized mobile deck for permanent Supabase cleanup after 14 days.
+5. Downloading or using the deck again within 14 days cancels the scheduled cleanup.
+6. Removing a phone download never modifies, archives, or deletes desktop workbooks or other
+   desktop files.
+7. Cloud Trash and **Delete everywhere** are not exposed in the mobile landing header or deck
+   manager; mobile removal is performed from the folder manager.
+8. The app runs due 14-day cleanup at startup and every six hours while open.
 9. Desktop Trash applies only to deletion initiated in the desktop app. Phone actions never
    modify, archive, move, or delete desktop files.
 10. Passwords are handled only by the authentication provider and are never stored by either app.
@@ -36,8 +39,8 @@ desktop-TTS generator of record.
 18. Mobile users never choose or connect an AI provider and never enter an API key.
 19. The AI provider key must never be compiled into the APK. It is stored as a Supabase Edge
     Function secret and accessed only after validating the signed-in user session.
-20. A successfully generated deck is saved to the user's cloud library and downloaded to the
-    generating phone. A failed or incomplete generation is not saved.
+20. A successfully generated deck is assembled in the user's cloud library by the background
+    job. A failed or incomplete generation does not create a usable deck.
 21. The Android home screen is a task-oriented landing page with actions for language, deck,
     generation, Flashcards, Audio, List, Further Learning, and Learning Instructions.
 22. The selected learning language filters decks by `sourceLanguage`; translation language must
@@ -46,20 +49,33 @@ desktop-TTS generator of record.
     languages restores a valid previous selection and never exposes a deck from another language.
 24. Flashcards, Audio, and List share the active deck. When none is selected, the requested
     activity routes through the filtered deck picker and then continues to its existing setup.
-25. A newly generated deck becomes the active deck and learning language automatically.
+25. A newly generated deck appears after the background job completes; the user may continue
+    studying or close the app while it runs.
 26. Further Learning collects media type, media-specific genre, CEFR level, and duration. The
-    duration control is hidden for songs. External provider credentials remain server-side.
+    duration control is hidden for songs and movies and is labelled **Episode duration** for
+    series. External provider credentials remain server-side.
 27. Learning Instructions presents the research-grounded app roadmap: high-frequency foundation,
     List comprehension, Flashcard retrieval, Audio listening/repetition, spaced review,
     understandable external input, active production, and functional progress checks.
+28. Generation runs as a persistent Supabase job and continues if the app is backgrounded or
+    closed. The configured model remains `gpt-5-mini` until a model change is approved.
+29. Further Learning returns exactly three GPT/web-search-backed options with a title,
+    description, direct link, and optional image.
+30. Flashcards, Audio, and List use a full intermediate settings page as the standard launch flow.
+31. Phone-local removal schedules complete Supabase cleanup after 14 days unless the deck is used
+    or downloaded again. Desktop source files remain unchanged.
+32. Track `last_used_at`, but do not activate the planned 90-day inactivity purge.
+33. Limit active decks to 10 per learning language.
+34. Generation supports a starting frequency rank and clamps the row count to the remaining
+    approved frequency range and the 5,000-row output cap.
 
 ## 3. Architecture
 
 | Layer | Technology | Responsibility |
 |---|---|---|
 | Desktop | Python, PySide6, SQLite | Generate decks and enqueue synchronization |
-| Android | Flutter, SQLite | Phone generation, offline study, audio, progress, device-local removal |
-| Generation API | Supabase Edge Function | Authenticate, enforce quotas and call the configured AI model |
+| Android | Flutter, SQLite | Phone generation requests, offline study, audio, progress, lifecycle timer |
+| Generation API | Supabase Edge Functions | Run persistent generation jobs, media recommendations and cleanup |
 | Identity | Supabase Auth | Email/password authentication and recovery |
 | Cloud data | Supabase PostgreSQL | User-owned decks, cards, progress and sync metadata |
 | Cloud files | Supabase Storage | User-owned flashcard audio |
@@ -78,8 +94,8 @@ function without exposing account lookup data.
 - Revision, source device and synchronization timestamps
 - Global soft-deletion state
 
-Device-local download state is never synchronized as a deck deletion. It is stored in the
-Android database under the device installation ID.
+Device-local files remain device-specific. A separate synchronized `mobile_removed_at` marker
+starts the 14-day Supabase retention period without changing desktop files.
 
 ## 5. Data lifecycle
 
@@ -99,14 +115,17 @@ Android database under the device installation ID.
 1. Sign in and select **Generate a new deck** beneath the deck list.
 2. Enter the deck name and choose learning language, translation language, base words, extra
    forms, CEFR configuration, question percentage, and pronoun-change scale.
-3. Load the packaged production frequency ranking and build the deterministic row plan locally.
-4. Send batches of at most 20 planned rows to the JWT-protected generation function.
-5. The function validates the session and request, enforces the per-user quota, and calls the
-   server-configured AI model without returning or exposing its API key.
-6. Validate every returned row and save only a complete deck.
-7. Insert the deck and cards into the user's RLS-protected cloud records, then save the same deck
-   in the phone's offline cache.
-8. Refresh **My decks** with the new deck above the generation button.
+3. Choose a starting frequency rank. The app clamps base words to both the remaining approved
+   rank range and the 5,000-final-row limit and explains the maximum in red.
+4. Load the packaged production frequency ranking and build the deterministic row plan locally.
+5. Submit the complete plan once to the JWT-protected generation function. It validates the
+   session, 10-deck-per-language limit and rolling quota, then persists a job and returns at once.
+6. The server claims 40-row batches atomically and runs up to four provider calls in parallel
+   using `gpt-5-mini`; the phone may be backgrounded or closed.
+7. Validate every returned batch and assemble the deck and cards in RLS-protected cloud records
+   only after all rows are complete.
+8. Poll job status when the app is open, resume stale work safely, and refresh the library when
+   the completed deck appears.
 
 ### Android download
 
@@ -160,23 +179,18 @@ and review queue are explicitly added.
 3. Merge independent card progress fields.
 4. Resolve same-field conflicts using revision followed by server timestamp.
 
-### Remove download
+### Remove download and 14-day cleanup
 
 1. Confirm local removal.
 2. Delete Android-local card/audio files for that deck.
-3. Retain a lightweight cloud-library reference.
-4. Do not emit a cloud deck-delete event.
-5. Allow the user to download the deck again.
-
-### Delete everywhere
-
-1. Require explicit confirmation.
-2. Set cloud `deleted_at` and create a deletion marker.
-3. Leave the original desktop workbook and desktop records unchanged.
-4. Hide/remove downloaded copies on connected phones.
-5. Permit restoration for 30 days.
-6. Permanently remove records and audio after retention expires.
-7. Retain a tombstone long enough to stop stale offline devices recreating the deck.
+3. Set `mobile_removed_at` and `mobile_purge_after` to 14 days later, hiding the deck from the
+   active mobile library.
+4. If the deck is downloaded or used again, clear both markers and update `last_used_at`.
+5. At startup and every six hours, delete due cards, progress, audio metadata, stored audio and
+   the deck record from Supabase.
+6. Leave desktop workbooks and desktop-local data unchanged throughout.
+7. Record `last_used_at` for the planned 90-day inactivity policy, but do not delete inactive
+   decks until that policy is separately approved and implemented.
 
 ## 6. Delivery phases
 
@@ -256,8 +270,8 @@ Every pull request must run:
 4. Flutter analysis and unit/widget tests.
 5. Synchronization contract compatibility tests.
 6. Offline, retry, duplicate-event and conflict tests.
-7. Device-local removal test proving cloud and desktop records remain unchanged.
-8. Delete-everywhere restoration and retention tests.
+7. Device-local removal, 14-day scheduling/cancellation, due cleanup, and desktop-file isolation tests.
+8. Ten-active-decks-per-language enforcement tests.
 9. Optional audio upload/download tests and audio-session resume tests.
 10. Landing activity routing, list ordering/colour, and flashcard loading-state widget tests.
 11. Error-message tests proving raw exceptions, server URLs, and internal codes are not displayed.
@@ -297,9 +311,9 @@ The human gate requires:
 - Desktop-generated decks synchronize without risking local generation output.
 - Downloaded Android decks work completely offline.
 - Study progress synchronizes deterministically.
-- Remove download affects only that Android installation.
+- Remove download clears that Android installation immediately and schedules Supabase cleanup.
 - Desktop data remains unchanged after phone-only removal.
-- Delete everywhere is recoverable for 30 days.
+- Due synchronized mobile data is permanently removed after 14 days.
 - RLS isolation and synchronization tests pass.
 - Signed Android release is installable and documented.
 - Phone generation exposes no provider configuration or reusable provider secret.
@@ -311,5 +325,6 @@ The human gate requires:
 The shared Flutter study client is also adapted for iOS. Apple-specific bundle identity,
 Supabase callback registration, icon generation, deployment target, voice identifiers, simulator
 packaging, signing requirements, and acceptance gates are defined in
-`docs/APPLE_PLATFORM_PLAN.md`. Android deletion and synchronization rules apply unchanged to
-iOS: removing a download is device-local and never changes desktop files.
+`docs/APPLE_PLATFORM_PLAN.md`. When iOS work resumes, the current Android lifecycle remains the
+reference: local files are removed immediately, Supabase cleanup is delayed 14 days, and desktop
+files are never changed.
