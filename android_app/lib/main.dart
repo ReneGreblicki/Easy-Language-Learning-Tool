@@ -426,22 +426,25 @@ class _DeckLibraryState extends State<DeckLibrary> {
       var deckId = _selectedDeckId;
       if (!_selectionLoaded) {
         language = await widget.repository.loadPreferredLanguage();
-        language ??= decks.isEmpty
-            ? GenerationLanguage.europeanSpanish.label
-            : decks.first.sourceLanguage;
-        deckId = await widget.repository.loadPreferredDeck(language);
+      }
+      final activeLanguage = language ??
+          (decks.isEmpty
+              ? GenerationLanguage.europeanSpanish.label
+              : decks.first.sourceLanguage);
+      if (!_selectionLoaded) {
+        deckId = await widget.repository.loadPreferredDeck(activeLanguage);
       }
       final validDeck = decks.where(
-        (deck) => deck.id == deckId && deck.sourceLanguage == language,
+        (deck) => deck.id == deckId && deck.sourceLanguage == activeLanguage,
       );
       if (validDeck.isEmpty) {
         deckId = null;
-        await widget.repository.savePreferredDeck(language, null);
+        await widget.repository.savePreferredDeck(activeLanguage, null);
       }
       if (!mounted) return;
       setState(() {
         _decks = decks;
-        _selectedLanguage = language;
+        _selectedLanguage = activeLanguage;
         _selectedDeckId = deckId;
         _selectionLoaded = true;
         _loading = false;
@@ -743,6 +746,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
       _selectedLanguage = generated.sourceLanguage;
       _selectedDeckId = generated.id;
       await _refresh();
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${generated.title} was generated and downloaded.')),
       );

@@ -15,20 +15,24 @@ class LanguageSelectionScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: const Text('Select a language')),
-        body: ListView.separated(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          itemCount: languages.length,
-          separatorBuilder: (_, __) => const Divider(height: 1),
-          itemBuilder: (context, index) {
-            final language = languages[index];
-            return RadioListTile<String>(
-              key: Key('language-$language'),
-              value: language,
-              groupValue: selectedLanguage,
-              title: Text(language),
-              onChanged: (value) => Navigator.pop(context, value),
-            );
+        body: RadioGroup<String>(
+          groupValue: selectedLanguage,
+          onChanged: (value) {
+            if (value != null) Navigator.pop(context, value);
           },
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            itemCount: languages.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final language = languages[index];
+              return RadioListTile<String>(
+                key: Key('language-$language'),
+                value: language,
+                title: Text(language),
+              );
+            },
+          ),
         ),
       );
 }
@@ -61,23 +65,29 @@ class DeckSelectionScreen extends StatelessWidget {
                 ),
               ),
             )
-          : ListView.separated(
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              itemCount: filtered.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final deck = filtered[index];
-                return RadioListTile<String>(
-                  key: Key('deck-${deck.id}'),
-                  value: deck.id,
-                  groupValue: selectedDeckId,
-                  title: Text(deck.title),
-                  subtitle: Text(
-                    '${deck.cards.length} cards · ${deck.isDownloaded ? 'Downloaded' : 'Cloud'}',
-                  ),
-                  onChanged: (_) => Navigator.pop(context, deck),
-                );
+          : RadioGroup<String>(
+              groupValue: selectedDeckId,
+              onChanged: (value) {
+                final deck = filtered.where((item) => item.id == value).firstOrNull;
+                if (deck != null) Navigator.pop(context, deck);
               },
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                itemCount: filtered.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final deck = filtered[index];
+                  return RadioListTile<String>(
+                    key: Key('deck-${deck.id}'),
+                    value: deck.id,
+                    title: Text(deck.title),
+                    subtitle: Text(
+                      '${deck.cards.length} cards · '
+                      '${deck.isDownloaded ? 'Downloaded' : 'Cloud'}',
+                    ),
+                  );
+                },
+              ),
             ),
     );
   }
