@@ -10,6 +10,7 @@ on:
       - ".github/workflows/android.yml"
   push:
     branches:
+      - "main"
       - "feature/android-sync"
       - "feature/apple-platforms"
     paths:
@@ -21,7 +22,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   flutter:
