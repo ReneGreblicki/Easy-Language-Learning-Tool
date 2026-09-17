@@ -58,7 +58,8 @@ desktop-TTS generator of record.
     List comprehension, Flashcard retrieval, Audio listening/repetition, spaced review,
     understandable external input, active production, and functional progress checks.
 28. Generation runs as a persistent Supabase job and continues if the app is backgrounded or
-    closed. The configured model remains `gpt-5-mini` until a model change is approved.
+    closed. The approved primary model is `gpt-4o-mini`; only batches that fail retry and quality
+    gates route to `gpt-5.6-terra` with reasoning disabled.
 29. Further Learning returns exactly three GPT/web-search-backed options with a title,
     description, direct link, and optional image.
 30. Flashcards, Audio, and List use a full intermediate settings page as the standard launch flow.
@@ -120,11 +121,12 @@ starts the 14-day Supabase retention period without changing desktop files.
 4. Load the packaged production frequency ranking and build the deterministic row plan locally.
 5. Submit the complete plan once to the JWT-protected generation function. It validates the
    session, 10-deck-per-language limit and rolling quota, then persists a job and returns at once.
-6. The server claims 40-row batches atomically and runs up to four provider calls in parallel
-   using `gpt-5-mini`; the phone may be backgrounded or closed.
-7. Validate every returned batch and assemble the deck and cards in RLS-protected cloud records
-   only after all rows are complete.
-8. Poll job status when the app is open, resume stale work safely, and refresh the library when
+6. The server claims 24-row batches atomically and runs up to six provider calls in parallel
+   using `gpt-4o-mini`; the phone may be backgrounded or closed.
+7. Validate every returned batch deterministically, retry once, and route only persistent failures
+   to `gpt-5.6-terra`. Record model, attempts, tokens, latency, fallback use, and validation errors.
+8. Assemble the deck and cards in RLS-protected cloud records only after all rows are complete.
+9. Poll job status when the app is open, resume stale work safely, and refresh the library when
    the completed deck appears.
 
 ### Android download
@@ -328,3 +330,9 @@ packaging, signing requirements, and acceptance gates are defined in
 `docs/APPLE_PLATFORM_PLAN.md`. When iOS work resumes, the current Android lifecycle remains the
 reference: local files are removed immediately, Supabase cleanup is delayed 14 days, and desktop
 files are never changed.
+
+
+## 8. Generation optimisation
+
+The production decision framework, metrics, quality gates, rollback thresholds, and benchmark
+workflow are maintained in [`GENERATION_OPTIMIZATION_FRAMEWORK.md`](GENERATION_OPTIMIZATION_FRAMEWORK.md).

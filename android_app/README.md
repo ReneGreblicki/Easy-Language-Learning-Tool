@@ -26,16 +26,19 @@ additionally require deployment of `../supabase/functions/generate-deck`, `recom
 
 ```text
 OPENAI_API_KEY=<server-side provider key>
-OPENAI_MODEL=gpt-5-mini
+OPENAI_MODEL=<Further Learning recommendation model>
+OPENAI_GENERATION_MODEL=gpt-4o-mini
+OPENAI_GENERATION_FALLBACK_MODEL=gpt-5.6-terra
 ```
 
-`OPENAI_MODEL` is optional. The provider key is intentionally absent from Flutter assets,
+`OPENAI_MODEL` is optional and affects Further Learning recommendations. The generation model
+values are deployed by the production workflow. The provider key is intentionally absent from Flutter assets,
 Dart defines, logs, and the APK. The Edge Function validates the signed-in user and enforces a
 5,000-row rolling 24-hour quota before calling the provider. Generation is persisted server-side,
 processes multiple batches concurrently, and continues when the app is closed.
 
 For automated deployment, add `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD`, and
-`OPENAI_API_KEY` as protected GitHub Actions secrets. Optionally add `OPENAI_MODEL`.
+`OPENAI_API_KEY` as protected GitHub Actions secrets. Optionally add `OPENAI_MODEL` for Further Learning recommendations.
 Run **Deploy mobile deck generation** manually; it applies pending migrations, configures the
 server-only provider secret, and deploys the authenticated function.
 

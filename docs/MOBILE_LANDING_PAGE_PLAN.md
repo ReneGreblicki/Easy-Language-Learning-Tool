@@ -115,7 +115,8 @@ fixed optima. The app does not claim automatic spaced repetition.
   backgrounded or closed.
 - The landing page displays queued, running, completed, and failed jobs while the app is open.
 - Reopening the app restores job progress and refreshes completed decks.
-- The configured model remains `gpt-5-mini` until a model change is explicitly approved.
+- Deck generation uses `gpt-4o-mini` with strict validation and selective `gpt-5.6-terra`
+  fallback. The recommendation model remains independently configurable.
 
 ### Further Learning results
 
