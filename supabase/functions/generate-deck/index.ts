@@ -435,8 +435,8 @@ Deno.serve(async (request) => {
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const openAiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
-  const primaryModel = Deno.env.get("OPENAI_MODEL") ?? "gpt-4o-mini";
-  const fallbackModel = Deno.env.get("OPENAI_FALLBACK_MODEL") ?? "gpt-5.6-terra";
+  const primaryModel = Deno.env.get("OPENAI_GENERATION_MODEL") ?? "gpt-4o-mini";
+  const fallbackModel = Deno.env.get("OPENAI_GENERATION_FALLBACK_MODEL") ?? "gpt-5.6-terra";
   if (!supabaseUrl || !anonKey || !serviceKey || !openAiKey) return json({ error: "The generation service is not configured correctly." }, 503);
   let body: Record<string, unknown>;
   try { body = await request.json(); } catch { return json({ error: "The generation request was not valid." }, 400); }
