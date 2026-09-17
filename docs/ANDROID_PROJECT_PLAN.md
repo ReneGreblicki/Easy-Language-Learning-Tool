@@ -126,7 +126,7 @@ starts the 14-day Supabase retention period without changing desktop files.
 7. Validate every returned batch deterministically, retry once, and route only persistent failures
    to `gpt-5.6-terra`. Record model, attempts, tokens, latency, fallback use, and validation errors.
 8. Assemble the deck and cards in RLS-protected cloud records only after all rows are complete.
-8. Poll job status when the app is open, resume stale work safely, and refresh the library when
+9. Poll job status when the app is open, resume stale work safely, and refresh the library when
    the completed deck appears.
 
 ### Android download
