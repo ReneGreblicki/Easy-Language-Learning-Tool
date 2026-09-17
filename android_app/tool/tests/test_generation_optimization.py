@@ -28,6 +28,7 @@ class GenerationOptimizationTest(unittest.TestCase):
             self.function_source,
         )
         self.assertIn('OPENAI_GENERATION_MODEL="gpt-4o-mini"', self.workflow_source)
+        self.assertNotIn("openAiKey, model, functionUrl", self.function_source)
 
     def test_recommendation_model_is_independent(self) -> None:
         self.assertIn('OPENAI_MODEL="$recommendation_model"', self.workflow_source)
