@@ -205,6 +205,7 @@ async function generateBatch(
   for (let attempt = 0; attempt < 2; attempt++) {
     attempts += 1;
     const started = performance.now();
+    let requestLatencyRecorded = false;
     try {
       const requestBody: Record<string, unknown> = {
         model,
@@ -220,6 +221,7 @@ async function generateBatch(
         body: JSON.stringify(requestBody),
       });
       latencyMs += Math.round(performance.now() - started);
+      requestLatencyRecorded = true;
       if (!response.ok) throw new Error(`Language service returned ${response.status}: ${await response.text()}`);
       const result = await response.json() as Record<string, unknown>;
       const usage = result.usage as Record<string, unknown> | undefined;
@@ -245,9 +247,7 @@ async function generateBatch(
         validationErrors,
       } satisfies GenerationResult;
     } catch (error) {
-      if (latencyMs === 0 || performance.now() - started > latencyMs) {
-        latencyMs += Math.round(performance.now() - started);
-      }
+      if (!requestLatencyRecorded) latencyMs += Math.round(performance.now() - started);
       lastError = error;
       if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 500));
     }
