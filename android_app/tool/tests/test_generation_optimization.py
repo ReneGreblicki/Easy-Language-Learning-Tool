@@ -7,12 +7,7 @@ from pathlib import Path
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 FUNCTION = REPOSITORY_ROOT / "supabase" / "functions" / "generate-deck" / "index.ts"
 WORKFLOW = REPOSITORY_ROOT / ".github" / "workflows" / "supabase-generation-deploy.yml"
-MIGRATION = (
-    REPOSITORY_ROOT
-    / "supabase"
-    / "migrations"
-    / "0005_generation_optimization_metrics.sql"
-)
+MIGRATION = REPOSITORY_ROOT / "supabase" / "migrations" / "0005_generation_optimization_metrics.sql"
 
 
 class GenerationOptimizationTest(unittest.TestCase):
@@ -38,7 +33,7 @@ class GenerationOptimizationTest(unittest.TestCase):
         self.assertIn("validateGeneratedRows", self.function_source)
         self.assertIn("generateWithFallback", self.function_source)
         self.assertIn("Quality validation failed", self.function_source)
-        self.assertIn('attempt < 2', self.function_source)
+        self.assertIn("attempt < 2", self.function_source)
 
     def test_optimized_batching_is_enabled(self) -> None:
         self.assertIn("const batchSize = 24;", self.function_source)
