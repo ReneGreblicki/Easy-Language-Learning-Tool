@@ -1,5 +1,5 @@
-import unittest
 from pathlib import Path
+from unittest import TestCase, main
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
@@ -8,7 +8,7 @@ WORKFLOW = REPOSITORY_ROOT / ".github" / "workflows" / "supabase-generation-depl
 MIGRATION = REPOSITORY_ROOT / "supabase" / "migrations" / "0005_generation_optimization_metrics.sql"
 
 
-class GenerationOptimizationTest(unittest.TestCase):
+class GenerationOptimizationTest(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.function_source = FUNCTION.read_text(encoding="utf-8")
@@ -52,4 +52,4 @@ class GenerationOptimizationTest(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    main()
