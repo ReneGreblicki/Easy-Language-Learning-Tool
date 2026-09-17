@@ -2,3 +2,9 @@ project_id = "jmnsrikmqopdhmnkjmah"
 
 [functions.generate-deck]
 verify_jwt = true
+
+[functions.recommend-media]
+verify_jwt = true
+
+[functions.deck-maintenance]
+verify_jwt = true

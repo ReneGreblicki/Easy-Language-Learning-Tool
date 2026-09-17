@@ -26,6 +26,7 @@ class MobileGenerationSettings {
     required this.title,
     required this.learningLanguage,
     required this.translationLanguage,
+    required this.startRank,
     required this.baseWords,
     required this.extraForms,
     required this.questionPercentage,
@@ -41,6 +42,7 @@ class MobileGenerationSettings {
   final String title;
   final GenerationLanguage learningLanguage;
   final GenerationLanguage translationLanguage;
+  final int startRank;
   final int baseWords;
   final int extraForms;
   final int questionPercentage;
@@ -53,7 +55,11 @@ class MobileGenerationSettings {
   final int seed;
 
   int get finalRows => baseWords * (1 + extraForms);
-  int get maximumBaseWords => 5000 ~/ (1 + extraForms);
+  int get maximumBaseWords {
+    final formLimit = 5000 ~/ (1 + extraForms);
+    final rankLimit = 5001 - startRank;
+    return formLimit < rankLimit ? formLimit : rankLimit;
+  }
 
   List<GenerationCefrLevel> get selectedLevels {
     if (cefrMode == GenerationCefrMode.single) return [singleLevel];
@@ -70,6 +76,9 @@ class MobileGenerationSettings {
     }
     if (learningLanguage == translationLanguage) {
       return 'Learning and translation languages must be different.';
+    }
+    if (startRank < 1 || startRank > 5000) {
+      return 'Starting frequency rank must be between 1 and 5,000.';
     }
     if (baseWords < 1 || baseWords > maximumBaseWords || finalRows > 5000) {
       return 'Choose 1 to $maximumBaseWords base words for the selected number of extra forms.';
@@ -95,6 +104,7 @@ class MobileGenerationSettings {
   Map<String, Object?> toJson() => {
         'learning_language': learningLanguage.code,
         'translation_language': translationLanguage.code,
+        'starting_frequency_rank': startRank,
         'base_sentences': baseWords,
         'extra_forms': extraForms,
         'question_percentage': questionPercentage,

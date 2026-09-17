@@ -16,6 +16,7 @@ class SupabaseDeckSource {
           'sentence_translation)',
         )
         .isFilter('deleted_at', null)
+        .isFilter('mobile_removed_at', null)
         .order('updated_at', ascending: false);
     final progressRows = await client
         .from('study_progress')
@@ -173,6 +174,32 @@ class SupabaseDeckSource {
         .from('decks')
         .update({'deleted_at': null, 'purge_after': null})
         .eq('id', deckId);
+  }
+
+  Future<void> scheduleMobileRemoval(String deckId) => _maintenance(
+        'remove',
+        deckId: deckId,
+      );
+
+  Future<void> markUsed(String deckId) => _maintenance('used', deckId: deckId);
+
+  Future<void> restoreMobileDeck(String deckId) => _maintenance('restore', deckId: deckId);
+
+  Future<void> runMaintenance() => _maintenance('run');
+
+  Future<void> _maintenance(String action, {String? deckId}) async {
+    final response = await client.functions.invoke(
+      'deck-maintenance',
+      body: {'action': action, if (deckId != null) 'deck_id': deckId},
+    );
+    if (response.status < 200 || response.status >= 300) {
+      final data = response.data;
+      throw StateError(
+        data is Map && data['error'] is String
+            ? data['error'] as String
+            : 'Deck maintenance is temporarily unavailable.',
+      );
+    }
   }
 
   Future<void> saveProgress(

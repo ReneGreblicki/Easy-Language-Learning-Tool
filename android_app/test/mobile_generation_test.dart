@@ -12,6 +12,7 @@ MobileGenerationSettings settings({
       title: 'Spanish A1',
       learningLanguage: GenerationLanguage.europeanSpanish,
       translationLanguage: GenerationLanguage.usEnglish,
+      startRank: 1,
       baseWords: baseWords,
       extraForms: extraForms,
       questionPercentage: 20,
@@ -28,6 +29,27 @@ void main() {
   test('applies the same 5000-row product limit as desktop', () {
     expect(settings(baseWords: 1000, extraForms: 4).finalRows, 5000);
     expect(settings(baseWords: 1001, extraForms: 4).validate(), isNotNull);
+  });
+
+  test('starting rank limits the available approved range', () {
+    final configured = MobileGenerationSettings(
+      title: 'Late range',
+      learningLanguage: GenerationLanguage.europeanSpanish,
+      translationLanguage: GenerationLanguage.usEnglish,
+      startRank: 4901,
+      baseWords: 101,
+      extraForms: 0,
+      questionPercentage: 20,
+      pronounChange: 0,
+      cefrMode: GenerationCefrMode.single,
+      singleLevel: GenerationCefrLevel.a1,
+      gradualStart: GenerationCefrLevel.a1,
+      gradualEnd: GenerationCefrLevel.a1,
+      levelPercentages: const {},
+      seed: 1,
+    );
+    expect(configured.maximumBaseWords, 100);
+    expect(configured.validate(), contains('100 base words'));
   });
 
   test('gradual percentages must total exactly 100', () {

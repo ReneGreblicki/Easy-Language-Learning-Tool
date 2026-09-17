@@ -119,6 +119,19 @@ candidate passes automated Windows acceptance and receives explicit approval.
 - Simplifies the speed control to a bare horizontal bar with −2× on its left and 2× on its
   right, removing the centre/current value and every label above the bar.
 
+## Android companion 0.4.0
+
+- Runs deck generation as a persistent server-side job with concurrent batches, allowing the
+  user to study other decks or close the app while generation continues.
+- Adds starting-frequency-rank selection, automatic approved-range clamping, and a limit of 10
+  active decks per learning language.
+- Uses a full settings page before every Flashcards, Audio, or List session.
+- Returns three current Further Learning recommendations through protected GPT web search,
+  including direct links and images when available.
+- Adds 14-day synchronized mobile cleanup after local removal while preserving desktop files,
+  plus last-used tracking for a future, currently disabled 90-day policy.
+- Simplifies the landing header with a line-only application mark and removes Cloud Trash.
+
 ## Android companion 0.3.0
 
 - Added secure phone-side deck generation with the desktop-equivalent language,

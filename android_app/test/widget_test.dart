@@ -1,38 +1,53 @@
 import 'package:easy_language_flashcards/data/deck_repository.dart';
+import 'package:easy_language_flashcards/home/app_line_logo.dart';
 import 'package:easy_language_flashcards/main.dart';
 import 'package:easy_language_flashcards/models/deck.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('empty library offers phone generation', (tester) async {
+  testWidgets('landing page exposes every requested action', (tester) async {
     await tester.pumpWidget(const EasyLanguageFlashcards());
     await tester.pumpAndSettle();
 
-    expect(find.text('My decks'), findsOneWidget);
-    expect(
-      find.text('No decks yet. Generate one here or synchronize one from desktop.'),
-      findsOneWidget,
-    );
+    expect(find.text('Easy Language Learning Tool'), findsNothing);
+    expect(find.byType(AppLineLogo), findsOneWidget);
+    expect(find.text('Select a language'), findsOneWidget);
+    expect(find.text('Select a deck'), findsOneWidget);
     expect(find.text('Generate a new deck'), findsOneWidget);
+    expect(find.text('Practice flashcards'), findsOneWidget);
+    expect(find.text('Practice audio'), findsOneWidget);
+    expect(find.text('Practice list'), findsOneWidget);
+    expect(find.text('Further learning'), findsOneWidget);
+    expect(find.text('Learning instructions'), findsOneWidget);
   });
 
-  testWidgets('generation button is listed after the last deck', (tester) async {
+  testWidgets('deck selection is filtered by learning language', (tester) async {
     final repository = MemoryDeckRepository([
       const Deck(
-        id: 'deck-1',
-        title: 'Existing deck',
+        id: 'german',
+        title: 'German deck',
         sourceLanguage: 'German',
         translationLanguage: 'US English',
         cards: [],
       ),
+      const Deck(
+        id: 'spanish',
+        title: 'Spanish deck',
+        sourceLanguage: 'European Spanish',
+        translationLanguage: 'US English',
+        cards: [],
+      ),
     ]);
+    await repository.savePreferredLanguage('German');
     await tester.pumpWidget(
       EasyLanguageFlashcards(repository: repository),
     );
     await tester.pumpAndSettle();
 
-    final deckTop = tester.getTopLeft(find.text('Existing deck')).dy;
-    final buttonTop = tester.getTopLeft(find.text('Generate a new deck')).dy;
-    expect(buttonTop, greaterThan(deckTop));
+    await tester.tap(find.text('Select a deck'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('German deck'), findsOneWidget);
+    expect(find.text('Spanish deck'), findsNothing);
   });
 }

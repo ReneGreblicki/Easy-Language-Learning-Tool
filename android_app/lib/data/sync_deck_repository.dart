@@ -33,6 +33,7 @@ class SyncDeckRepository implements DeckRepository {
 
   @override
   Future<void> download(String deckId) async {
+    await cloud.restoreMobileDeck(deckId);
     await loadDeck(deckId);
   }
 
@@ -58,6 +59,7 @@ class SyncDeckRepository implements DeckRepository {
       if (deck == null) rethrow;
     }
     if (deck == null) throw StateError('Deck not found: $deckId');
+    await cloud.markUsed(deckId);
     await local.saveDeck(deck, downloadAudio: downloadAudio);
     if (!downloadAudio) return deck;
     final localDecks = await local.downloadedDecks();
@@ -81,7 +83,31 @@ class SyncDeckRepository implements DeckRepository {
   }
 
   @override
-  Future<void> removeDownload(String deckId) => local.removeDownload(deckId);
+  Future<String?> loadPreferredLanguage() => local.loadMetadata('home:learning-language');
+
+  @override
+  Future<void> savePreferredLanguage(String? language) =>
+      local.saveMetadata('home:learning-language', language);
+
+  @override
+  Future<String?> loadPreferredDeck(String language) =>
+      local.loadMetadata('home:selected-deck:${Uri.encodeComponent(language)}');
+
+  @override
+  Future<void> savePreferredDeck(String language, String? deckId) =>
+      local.saveMetadata('home:selected-deck:${Uri.encodeComponent(language)}', deckId);
+
+  @override
+  Future<void> removeDownload(String deckId) async {
+    await local.removeDownload(deckId);
+    await cloud.scheduleMobileRemoval(deckId);
+  }
+
+  @override
+  Future<void> markDeckUsed(String deckId) => cloud.markUsed(deckId);
+
+  @override
+  Future<void> runMaintenance() => cloud.runMaintenance();
 
   @override
   Future<void> deleteEverywhere(String deckId) async {

@@ -18,10 +18,17 @@ abstract interface class DeckRepository {
     Deck deck, {
     required Map<String, Object?> settings,
   });
+  Future<String?> loadPreferredLanguage();
+  Future<void> savePreferredLanguage(String? language);
+  Future<String?> loadPreferredDeck(String language);
+  Future<void> savePreferredDeck(String language, String? deckId);
+  Future<void> markDeckUsed(String deckId);
+  Future<void> runMaintenance();
 
   /// Removes only this Android installation's cached cards and audio.
   ///
-  /// This method must never send a cloud delete or archive operation.
+  /// The synchronized mobile deck is scheduled for deletion after 14 days.
+  /// Desktop workbooks and desktop files are never changed.
   Future<void> removeDownload(String deckId);
 
   Future<void> deleteEverywhere(String deckId);
@@ -35,6 +42,8 @@ class MemoryDeckRepository implements DeckRepository {
 
   final List<Deck> _decks;
   final Map<String, int> _audioPositions = {};
+  String? _preferredLanguage;
+  final Map<String, String> _preferredDecks = {};
 
   @override
   Future<List<Deck>> cloudLibrary() async =>
@@ -83,9 +92,35 @@ class MemoryDeckRepository implements DeckRepository {
   }
 
   @override
+  Future<String?> loadPreferredLanguage() async => _preferredLanguage;
+
+  @override
+  Future<void> savePreferredLanguage(String? language) async {
+    _preferredLanguage = language;
+  }
+
+  @override
+  Future<String?> loadPreferredDeck(String language) async => _preferredDecks[language];
+
+  @override
+  Future<void> savePreferredDeck(String language, String? deckId) async {
+    if (deckId == null) {
+      _preferredDecks.remove(language);
+    } else {
+      _preferredDecks[language] = deckId;
+    }
+  }
+
+  @override
   Future<void> removeDownload(String deckId) async {
     _replace(deckId, (deck) => deck.copyWith(isDownloaded: false));
   }
+
+  @override
+  Future<void> markDeckUsed(String deckId) async {}
+
+  @override
+  Future<void> runMaintenance() async {}
 
   @override
   Future<void> deleteEverywhere(String deckId) async {

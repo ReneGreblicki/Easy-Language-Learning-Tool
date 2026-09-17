@@ -149,6 +149,31 @@ class LocalDeckStore {
     );
   }
 
+  Future<String?> loadMetadata(String key) async {
+    final db = await database;
+    final rows = await db.query(
+      'sync_metadata',
+      columns: ['value'],
+      where: 'key = ?',
+      whereArgs: [key],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : rows.single['value'] as String;
+  }
+
+  Future<void> saveMetadata(String key, String? value) async {
+    final db = await database;
+    if (value == null) {
+      await db.delete('sync_metadata', where: 'key = ?', whereArgs: [key]);
+      return;
+    }
+    await db.insert(
+      'sync_metadata',
+      {'key': key, 'value': value},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
   /// Deletes only local Android data. No cloud request is made here.
   Future<void> removeDownload(String deckId) async {
     final db = await database;

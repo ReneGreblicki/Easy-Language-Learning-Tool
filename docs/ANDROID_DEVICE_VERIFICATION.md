@@ -39,7 +39,7 @@ Pass: every failure is descriptive and actionable, with no raw technical details
 2. Close the app completely.
 3. Enable airplane mode.
 4. Reopen the app and deck.
-5. Open the activity chooser and test Flashcards, Listen to audio, and View list.
+5. Use each landing-page practice action and test Flashcards, Audio, and List.
 6. In every activity, test Words, Sentences, and Words and sentences.
 7. Test all rows and a selected inclusive row range.
 8. Confirm list order and foreign/translation colours.
