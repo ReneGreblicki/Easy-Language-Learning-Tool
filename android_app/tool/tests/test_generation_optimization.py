@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import unittest
 from pathlib import Path
+import unittest
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
