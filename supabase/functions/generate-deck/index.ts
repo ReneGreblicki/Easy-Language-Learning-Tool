@@ -519,6 +519,6 @@ Deno.serve(async (request) => {
     return json({ error: "The generation job could not be queued. Try again." }, 503);
   }
   // @ts-ignore EdgeRuntime is available in Supabase Edge Functions.
-  EdgeRuntime.waitUntil(processJob(admin, jobId, openAiKey, model, functionUrl, serviceKey));
+  EdgeRuntime.waitUntil(processJob(admin, jobId, openAiKey, primaryModel, fallbackModel, functionUrl, serviceKey));
   return json({ job_id: jobId, deck_id: deckId, status: "queued", total_rows: tasks.length }, 202);
 });
