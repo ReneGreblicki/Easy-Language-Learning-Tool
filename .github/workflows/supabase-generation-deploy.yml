@@ -52,10 +52,12 @@ jobs:
         run: supabase db push --linked --password "$SUPABASE_DB_PASSWORD"
       - name: Configure server-only provider
         run: |
-          model="${OPENAI_MODEL:-gpt-5-mini}"
+          recommendation_model="${OPENAI_MODEL:-gpt-5-mini}"
           supabase secrets set \
             OPENAI_API_KEY="$OPENAI_API_KEY" \
-            OPENAI_MODEL="$model" \
+            OPENAI_MODEL="$recommendation_model" \
+            OPENAI_GENERATION_MODEL="gpt-4o-mini" \
+            OPENAI_GENERATION_FALLBACK_MODEL="gpt-5.6-terra" \
             --project-ref "$PROJECT_REF"
       - name: Deploy authenticated generation function
         run: supabase functions deploy generate-deck --project-ref "$PROJECT_REF"
