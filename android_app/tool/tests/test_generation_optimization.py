@@ -1,6 +1,5 @@
 from pathlib import Path
-from unittest import main, TestCase
-
+from unittest import TestCase, main
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 FUNCTION = REPOSITORY_ROOT / "supabase" / "functions" / "generate-deck" / "index.ts"
