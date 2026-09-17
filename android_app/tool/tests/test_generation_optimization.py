@@ -1,5 +1,5 @@
 from pathlib import Path
-from unittest import TestCase, main
+from unittest import main, TestCase
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
