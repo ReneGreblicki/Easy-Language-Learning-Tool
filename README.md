@@ -857,8 +857,9 @@ distribution remains paused for a future release.
 The AI provider and model are configured by the application administrator. The mobile app has no
 provider-selection or API-key menu, and the reusable provider key is never stored in the APK.
 It remains in the protected generation service. The server runs multiple batches concurrently,
-then publishes only a complete deck to the account. The current model remains `gpt-5-mini` until
-a different model is explicitly approved. Each learning language is limited to 10 active decks;
+then publishes only a complete deck to the account. Deck generation uses `gpt-4o-mini` as the primary model. Responses must pass strict structural,
+content, CEFR, and script checks; persistent failures are selectively regenerated with the
+quality fallback rather than weakening validation. Each learning language is limited to 10 active decks;
 remove one before creating another.
 
 ## 6.2 Sign in, choose an activity, and optionally download audio
