@@ -1,9 +1,25 @@
 from __future__ import annotations
 
+import gzip
+import hashlib
+import json
 from pathlib import Path
 
 from easy_language_learning_tool.domain.enums import Language
 from easy_language_learning_tool.domain.frequency import FrequencyRepository
+
+
+def test_packaged_corpus_integrity_and_mobile_parity() -> None:
+    root = Path(__file__).parents[2]
+    data_root = root / "resources" / "frequency_data"
+    manifest = json.loads((data_root / "MULTISOURCE_MANIFEST.json").read_text(encoding="utf-8"))
+    desktop = (data_root / "production" / "words.jsonl.gz").read_bytes()
+    mobile = (root / "android_app" / "assets" / "frequency" / "words.jsonl.gz").read_bytes()
+    assert hashlib.sha256(desktop).hexdigest() == manifest["generated_corpus_sha256"]
+    assert mobile == desktop
+    # Read to EOF to validate gzip's CRC and length, then validate every JSON row.
+    rows = [json.loads(line) for line in gzip.decompress(desktop).decode("utf-8").splitlines()]
+    assert len(rows) == manifest["output_records"]
 
 
 def test_production_corpus_has_5000_ranked_words_per_language() -> None:
