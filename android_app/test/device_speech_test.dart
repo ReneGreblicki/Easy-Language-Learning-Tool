@@ -2,6 +2,14 @@ import 'package:easy_language_flashcards/audio/device_speech.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('new language labels resolve to their regional speech locales', () {
+    expect(preferredSpeechLocale('Polish'), 'pl-PL');
+    expect(preferredSpeechLocale('Chinese (Simplified)'), 'zh-CN');
+    expect(preferredSpeechLocale('Malayalam'), 'ml-IN');
+    expect(preferredSpeechLocale('Norwegian'), 'nb-NO');
+    expect(preferredSpeechLocale('Japanese'), 'ja-JP');
+  });
+
   test('uses exact preferred locale when installed', () {
     expect(
       chooseBestSpeechLocale('European Spanish', ['en-US', 'es-ES', 'es-MX']),

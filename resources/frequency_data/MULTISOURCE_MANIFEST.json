@@ -1,0 +1,226 @@
+{
+  "schema_version": 1,
+  "generated_corpus_sha256": "8d03860c37448f778a6ac523e1fece6affe8bd0b89112495c60f099e77743c7a",
+  "output_records": 120000,
+  "records_per_language": 5000,
+  "new_languages": [
+    "pl-PL",
+    "nl-NL",
+    "da-DK",
+    "hr-HR",
+    "vi-VN",
+    "zh-CN",
+    "ml-IN",
+    "sk-SK",
+    "ru-RU",
+    "nb-NO",
+    "ko-KR",
+    "hu-HU",
+    "sv-SE",
+    "id-ID",
+    "ja-JP",
+    "tr-TR"
+  ],
+  "ranking_policy": {
+    "native_candidate_gate": true,
+    "wordfreq_weight": 0.45,
+    "wiktionary_listed_opensubtitles_weight": 0.35,
+    "frekwencja_wordfrequency_info_weight": 0.2,
+    "malayalam_opensubtitles_weight": 0.65,
+    "malayalam_frekwencja_wordfrequency_info_weight": 0.35,
+    "notes": "The translated frekwencja list can rerank native-corpus terms but cannot introduce a term by itself. Malayalam is not supported by wordfreq 3.1.1, so it uses the two-source native-gated policy."
+  },
+  "sources": {
+    "wordfreq": {
+      "revision": "3.1.1",
+      "url": "https://github.com/rspeer/wordfreq"
+    },
+    "wiktionary_frequency_index": {
+      "retrieved": "2026-09-17",
+      "url": "https://en.wiktionary.org/wiki/Wiktionary:Frequency_lists"
+    },
+    "frequencywords": {
+      "revision": "525f9b560de45753a5ea01069454e72e9aa541c6",
+      "url": "https://github.com/hermitdave/FrequencyWords"
+    },
+    "frekwencja": {
+      "revision": "04f5cdd221c832c08ac3309654c340044b833468",
+      "url": "https://github.com/frekwencja/most-common-words-multilingual"
+    },
+    "wordfrequency_info": {
+      "retrieved": "2026-09-17",
+      "url": "https://wordfrequency.info/samples.asp"
+    },
+    "kaikki_wiktionary": {
+      "role": "lexical enrichment and validation; existing source retained",
+      "url": "https://kaikki.org/dictionary/rawdata.html"
+    }
+  },
+  "input_files": [
+    {
+      "path": "FrequencyWords/content/2018/pl/pl_50k.txt",
+      "sha256": "50bf8d30d1ed4f5cedceb3e40e74d793ec6bec0f16d9f3dd0a2c9e313402e10f",
+      "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/content/2018/pl/pl_50k.txt"
+    },
+    {
+      "path": "frekwencja/data/wordfrequency.info/pl.txt",
+      "sha256": "3134cee540b3a0c3004a52ec0e16f679b283105bb6e3a3771eed0cfbae42feeb",
+      "url": "https://raw.githubusercontent.com/frekwencja/most-common-words-multilingual/04f5cdd221c832c08ac3309654c340044b833468/data/wordfrequency.info/pl.txt"
+    },
+    {
+      "path": "FrequencyWords/content/2018/nl/nl_50k.txt",
+      "sha256": "099bd0c27b514d54284360ad9ce2b4ef7b6903b22e848b67ab10f6aa2adb4baa",
+      "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/content/2018/nl/nl_50k.txt"
+    },
+    {
+      "path": "frekwencja/data/wordfrequency.info/nl.txt",
+      "sha256": "fd461b780629770b746b97793085d0afbdd152d03cf4d5591b669741f72e3d0f",
+      "url": "https://raw.githubusercontent.com/frekwencja/most-common-words-multilingual/04f5cdd221c832c08ac3309654c340044b833468/data/wordfrequency.info/nl.txt"
+    },
+    {
+      "path": "FrequencyWords/content/2018/da/da_50k.txt",
+      "sha256": "6a83e4deb5e38d873b1ccfb4be4fb25903878c07c8522af708027ac8b540c6b1",
+      "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/content/2018/da/da_50k.txt"
+    },
+    {
+      "path": "frekwencja/data/wordfrequency.info/da.txt",
+      "sha256": "eeac761c1f087cca1e4a400a9c57128001d2999ae2a0e7ff4cfef71eff19b1ae",
+      "url": "https://raw.githubusercontent.com/frekwencja/most-common-words-multilingual/04f5cdd221c832c08ac3309654c340044b833468/data/wordfrequency.info/da.txt"
+    },
+    {
+      "path": "FrequencyWords/content/2018/hr/hr_50k.txt",
+      "sha256": "725f57e0bd122f46d8e358c3542a4e1d126e468075c5e4d6644fd0d21c47bbc3",
+      "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/content/2018/hr/hr_50k.txt"
+    },
+    {
+      "path": "frekwencja/data/wordfrequency.info/hr.txt",
+      "sha256": "74217e9e95b37080bfe578275b03d6e9f029f8380eafb35137c4013eb2a3d6a9",
+      "url": "https://raw.githubusercontent.com/frekwencja/most-common-words-multilingual/04f5cdd221c832c08ac3309654c340044b833468/data/wordfrequency.info/hr.txt"
+    },
+    {
+      "path": "FrequencyWords/content/2018/vi/vi_50k.txt",
+      "sha256": "3f5b112e4324136c2ba82d3151038607e3dd1dfa0911c226929d7544cc11adf3",
+      "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/content/2018/vi/vi_50k.txt"
+    },
+    {
+      "path": "frekwencja/data/wordfrequency.info/vi.txt",
+      "sha256": "4e434f86f41b2e2bbb67b7c4ea824ad1c0211f2cdab4ca0ad8c29748a9cc6407",
+      "url": "https://raw.githubusercontent.com/frekwencja/most-common-words-multilingual/04f5cdd221c832c08ac3309654c340044b833468/data/wordfrequency.info/vi.txt"
+    },
+    {
+      "path": "FrequencyWords/content/2018/zh_cn/zh_cn_50k.txt",
+      "sha256": "25599e00347b893e55c3058a748819b3fe19403291cd12f7c03af128e7f3fe45",
+      "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/content/2018/zh_cn/zh_cn_50k.txt"
+    },
+    {
+      "path": "frekwencja/data/wordfrequency.info/zh-CN.txt",
+      "sha256": "181632400268a64489c6da5ae57d3eb3319530ba43f5707150abf5c33db7b683",
+      "url": "https://raw.githubusercontent.com/frekwencja/most-common-words-multilingual/04f5cdd221c832c08ac3309654c340044b833468/data/wordfrequency.info/zh-CN.txt"
+    },
+    {
+      "path": "FrequencyWords/content/2018/ml/ml_50k.txt",
+      "sha256": "da3be7b22ee5c9f5456723b5f87bc0fd99dae875efef19a13df5464a0e201882",
+      "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/content/2018/ml/ml_50k.txt"
+    },
+    {
+      "path": "frekwencja/data/wordfrequency.info/ml.txt",
+      "sha256": "95b02443d6fbf76032ac0885c1876b33eaba345d271cda1e08c5efadc084910b",
+      "url": "https://raw.githubusercontent.com/frekwencja/most-common-words-multilingual/04f5cdd221c832c08ac3309654c340044b833468/data/wordfrequency.info/ml.txt"
+    },
+    {
+      "path": "FrequencyWords/content/2018/sk/sk_50k.txt",
+      "sha256": "10eddbcd086ff26a814a140e1d5b20a1ba0ee8b0870be1a9a09268ba7aeaa094",
+      "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/content/2018/sk/sk_50k.txt"
+    },
+    {
+      "path": "frekwencja/data/wordfrequency.info/sk.txt",
+      "sha256": "f57da7f1c347ad9b3f542e504b3fbee6575a4691c48e3132ccc86c3f10c6f8a0",
+      "url": "https://raw.githubusercontent.com/frekwencja/most-common-words-multilingual/04f5cdd221c832c08ac3309654c340044b833468/data/wordfrequency.info/sk.txt"
+    },
+    {
+      "path": "FrequencyWords/content/2018/ru/ru_50k.txt",
+      "sha256": "6095f507cc167488ec66ada5a85ac50433503a08ad24a07c6eabdf54352c4e7f",
+      "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/content/2018/ru/ru_50k.txt"
+    },
+    {
+      "path": "frekwencja/data/wordfrequency.info/ru.txt",
+      "sha256": "d52e6f02464783e841aaab2d8663e457ccff64895a9384aa59403b69f0e47e1d",
+      "url": "https://raw.githubusercontent.com/frekwencja/most-common-words-multilingual/04f5cdd221c832c08ac3309654c340044b833468/data/wordfrequency.info/ru.txt"
+    },
+    {
+      "path": "FrequencyWords/content/2018/no/no_50k.txt",
+      "sha256": "d5808d8ec04603b765c09c06a03f0273ccf36bb35a3902287e56b7e7d872ca92",
+      "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/content/2018/no/no_50k.txt"
+    },
+    {
+      "path": "frekwencja/data/wordfrequency.info/no.txt",
+      "sha256": "b126c2a02da49ee6cb71e862b4bd97021fb217b3e504015204d696c997571c7d",
+      "url": "https://raw.githubusercontent.com/frekwencja/most-common-words-multilingual/04f5cdd221c832c08ac3309654c340044b833468/data/wordfrequency.info/no.txt"
+    },
+    {
+      "path": "FrequencyWords/content/2018/ko/ko_50k.txt",
+      "sha256": "8d00401b6728c8d6feeaa5455583c1a33408dd020aae4aa55609b25004d1d99d",
+      "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/content/2018/ko/ko_50k.txt"
+    },
+    {
+      "path": "frekwencja/data/wordfrequency.info/ko.txt",
+      "sha256": "a00e106310131def2ac1886cd0be65e8caa6a50bc199cda5e328018057fcb17b",
+      "url": "https://raw.githubusercontent.com/frekwencja/most-common-words-multilingual/04f5cdd221c832c08ac3309654c340044b833468/data/wordfrequency.info/ko.txt"
+    },
+    {
+      "path": "FrequencyWords/content/2018/hu/hu_50k.txt",
+      "sha256": "b765780a1277c3b1e326205c972b1ea1631732ec54ab489d13d21618ceab4fec",
+      "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/content/2018/hu/hu_50k.txt"
+    },
+    {
+      "path": "frekwencja/data/wordfrequency.info/hu.txt",
+      "sha256": "c91570bdc40db8937ac40719ba7ffbd015e302bfc26b514e80d96d1c153ec842",
+      "url": "https://raw.githubusercontent.com/frekwencja/most-common-words-multilingual/04f5cdd221c832c08ac3309654c340044b833468/data/wordfrequency.info/hu.txt"
+    },
+    {
+      "path": "FrequencyWords/content/2018/sv/sv_50k.txt",
+      "sha256": "566d0614a54f3c243bca4097c9bb824d46275abff31582157e73c166b7089500",
+      "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/content/2018/sv/sv_50k.txt"
+    },
+    {
+      "path": "frekwencja/data/wordfrequency.info/sv.txt",
+      "sha256": "2800cde96e72b7d2532371ad2ace6654bd5eaadda90438ab0cd89a8b5bcf16d5",
+      "url": "https://raw.githubusercontent.com/frekwencja/most-common-words-multilingual/04f5cdd221c832c08ac3309654c340044b833468/data/wordfrequency.info/sv.txt"
+    },
+    {
+      "path": "FrequencyWords/content/2018/id/id_50k.txt",
+      "sha256": "f2eea0da9735b7040efbfa813f5f875ec931de5a0ec70a6f28213ea60a87bb38",
+      "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/content/2018/id/id_50k.txt"
+    },
+    {
+      "path": "frekwencja/data/wordfrequency.info/id.txt",
+      "sha256": "b3e28de064528e04855f2f28869ca666293ae2e39faf0948ad0937ae70c63bf2",
+      "url": "https://raw.githubusercontent.com/frekwencja/most-common-words-multilingual/04f5cdd221c832c08ac3309654c340044b833468/data/wordfrequency.info/id.txt"
+    },
+    {
+      "path": "FrequencyWords/content/2018/ja/ja_full.txt",
+      "sha256": "581dd106a134ff9f2706e23cde9fe95cd24d96ead6357cd3bd3bba9e166a764e",
+      "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/content/2018/ja/ja_full.txt"
+    },
+    {
+      "path": "frekwencja/data/wordfrequency.info/ja.txt",
+      "sha256": "85ab624b49552cedf8b44c9f6f862ddc33f8684c683a784e4266897b259faedb",
+      "url": "https://raw.githubusercontent.com/frekwencja/most-common-words-multilingual/04f5cdd221c832c08ac3309654c340044b833468/data/wordfrequency.info/ja.txt"
+    },
+    {
+      "path": "FrequencyWords/content/2018/tr/tr_50k.txt",
+      "sha256": "480192844e7fdfe9591bbf0b9cfbb96ed5751cfbba7024fd45d8cb7508e07d5c",
+      "url": "https://raw.githubusercontent.com/hermitdave/FrequencyWords/525f9b560de45753a5ea01069454e72e9aa541c6/content/2018/tr/tr_50k.txt"
+    },
+    {
+      "path": "frekwencja/data/wordfrequency.info/tr.txt",
+      "sha256": "6368b82f4bc709875c99ca526e0bcea5307c4a578c6080f887e0cbe972a71b25",
+      "url": "https://raw.githubusercontent.com/frekwencja/most-common-words-multilingual/04f5cdd221c832c08ac3309654c340044b833468/data/wordfrequency.info/tr.txt"
+    }
+  ],
+  "base_corpus": {
+    "commit": "ae37d648abe7ef538503d9205c8d8ef1016306ef",
+    "path": "resources/frequency_data/production/words.jsonl.gz",
+    "sha256": "cec6f4c1a447551c743d4c94d7bdd6086866b587d1250549b7b21cbce9e5d588"
+  }
+}

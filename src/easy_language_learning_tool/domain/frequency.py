@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import gzip
+import io
 import json
 from pathlib import Path
 
@@ -126,7 +127,15 @@ class FrequencyRepository:
 
 def write_frequency_jsonl(path: Path, records: list[FrequencyWord]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    opener = gzip.open if path.suffix.casefold() == ".gz" else Path.open
-    with opener(path, mode="wt", encoding="utf-8", newline="\n") as handle:
+    if path.suffix.casefold() == ".gz":
+        with (
+            path.open("wb") as raw,
+            gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0) as compressed,
+            io.TextIOWrapper(compressed, encoding="utf-8", newline="\n") as handle,
+        ):
+            for record in records:
+                handle.write(json.dumps(record.model_dump(mode="json"), ensure_ascii=False) + "\n")
+        return
+    with path.open(mode="w", encoding="utf-8", newline="\n") as handle:
         for record in records:
             handle.write(json.dumps(record.model_dump(mode="json"), ensure_ascii=False) + "\n")

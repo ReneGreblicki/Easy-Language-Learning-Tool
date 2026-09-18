@@ -16,7 +16,7 @@ This map is checked against both approved project artifacts at every build gate.
 | Exact questions/statements and neutral-to-personal scale 0–5 | planner/rules | distribution and plan tests |
 | LLM never selects frequency rank | frequency repository and plan | frequency tests |
 | Source/licence data gate | JSONL schema and release tool | release-readiness gate |
-| Seven-language/eight-option ingestion and automated validation | corpus build tools and word TSV | candidate and release-gate tests |
+| Twenty-three-language/24-option ingestion and automated validation | corpus build tools, weighted source merger, and word TSV | candidate, multisource, and release-gate tests |
 | Thai script and tone-marked Paiboon options | `Language`, Thai corpus builder, prompts | corpus, prompt, and UI tests |
 | Targeted retries and resumable generation | service/checkpoints | integration tests |
 | XLSX four public columns plus Metadata; legacy import | workbook service | round-trip tests |
@@ -62,3 +62,6 @@ This map is checked against both approved project artifacts at every build gate.
 - Phase 14 — v1.4.0 native macOS edition: platform-aware audio, Keychain/Trash
   behavior, Intel and Apple Silicon DMGs, bundled FFmpeg, and macOS CI/release
   automation implemented on an isolated release-candidate branch
+- Phase 15 — 16-language expansion and native-corpus-gated weighted ranking:
+  implemented with desktop/mobile/cloud/TTS coverage, source provenance, and
+  120,000 production records

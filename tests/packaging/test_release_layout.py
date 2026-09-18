@@ -23,7 +23,9 @@ def test_release_support_files_are_present() -> None:
         root / "resources" / "USER_MANUAL.md",
         root / "resources" / "frequency_data" / "README.md",
         root / "resources" / "frequency_data" / "THAI_SOURCE_MANIFEST.json",
+        root / "resources" / "frequency_data" / "MULTISOURCE_MANIFEST.json",
         root / "resources" / "frequency_data" / "production" / "words.jsonl.gz",
+        root / "resources" / "licences" / "MULTILINGUAL_FREQUENCY_NOTICE.md",
     )
     assert all(path.is_file() for path in required)
 
@@ -74,8 +76,8 @@ def test_current_release_publishes_windows_android_and_macos_installers() -> Non
     root = Path(__file__).resolve().parents[2]
     release = (root / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
     assert "uses: ./.github/workflows/windows-build.yml" in release
-    assert "Easy-Language-Learning-Tool-Android-0.4.0" in release
-    assert "EasyLanguageLearningTool-Android-0.4.0.apk" in release
+    assert "Easy-Language-Learning-Tool-Android-0.5.0" in release
+    assert "EasyLanguageLearningTool-Android-0.5.0.apk" in release
     assert "uses: ./.github/workflows/macos-build.yml" in release
     assert "Easy-Language-Learning-Tool-macOS-Apple-Silicon" in release
     assert "Easy-Language-Learning-Tool-macOS-Intel" in release

@@ -35,7 +35,7 @@
 
 The repository contains an attributed, reproducible wordfreq production baseline
 and a smaller multi-POS demonstration fixture. `tools/check_release_data.py` must
-report exactly 5,000 ranked, source-attributed word entries for each of eight
+report exactly 5,000 ranked, source-attributed word entries for each of 24
 supported language/script options before packaging.
 
 Production data must preserve rank, lemma, part of speech, forms, translations,
@@ -51,6 +51,15 @@ lexical entries and supplies tone-marked Paiboon romanization. The three supplie
 Thai pages are comparison-only because one is all-rights-reserved and the others
 do not provide compatible redistribution terms. No human linguistic approval gate
 is required.
+
+The 16-language expansion uses a native-corpus-gated weighted consensus of
+wordfreq, the OpenSubtitles rankings referenced by Wiktionary's frequency-list
+index, and the supplied frekwencja/wordfrequency.info data. The translated source
+may alter ordering when sources agree but may not introduce unsupported terms.
+Malayalam uses OpenSubtitles plus the translated-list agreement signal because
+wordfreq 3.1.1 has no Malayalam model. Script-specific validation rejects Latin
+artifacts in Chinese, Japanese, Korean, Malayalam, and Russian. Revisions and the
+merge policy are pinned in `MULTISOURCE_MANIFEST.json`.
 
 ## External release operations
 

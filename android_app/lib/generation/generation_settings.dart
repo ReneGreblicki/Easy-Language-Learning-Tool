@@ -6,7 +6,23 @@ enum GenerationLanguage {
   french('fr-FR', 'French'),
   italian('it-IT', 'Italian'),
   thaiScript('th-Thai-TH', 'Thai (Thai script)'),
-  thaiPaiboon('th-Latn-TH', 'Thai (Paiboon romanization)');
+  thaiPaiboon('th-Latn-TH', 'Thai (Paiboon romanization)'),
+  polish('pl-PL', 'Polish'),
+  dutch('nl-NL', 'Dutch'),
+  danish('da-DK', 'Danish'),
+  croatian('hr-HR', 'Croatian'),
+  vietnamese('vi-VN', 'Vietnamese'),
+  simplifiedChinese('zh-CN', 'Chinese (Simplified)'),
+  malayalam('ml-IN', 'Malayalam'),
+  slovak('sk-SK', 'Slovak'),
+  russian('ru-RU', 'Russian'),
+  norwegian('nb-NO', 'Norwegian'),
+  korean('ko-KR', 'Korean'),
+  hungarian('hu-HU', 'Hungarian'),
+  swedish('sv-SE', 'Swedish'),
+  indonesian('id-ID', 'Indonesian'),
+  japanese('ja-JP', 'Japanese'),
+  turkish('tr-TR', 'Turkish');
 
   const GenerationLanguage(this.code, this.label);
   final String code;

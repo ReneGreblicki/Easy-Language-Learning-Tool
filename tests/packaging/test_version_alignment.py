@@ -16,7 +16,7 @@ def test_release_version_is_aligned_across_project_files() -> None:
     installer = (ROOT / "installer" / "inno_setup.iss").read_text(encoding="utf-8")
     installer_match = re.search(r'^#define MyAppVersion "([^"]+)"$', installer, re.MULTILINE)
 
-    assert project_version == "1.4.1"
+    assert project_version == "1.5.0"
     assert __version__ == project_version
     assert installer_match is not None
     assert installer_match.group(1) == project_version
@@ -25,7 +25,7 @@ def test_release_version_is_aligned_across_project_files() -> None:
 
 def test_readme_points_to_current_published_installers() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "releases/download/v1.4.1/EasyLanguageLearningTool-Setup-1.4.1.exe" in readme
-    assert "releases/download/v1.4.1/EasyLanguageLearningTool-Android-0.4.0.apk" in readme
-    assert "EasyLanguageLearningTool-1.4.1-Apple-Silicon.dmg" in readme
-    assert "EasyLanguageLearningTool-1.4.1-Intel.dmg" in readme
+    assert "releases/download/v1.5.0/EasyLanguageLearningTool-Setup-1.5.0.exe" in readme
+    assert "releases/download/v1.5.0/EasyLanguageLearningTool-Android-0.5.0.apk" in readme
+    assert "EasyLanguageLearningTool-1.5.0-Apple-Silicon.dmg" in readme
+    assert "EasyLanguageLearningTool-1.5.0-Intel.dmg" in readme

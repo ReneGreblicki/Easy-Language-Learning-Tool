@@ -75,6 +75,10 @@ Thai options:
 **Base words** determines how many ranked words are selected. Words are chosen by their internal frequency ranking; the AI does not choose which words are most common.
 
 The application contains up to 5,000 ranked words for every language option.
+The available options are US English, European Spanish, German, European Portuguese,
+French, Italian, Thai script, Thai Paiboon romanization, Polish, Dutch, Danish,
+Croatian, Vietnamese, Simplified Chinese, Malayalam, Slovak, Russian, Norwegian,
+Korean, Hungarian, Swedish, Indonesian, Japanese, and Turkish.
 
 ## 1.4 Extra word forms
 

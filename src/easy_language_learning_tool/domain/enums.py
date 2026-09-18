@@ -12,6 +12,22 @@ class Language(StrEnum):
     ITALIAN = "it-IT"
     THAI_SCRIPT = "th-Thai-TH"
     THAI_PAIBOON = "th-Latn-TH"
+    POLISH = "pl-PL"
+    DUTCH = "nl-NL"
+    DANISH = "da-DK"
+    CROATIAN = "hr-HR"
+    VIETNAMESE = "vi-VN"
+    SIMPLIFIED_CHINESE = "zh-CN"
+    MALAYALAM = "ml-IN"
+    SLOVAK = "sk-SK"
+    RUSSIAN = "ru-RU"
+    NORWEGIAN = "nb-NO"
+    KOREAN = "ko-KR"
+    HUNGARIAN = "hu-HU"
+    SWEDISH = "sv-SE"
+    INDONESIAN = "id-ID"
+    JAPANESE = "ja-JP"
+    TURKISH = "tr-TR"
 
     @property
     def label(self) -> str:
@@ -24,6 +40,22 @@ class Language(StrEnum):
             self.ITALIAN: "Italian",
             self.THAI_SCRIPT: "Thai (Thai script)",
             self.THAI_PAIBOON: "Thai (Paiboon romanization)",
+            self.POLISH: "Polish",
+            self.DUTCH: "Dutch",
+            self.DANISH: "Danish",
+            self.CROATIAN: "Croatian",
+            self.VIETNAMESE: "Vietnamese",
+            self.SIMPLIFIED_CHINESE: "Chinese (Simplified)",
+            self.MALAYALAM: "Malayalam",
+            self.SLOVAK: "Slovak",
+            self.RUSSIAN: "Russian",
+            self.NORWEGIAN: "Norwegian",
+            self.KOREAN: "Korean",
+            self.HUNGARIAN: "Hungarian",
+            self.SWEDISH: "Swedish",
+            self.INDONESIAN: "Indonesian",
+            self.JAPANESE: "Japanese",
+            self.TURKISH: "Turkish",
         }[self]
 
     @property
