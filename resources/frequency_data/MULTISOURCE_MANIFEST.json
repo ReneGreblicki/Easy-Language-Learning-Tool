@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "generated_corpus_sha256": "8d03860c37448f778a6ac523e1fece6affe8bd0b89112495c60f099e77743c7a",
+  "output_records": 120000,
+  "records_per_language": 5000,
+  "new_languages": [
+    "pl-PL", "nl-NL", "da-DK", "hr-HR", "vi-VN", "zh-CN", "ml-IN", "sk-SK",
+    "ru-RU", "nb-NO", "ko-KR", "hu-HU", "sv-SE", "id-ID", "ja-JP", "tr-TR"
+  ],
+  "ranking_policy": {
+    "native_candidate_gate": true,
+    "wordfreq_weight": 0.45,
+    "wiktionary_listed_opensubtitles_weight": 0.35,
+    "frekwencja_wordfrequency_info_weight": 0.20,
+    "malayalam_opensubtitles_weight": 0.65,
+    "malayalam_frekwencja_wordfrequency_info_weight": 0.35,
+    "notes": "The translated frekwencja list can rerank native-corpus terms but cannot introduce a term by itself. Malayalam is not supported by wordfreq 3.1.1, so it uses the two-source native-gated policy."
+  },
+  "sources": {
+    "wordfreq": {
+      "revision": "3.1.1",
+      "url": "https://github.com/rspeer/wordfreq"
+    },
+    "wiktionary_frequency_index": {
+      "retrieved": "2026-09-17",
+      "url": "https://en.wiktionary.org/wiki/Wiktionary:Frequency_lists"
+    },
+    "frequencywords": {
+      "revision": "525f9b560de45753a5ea01069454e72e9aa541c6",
+      "url": "https://github.com/hermitdave/FrequencyWords"
+    },
+    "frekwencja": {
+      "revision": "04f5cdd221c832c08ac3309654c340044b833468",
+      "url": "https://github.com/frekwencja/most-common-words-multilingual"
+    },
+    "wordfrequency_info": {
+      "retrieved": "2026-09-17",
+      "url": "https://wordfrequency.info/samples.asp"
+    },
+    "kaikki_wiktionary": {
+      "role": "lexical enrichment and validation; existing source retained",
+      "url": "https://kaikki.org/dictionary/rawdata.html"
+    }
+  }
+}

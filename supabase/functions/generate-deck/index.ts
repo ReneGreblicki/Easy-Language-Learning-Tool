@@ -6,6 +6,8 @@ const corsHeaders = {
 };
 const allowedLanguages = new Set([
   "en-US", "es-ES", "de-DE", "pt-PT", "fr-FR", "it-IT", "th-Thai-TH", "th-Latn-TH",
+  "pl-PL", "nl-NL", "da-DK", "hr-HR", "vi-VN", "zh-CN", "ml-IN", "sk-SK",
+  "ru-RU", "nb-NO", "ko-KR", "hu-HU", "sv-SE", "id-ID", "ja-JP", "tr-TR",
 ]);
 const allowedLevels = new Set(["A1", "A2", "B1", "B2", "C1", "C2"]);
 const maxWords = { A1: 5, A2: 8, B1: 11, B2: 14, C1: 17, C2: 20 };

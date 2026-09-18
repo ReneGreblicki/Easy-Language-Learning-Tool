@@ -21,16 +21,28 @@ LANGUAGE_NAMES: dict[Language, str] = {
     Language.ITALIAN: "Italian",
     Language.THAI_SCRIPT: "Thai",
     Language.THAI_PAIBOON: "Thai",
+    Language.POLISH: "Polish",
+    Language.DUTCH: "Dutch",
+    Language.DANISH: "Danish",
+    Language.CROATIAN: "Croatian",
+    Language.VIETNAMESE: "Vietnamese",
+    Language.SIMPLIFIED_CHINESE: "Chinese",
+    Language.MALAYALAM: "Malayalam",
+    Language.SLOVAK: "Slovak",
+    Language.RUSSIAN: "Russian",
+    Language.NORWEGIAN: "Norwegian Bokmal",
+    Language.KOREAN: "Korean",
+    Language.HUNGARIAN: "Hungarian",
+    Language.SWEDISH: "Swedish",
+    Language.INDONESIAN: "Indonesian",
+    Language.JAPANESE: "Japanese",
+    Language.TURKISH: "Turkish",
 }
 LANGUAGE_CODES = {language: language.value.split("-")[0] for language in Language}
 TARGET_BY_CODE = {
-    "en": Language.US_ENGLISH,
-    "es": Language.EUROPEAN_SPANISH,
-    "de": Language.GERMAN,
-    "pt": Language.EUROPEAN_PORTUGUESE,
-    "fr": Language.FRENCH,
-    "it": Language.ITALIAN,
-    "th": Language.THAI_SCRIPT,
+    language.value.split("-")[0]: language
+    for language in Language
+    if language is not Language.THAI_PAIBOON
 }
 FIELDS = (
     "language",
@@ -38,14 +50,7 @@ FIELDS = (
     "lemma",
     "part_of_speech",
     "forms",
-    "en-US",
-    "es-ES",
-    "de-DE",
-    "pt-PT",
-    "fr-FR",
-    "it-IT",
-    "th-Thai-TH",
-    "th-Latn-TH",
+    *(language.value for language in Language),
     "confidence",
     "source",
     "licence",

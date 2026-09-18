@@ -8,11 +8,13 @@ from easy_language_learning_tool.domain.enums import Language
 from easy_language_learning_tool.domain.frequency import FrequencyWord, write_frequency_jsonl
 
 VALID_WORD = re.compile(r"[^\W\d_]+(?:['’-][^\W\d_]+)*", re.UNICODE)
-WORDFREQ_LANGUAGES = tuple(
-    language
+WORDFREQ_CODES: dict[Language, str] = {
+    language: language.value.split("-")[0]
     for language in Language
-    if language not in {Language.THAI_SCRIPT, Language.THAI_PAIBOON}
-)
+    if language not in {Language.THAI_SCRIPT, Language.THAI_PAIBOON, Language.MALAYALAM}
+}
+WORDFREQ_CODES[Language.CROATIAN] = "sh"
+WORDFREQ_CODES[Language.NORWEGIAN] = "nb"
 
 
 def build(destination: Path, limit: int = 5_000) -> None:
@@ -23,8 +25,7 @@ def build(destination: Path, limit: int = 5_000) -> None:
         raise SystemExit("Install the data-build extra before running this tool.") from error
 
     records: list[FrequencyWord] = []
-    for language in WORDFREQ_LANGUAGES:
-        code = language.value.split("-")[0]
+    for language, code in WORDFREQ_CODES.items():
         seen: set[str] = set()
         selected: list[str] = []
         candidate_limit = max(limit * 3, 20_000)
@@ -66,7 +67,10 @@ def build(destination: Path, limit: int = 5_000) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Build six wordfreq baselines; Thai is built with the Thai pipeline."
+        description=(
+            "Build wordfreq baselines where supported; Thai and Malayalam use "
+            "their multilingual native-corpus pipelines."
+        )
     )
     parser.add_argument(
         "destination",

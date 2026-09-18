@@ -31,6 +31,22 @@ String preferredSpeechLocale(String language) {
   if (normalized.contains('french')) return 'fr-FR';
   if (normalized.contains('italian')) return 'it-IT';
   if (normalized.contains('thai')) return 'th-TH';
+  if (normalized.contains('polish')) return 'pl-PL';
+  if (normalized.contains('dutch')) return 'nl-NL';
+  if (normalized.contains('danish')) return 'da-DK';
+  if (normalized.contains('croatian')) return 'hr-HR';
+  if (normalized.contains('vietnamese')) return 'vi-VN';
+  if (normalized.contains('chinese')) return 'zh-CN';
+  if (normalized.contains('malayalam')) return 'ml-IN';
+  if (normalized.contains('slovak')) return 'sk-SK';
+  if (normalized.contains('russian')) return 'ru-RU';
+  if (normalized.contains('norwegian')) return 'nb-NO';
+  if (normalized.contains('korean')) return 'ko-KR';
+  if (normalized.contains('hungarian')) return 'hu-HU';
+  if (normalized.contains('swedish')) return 'sv-SE';
+  if (normalized.contains('indonesian')) return 'id-ID';
+  if (normalized.contains('japanese')) return 'ja-JP';
+  if (normalized.contains('turkish')) return 'tr-TR';
   return 'en-US';
 }
 

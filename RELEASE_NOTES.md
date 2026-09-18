@@ -1,4 +1,19 @@
-# Easy Language Learning Tool 1.4.1
+# Easy Language Learning Tool 1.5.0
+
+Version 1.5.0 adds 16 learning and translation languages to desktop, macOS, Android,
+cloud deck generation, and text-to-speech selection: Polish, Dutch, Danish, Croatian,
+Vietnamese, Simplified Chinese, Malayalam, Slovak, Russian, Norwegian, Korean,
+Hungarian, Swedish, Indonesian, Japanese, and Turkish. The production corpus now
+contains 120,000 records across 24 language/script options.
+
+Rankings preserve every earlier source and add a native-corpus-gated weighted
+consensus using `wordfreq`, the OpenSubtitles rankings referenced by Wiktionary's
+frequency-list index, and the supplied `frekwencja/most-common-words-multilingual`
+data derived from the free `wordfrequency.info` sample. Machine-translated source
+entries can influence rank agreement but cannot enter the corpus without native
+corpus support. Version 0.5.0 of the Android companion packages the same corpus.
+
+## Previous 1.4.1 release
 
 Version 1.4.1 adds the renamed Easy Language Learning Tool Android companion and
 publishes new Windows and Android installers together. It also adds an iOS companion

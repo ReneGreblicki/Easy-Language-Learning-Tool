@@ -5,14 +5,14 @@
 > [mobile project plan](docs/ANDROID_PROJECT_PLAN.md) and
 > [Apple platform plan](docs/APPLE_PLATFORM_PLAN.md).
 
-[![Download for Windows](https://img.shields.io/badge/Download_for_Windows-v1.4.1-0078D4?logo=windows&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-Setup-1.4.1.exe)
-[![Download for Apple Silicon](https://img.shields.io/badge/macOS-Apple_Silicon_v1.4.1-000000?logo=apple&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-1.4.1-Apple-Silicon.dmg)
-[![Download for Intel Mac](https://img.shields.io/badge/macOS-Intel_v1.4.1-555555?logo=apple&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-1.4.1-Intel.dmg)
+[![Download for Windows](https://img.shields.io/badge/Download_for_Windows-v1.5.0-0078D4?logo=windows&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.5.0/EasyLanguageLearningTool-Setup-1.5.0.exe)
+[![Download for Apple Silicon](https://img.shields.io/badge/macOS-Apple_Silicon_v1.5.0-000000?logo=apple&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.5.0/EasyLanguageLearningTool-1.5.0-Apple-Silicon.dmg)
+[![Download for Intel Mac](https://img.shields.io/badge/macOS-Intel_v1.5.0-555555?logo=apple&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.5.0/EasyLanguageLearningTool-1.5.0-Intel.dmg)
 
-[![Download for Android](https://img.shields.io/badge/Download_for_Android-v0.4.0-3DDC84?logo=android&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.4.1/EasyLanguageLearningTool-Android-0.4.0.apk)
+[![Download for Android](https://img.shields.io/badge/Download_for_Android-v0.5.0-3DDC84?logo=android&logoColor=white)](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/download/v1.5.0/EasyLanguageLearningTool-Android-0.5.0.apk)
 
 **Windows users need the `.exe`; Android users need the `.apk`; Mac users need the `.dmg` matching their processor.**
-[Release notes, checksums, and build provenance](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/tag/v1.4.1)
+[Release notes, checksums, and build provenance](https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/releases/tag/v1.5.0)
 
 > The installer is not yet Authenticode-signed, so Windows may display an Unknown Publisher or SmartScreen warning.
 > The macOS apps are ad-hoc signed but not Apple-notarized, so Gatekeeper may require **Open** from the app's context menu on first launch.
@@ -249,7 +249,7 @@ Vocabulary coverage helps select material, but it is not itself a complete compr
 
 ## End-user setup
 
-1. Windows: run `EasyLanguageLearningTool-Setup-1.4.1.exe` and accept the default
+1. Windows: run `EasyLanguageLearningTool-Setup-1.5.0.exe` and accept the default
    per-user installation folder and optional desktop shortcut.
 2. macOS: open the DMG for your processor and drag **Easy Language Learning Tool**
    to **Applications**. On first launch, use **Open** from the context menu if
@@ -314,8 +314,11 @@ python tools\build_frequency_data.py --help
 python tools\check_release_data.py resources\frequency_data\production\words.jsonl.gz
 ```
 
-The automated corpus workflow uses `wordfreq` for six reproducible language
-rankings. Thai uses the CC BY-SA OpenSubtitles ranking plus the CC0 Phupha 2026
+The automated corpus workflow preserves `wordfreq` and Kaikki/Wiktionary, and now
+uses weighted agreement with the Wiktionary-listed CC BY-SA OpenSubtitles rankings
+and `frekwencja/most-common-words-multilingual` / `wordfrequency.info` evidence for
+16 additional languages. Machine-translated list entries can rerank a term only when
+a native-language corpus also contains it. Thai uses the CC BY-SA OpenSubtitles ranking plus the CC0 Phupha 2026
 frequency dataset, with Kaikki/Wiktionary validation and Paiboon romanization.
 The three Thai lists proposed during development remain comparison sources only:
 the Scribd list is all-rights-reserved, while the two public webpages do not grant
@@ -361,9 +364,11 @@ optionally upload that IPA to TestFlight. Physical-iPhone acceptance remains a r
 
 ## Data and release status
 
-The repository includes exactly 5,000 ranked entries for each of eight language/
-script options: six existing languages plus Thai script and Paiboon-romanized
-Thai. Kaikki/Wiktionary enrichment tools
+The repository includes exactly 5,000 ranked entries for each of 24 language/script
+options: US English, European Spanish, German, European Portuguese, French, Italian,
+both Thai representations, Polish, Dutch, Danish, Croatian, Vietnamese, Simplified
+Chinese, Malayalam, Slovak, Russian, Norwegian, Korean, Hungarian, Swedish,
+Indonesian, Japanese, and Turkish. Kaikki/Wiktionary enrichment tools
 can add part-of-speech, form, and dictionary-translation evidence; when evidence
 is unavailable, the generation model infers a valid grammatical use and supplies
 the word translation. See `docs/RELEASE_READINESS.md`.
@@ -375,7 +380,7 @@ final rows.
 Version 1.4.0 adds native Intel and Apple Silicon macOS packages while preserving
 the complete Information guide, hardened flashcard audio, uniform card surface,
 and mouse-wheel protections introduced in v1.3.0. The current desktop release is
-**v1.4.1**, and Android **v0.4.0** is the current development version. iOS distribution is paused
+**v1.5.0**, and Android **v0.5.0** is the current version. iOS distribution is paused
 for a future release. The latest
 workflow is: select a language and deck on the mobile landing page, then open Flashcards,
 Audio, or List through its full settings page. Generate-new-deck jobs continue server-side while
@@ -475,6 +480,10 @@ Thai options:
 **Base words** determines how many ranked words are selected. Words are chosen by their internal frequency ranking; the AI does not choose which words are most common.
 
 The application contains up to 5,000 ranked words for every language option.
+The available options are US English, European Spanish, German, European Portuguese,
+French, Italian, Thai script, Thai Paiboon romanization, Polish, Dutch, Danish,
+Croatian, Vietnamese, Simplified Chinese, Malayalam, Slovak, Russian, Norwegian,
+Korean, Hungarian, Swedish, Indonesian, Japanese, and Turkish.
 
 ## 1.4 Extra word forms
 
