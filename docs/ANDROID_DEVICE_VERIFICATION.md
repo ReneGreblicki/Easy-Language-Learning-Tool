@@ -63,27 +63,49 @@ Pass: every failure is descriptive and actionable, with no raw technical details
 Pass: the deck remains in the library, each card has only Front and Back, every selected
 field is readable, controls behave like desktop, and cached audio replays offline.
 
-## 4. Phone-only removal safety
+## 4. Phone-local removal and delayed cloud cleanup
 
 1. Record the desktop workbook path and checksum.
-2. On Android, choose **Remove download** and confirm.
-3. Refresh the Android library and inspect the desktop History and Flashcards tabs.
+2. In Android folder management, choose **Remove download** and confirm.
+3. Refresh the Android library and inspect desktop History and Flashcards.
 
-Pass: only the phone's cached deck/audio disappears. The cloud library entry, desktop
-database, workbook path, workbook checksum, and desktop History entry are unchanged.
+Pass: the phone's cached deck/audio disappears immediately. The cloud deck is marked
+for cleanup after 14 days and hidden from the active mobile library. Desktop files,
+their checksums, and desktop History remain unchanged.
 
-## 5. Cloud soft deletion and restore
+## 5. Cleanup cancellation and desktop isolation
 
-1. Download the deck again.
-2. Choose **Delete everywhere** and confirm.
-3. Verify it leaves **My decks** and appears in **Cloud Trash**.
-4. Verify the desktop workbook and History entry remain unchanged.
-5. Select **Restore** in Cloud Trash and refresh My decks.
+1. Download or use the removed deck again within 14 days through the available
+   recovery/download flow. Record a failure if that flow is not reachable.
+2. Verify pending cleanup markers are cleared and the deck is available offline.
+3. Using a disposable test deck and a test backend, verify due cleanup removes its
+   cloud cards, progress, audio metadata, stored audio, and deck record.
+4. Verify the original desktop workbook checksum and History entry remain unchanged.
+5. Verify no 90-day inactivity purge runs and no **Delete everywhere** or **Cloud
+   Trash** control is exposed in the mobile landing header or deck manager.
 
-Pass: the cloud entry is hidden and restored as expected, the phone cache is removed, and
+Pass: use/download cancels pending removal; due cleanup respects the 14-day policy;
 no desktop file is moved, archived, edited, or deleted.
 
-## 6. Result record
+## 6. Multilingual background generation
+
+1. Install Android 0.5.0 from the verified PR artifact. Confirm the deployed generation
+   backend supports the new language codes before testing new-language requests.
+2. Confirm all 24 language/script options appear in learning and translation controls.
+3. Generate a small deck in an added Latin-script language and another in Chinese,
+   Japanese, Korean, Malayalam, or Russian. Check readable text and translations.
+4. Start at rank 4,901 and verify the maximum is 100 base words before extra-form limits.
+5. While generating, study an existing deck, then close the app. Reopen it and verify
+   job progress or the completed deck is restored without duplicate cards.
+6. Download the new deck, enable airplane mode, and verify Flashcards, Audio, and List.
+7. Check installed TTS voice availability for the chosen languages and replay both sides.
+8. Verify the selected language restores its own selected deck after switching languages.
+
+Pass: complete decks use the requested ranked range and language pair, background
+jobs survive app closure, and downloaded text remains usable offline. Record voice
+availability separately from corpus and generation results.
+
+## 7. Result record
 
 | Field | Result |
 |---|---|
@@ -94,8 +116,12 @@ no desktop file is moved, archived, edited, or deleted.
 | Account/upload | Pass / Fail |
 | Offline deck/audio | Pass / Fail |
 | Study modes/range/navigation/theme | Pass / Fail |
-| Phone-only removal | Pass / Fail |
-| Trash/restore | Pass / Fail |
+| Phone-local removal | Pass / Fail |
+| 14-day cleanup/cancellation | Pass / Fail |
+| Desktop file preservation | Pass / Fail |
+| Multilingual generation | Pass / Fail |
+| Background generation/reopening | Pass / Fail |
+| New-language TTS availability | Available / Unavailable; locale/engine |
 | Notes | |
 
 Do not promote the Android artifact to a signed production release until every row passes.

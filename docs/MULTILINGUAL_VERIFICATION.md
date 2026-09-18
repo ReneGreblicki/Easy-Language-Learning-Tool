@@ -31,6 +31,15 @@ for every supported language/script option.
 - Ruff lint/format and strict mypy: passed.
 - Rebuilt corpus: 120,000 records, 5,000 per language/script option.
 
+## GitHub verification of repair `4670e51`
+
+- Windows tests: 80 passed; 88.04% coverage.
+- Quality (format, lint, mypy, dependency audit, secret scan): passed.
+- Flutter analysis and tests, including packaged-corpus loading: passed.
+- Platform package builds are still running; consult PR #18 checks for final results.
+- Device checklist updated for 14-day removal, cleanup cancellation, multilingual
+  generation, offline use, and background-job recovery.
+
 ## Remaining release checks
 
 - GitHub Windows tests and quality checks on the repaired commit.
