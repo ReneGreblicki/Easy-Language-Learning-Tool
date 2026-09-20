@@ -117,6 +117,9 @@ class LocalDeckStore {
       cards: cards,
       isDownloaded: true,
       deletedAt: deck.deletedAt,
+      defaultLevel: deck.defaultLevel,
+      catalogCardCount: deck.catalogCardCount,
+      contentVersion: deck.contentVersion,
     );
     await db.insert(
       'downloaded_decks',
@@ -217,6 +220,14 @@ class LocalDeckStore {
       ''',
       [cardId, rating.name, DateTime.now().toUtc().toIso8601String()],
     );
+    // Keep the offline snapshot in sync with the rating shown on this device.
+    for (final deck in await downloadedDecks()) {
+      if (!deck.cards.any((card) => card.id == cardId)) continue;
+      final updated = deck.copyWithCards(deck.cards.map((card) =>
+        card.id == cardId ? card.copyWith(rating: rating) : card).toList());
+      await db.update('downloaded_decks', {'payload_json': jsonEncode(updated.toJson())},
+        where: 'id = ?', whereArgs: [deck.id]);
+    }
   }
 
   Future<void> markProgressSynced(String cardId) async {

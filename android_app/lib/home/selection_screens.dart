@@ -102,6 +102,8 @@ class _DeckSelectionScreenState extends State<DeckSelectionScreen> {
                   for (final isDefault in [true, false]) ...[
                     Padding(padding: const EdgeInsets.fromLTRB(16, 14, 16, 8), child: Text(
                       isDefault ? 'Default decks' : 'My decks', style: Theme.of(context).textTheme.titleMedium)),
+                    if (!isDefault) Padding(padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text('${filtered.where((d) => !d.isDefault).length} / 5 personal decks')),
                     if (isDefault) const Padding(padding: EdgeInsets.symmetric(horizontal: 16),
                       child: Text('Included · do not count toward your 5 personal decks')),
                     for (final deck in filtered.where((d) => d.isDefault == isDefault))

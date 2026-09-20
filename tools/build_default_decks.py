@@ -143,6 +143,10 @@ def generate(output: Path, pilot: bool, languages: list[str], model: str) -> dic
                 else request_rows(batch, LANGUAGES[code], model)
             )
             validate_rows(rows, batch)
+            if code == "en-US":
+                expected = {task["id"]: normalize(task["word"]) for task in batch}
+                if any(normalize(row["word"]) != expected[row["id"]] for row in rows):
+                    raise ValueError("English generation changed a source word")
             file.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
             by_id = {r["id"]: r for r in rows}
             generated.extend({**by_id[t["id"]], "level": t["level"]} for t in batch)

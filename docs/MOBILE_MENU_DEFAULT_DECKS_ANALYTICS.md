@@ -91,3 +91,14 @@ Google Play provides install/activity/retention/conversion/crash reporting, not 
 learning events: https://support.google.com/googleplay/android-developer/answer/139628?hl=en
 Apple reporting: https://developer.apple.com/app-store-connect/analytics/
 Update the store data declarations and public privacy policy before distributing this version.
+
+## Verification checkpoint
+
+Implementation PR: https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/pull/19
+
+The first content pilot succeeded: 30 concepts × 5 language/script options, with
+curriculum JSON, resumable batch checkpoints and a ranking-review checklist:
+https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/35478251336/artifacts/10594932898
+
+Android 0.6.0+12 is the development candidate. The README continues to link to the
+previous published release until this candidate passes content and device review.

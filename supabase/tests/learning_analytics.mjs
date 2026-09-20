@@ -48,5 +48,26 @@ assert.equal(await scalar(`select public.record_learning_activity(gen_random_uui
 await db.exec(`insert into public.learning_events(user_id,kind,language,occurred_at) values('${user}','first_deck_opened','German',now()-interval '91 days'); select public.purge_learning_analytics();`);
 assert.equal(await scalar("select count(*)::int from public.learning_events"),0);
 assert.equal(await scalar('select count(*)::int from public.default_decks'),72);
-console.log('PASS: unique cards, all four milestones, first use, completion, consent revisions, deletion, retention, RLS and unpublished catalog.');
+// A published default deck hydrates translations and private progress without personal slots.
+await db.exec(`
+insert into public.default_concepts select n,'A1','word '||n,'sentence '||n,'sense '||n from generate_series(1,400) n;
+insert into public.default_card_identity
+select md5(d.source_language||n)::uuid,d.id,n from public.default_decks d cross join generate_series(1,400) n
+where d.default_level='A1' and d.source_language in ('German','US English');
+insert into public.default_translations(card_id,content_version,word,sentence,rank)
+select id,1,'word '||concept_id,'sentence '||concept_id,concept_id from public.default_card_identity;
+update public.default_decks set content_version=1 where default_level='A1' and source_language in ('German','US English');
+`);
+const hydrated = await scalar("select public.read_default_deck((select id from public.default_decks where source_language='German' and default_level='A1'))");
+assert.equal(hydrated.cards.length,400);
+assert.equal(hydrated.default_level,'A1');
+assert.equal(await scalar('select count(*)::int from public.decks'),1);
+await db.exec(`grant usage on schema auth to authenticated;
+set role authenticated;
+insert into public.default_study_progress(user_id,card_id,rating) values('${user}','${hydrated.cards[0].id}','known');
+set test.account_id='${other}';`);
+assert.equal(await scalar('select count(*)::int from public.default_study_progress'),0);
+await assert.rejects(db.exec(`insert into public.default_study_progress(user_id,card_id) values('${user}','${hydrated.cards[1].id}')`));
+await db.exec('reset role');
+console.log('PASS: unique cards, all four milestones, first use, completion, consent revisions, deletion, retention, RLS, unpublished catalog, complete translations and private default-deck progress.');
 await db.close();
