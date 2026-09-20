@@ -53,7 +53,8 @@ def request_rows(tasks: list[dict], language: str, model: str) -> list[dict]:
         "All target_word and target_sentence values MUST be in " + language + ". "
         "sense_in_english MUST be English. Never copy an untranslated source headword. "
         "Use natural adult-neutral examples at the specified CEFR level. A1: simple concrete "
-        "sentences; A2: everyday situations; B1: connected ideas. Target sentences must use "
+        "sentences; A2: everyday situations; B1: two connected ideas, such as a reason, "
+        "contrast, experience or opinion, not a single elementary clause. Target sentences must use "
         "the target headword or its grammatical inflection. Preserve concepts and IDs. "
     )
     if language == "US English":
@@ -68,7 +69,10 @@ def request_rows(tasks: list[dict], language: str, model: str) -> list[dict]:
         )
     else:
         instruction += (
-            "Translate BOTH the source word AND its sentence. For example English "
+            "Translate BOTH the source word AND its sentence. Preserve the exact subject, object, "
+            "action and intended sense; never change a cat into a dog or copy nouns from these "
+            "instructions. Avoid using a target headword that is absent from your sentence. "
+            "For example English "
             "'the' in German can be target_word 'die' in 'Die Katze ...'; in Spanish 'el' in "
             "'El gato ...'. When no standalone equivalent exists, use a natural contextual "
             "phrase in the target language that expresses that meaning. For Thai, the English "
@@ -231,7 +235,7 @@ def generate(output: Path, pilot: bool, languages: list[str], model: str) -> dic
             batch = source_tasks[start : start + 20]
             # Changing input/model invalidates the checkpoint rather than silently reusing it.
             digest = hashlib.sha256(
-                json.dumps(["prompt-v3", model, code, batch], sort_keys=True).encode()
+                json.dumps(["prompt-v4", model, code, batch], sort_keys=True).encode()
             ).hexdigest()[:20]
             file = checkpoint / f"{code}-{digest}.json"
             rows = (

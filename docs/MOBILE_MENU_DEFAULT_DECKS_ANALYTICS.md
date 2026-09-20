@@ -56,7 +56,7 @@ means first observed study after consent, not necessarily lifetime first study.
 
 ## Content workflow
 
-1. `tools/build_default_decks.py --pilot --output draft --languages en-US es-ES de-DE th-Thai-TH th-Latn-TH`.
+1. `tools/build_default_decks.py --pilot --model gpt-4.1 --output draft --languages en-US es-ES de-DE th-Thai-TH th-Latn-TH`.
    Thirty concepts, ten from each level; GitHub pilot workflow uses the existing OpenAI secret.
 2. Review sense alignment, naturalness, target-word use, CEFR difficulty and Thai script/romanization.
 3. Generate full curriculum with `--output full` (all 24 supported options by default).
@@ -100,7 +100,12 @@ The first generated pilot failed content review: translated sentences retained E
 headwords and Paiboon output mixed scripts. It must not be published. The corrected
 pipeline uses explicit target-language fields, copied-headword detection, native-script
 validation and Thai-to-Paiboon transliteration. The latest successful pilot workflow
+uses GPT-4.1 for one-time editorial content after GPT-4o-mini pilot defects, and
 provides a readable review table in its run summary and the downloadable artifact.
 
 Android 0.6.0+12 is the development candidate. The README continues to link to the
 previous published release until this candidate passes content and device review.
+
+The mobile generation model remains GPT-4o-mini. The editorial pilot uses GPT-4.1
+to improve alignment after observed headword and Thai transliteration failures.
+This is a content-production experiment, not a claim that model output is publication-ready.

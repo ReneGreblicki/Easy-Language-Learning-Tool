@@ -18,7 +18,7 @@ jobs:
       - name: Generate thirty concepts in representative languages
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: python tools/build_default_decks.py --pilot --languages en-US es-ES de-DE th-Thai-TH th-Latn-TH --output default-deck-pilot
+        run: python tools/build_default_decks.py --pilot --model gpt-4.1 --languages en-US es-ES de-DE th-Thai-TH th-Latn-TH --output default-deck-pilot
       - uses: actions/upload-artifact@v6
         if: always()
         with:
