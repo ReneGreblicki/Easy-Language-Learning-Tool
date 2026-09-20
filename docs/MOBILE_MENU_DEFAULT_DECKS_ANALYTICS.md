@@ -96,9 +96,11 @@ Update the store data declarations and public privacy policy before distributing
 
 Implementation PR: https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/pull/19
 
-The first content pilot succeeded: 30 concepts × 5 language/script options, with
-curriculum JSON, resumable batch checkpoints and a ranking-review checklist:
-https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/35478251336/artifacts/10594932898
+The first generated pilot failed content review: translated sentences retained English
+headwords and Paiboon output mixed scripts. It must not be published. The corrected
+pipeline uses explicit target-language fields, copied-headword detection, native-script
+validation and Thai-to-Paiboon transliteration. The latest successful pilot workflow
+provides a readable review table in its run summary and the downloadable artifact.
 
 Android 0.6.0+12 is the development candidate. The README continues to link to the
 previous published release until this candidate passes content and device review.

@@ -49,18 +49,50 @@ def frequency_data() -> dict[str, list[dict]]:
 
 def request_rows(tasks: list[dict], language: str, model: str) -> list[dict]:
     instruction = (
-        "Create natural learner material for the supplied concepts. Return a JSON object with "
-        "rows, an array with exactly one object per input id. Each row has id (integer), word, "
-        "sentence, sense (brief English meaning). Preserve the intended meaning and level. "
-        "Use everyday, safe, adult-neutral examples. Each sentence must use the target word "
-        "or a grammatically necessary inflected form. A1: simple concrete sentences; "
-        "A2: everyday situations; B1: connected ideas. Avoid dictionary-style fragments. "
-        "Do not add, merge, or omit concepts even when two words share a translation. "
-        "For English tasks retain the supplied word and choose one common sense. For other "
-        "languages translate the English word in its sentence context and translate the sentence "
-        "naturally, adapting phrasing to the same difficulty. Thai Paiboon must use Paiboon "
-        "romanization with tone marks, not Thai script. LANGUAGE=" + language
+        "Return one row per input id with target_word, target_sentence, and sense_in_english. "
+        "All target_word and target_sentence values MUST be in " + language + ". "
+        "sense_in_english MUST be English. Never copy an untranslated source headword. "
+        "Use natural adult-neutral examples at the specified CEFR level. A1: simple concrete "
+        "sentences; A2: everyday situations; B1: connected ideas. Target sentences must use "
+        "the target headword or its grammatical inflection. Preserve concepts and IDs. "
     )
+    if language == "US English":
+        instruction += "Keep each input word exactly. Write one original sentence using it and identify its common intended meaning. "
+    elif language == "Thai (Paiboon romanization)":
+        instruction += (
+            "Transliterate the supplied Thai headwords and sentences into Paiboon "
+            "romanization with appropriate vowel symbols and tone marks. NO Thai characters "
+            "anywhere in target_word or target_sentence. Do not translate them into English. "
+        )
+    else:
+        instruction += (
+            "Translate BOTH the source word AND its sentence. For example English "
+            "'the' in German can be target_word 'die' in 'Die Katze ...'; in Spanish 'el' in "
+            "'El gato ...'. When no standalone equivalent exists, use a natural contextual "
+            "phrase in the target language that expresses that meaning. Do not retain the "
+            "English headword as a label. Adapt grammar naturally while preserving meaning. "
+        )
+    schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["rows"],
+        "properties": {
+            "rows": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["id", "target_word", "target_sentence", "sense_in_english"],
+                    "properties": {
+                        "id": {"type": "integer"},
+                        "target_word": {"type": "string"},
+                        "target_sentence": {"type": "string"},
+                        "sense_in_english": {"type": "string"},
+                    },
+                },
+            }
+        },
+    }
     body = json.dumps(
         {
             "model": model,
@@ -68,7 +100,10 @@ def request_rows(tasks: list[dict], language: str, model: str) -> list[dict]:
                 {"role": "system", "content": instruction},
                 {"role": "user", "content": json.dumps(tasks, ensure_ascii=False)},
             ],
-            "response_format": {"type": "json_object"},
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {"name": "learning_rows", "strict": True, "schema": schema},
+            },
             "temperature": 0.2,
         }
     ).encode()
@@ -84,8 +119,18 @@ def request_rows(tasks: list[dict], language: str, model: str) -> list[dict]:
         try:
             with urllib.request.urlopen(request, timeout=120) as response:
                 payload = json.load(response)
-            rows = json.loads(payload["choices"][0]["message"]["content"])["rows"]
+            raw = json.loads(payload["choices"][0]["message"]["content"])["rows"]
+            rows = [
+                {
+                    "id": r["id"],
+                    "word": r["target_word"],
+                    "sentence": r["target_sentence"],
+                    "sense": r["sense_in_english"],
+                }
+                for r in raw
+            ]
             validate_rows(rows, tasks)
+            validate_language(rows, tasks, language)
             return rows
         except (ValueError, KeyError, OSError):
             if attempt == 2:
@@ -107,6 +152,24 @@ def validate_rows(rows: list[dict], tasks: list[dict]) -> None:
             raise ValueError("Unexpectedly long content")
 
 
+def validate_language(rows: list[dict], tasks: list[dict], language: str) -> None:
+    original = {t["id"]: t for t in tasks}
+    if language == "US English":
+        if any(normalize(r["word"]) != normalize(original[r["id"]]["word"]) for r in rows):
+            raise ValueError("English generation changed a source word")
+    elif len(rows) >= 5:
+        copied = sum(normalize(r["word"]) == normalize(original[r["id"]]["word"]) for r in rows)
+        if copied / len(rows) > 0.6:
+            raise ValueError("Most headwords were not translated")
+    for row in rows:
+        for key in ("word", "sentence"):
+            thai = bool(re.search(r"[\u0e00-\u0e7f]", row[key]))
+            if language == "Thai (Paiboon romanization)" and thai:
+                raise ValueError("Thai script found in romanization")
+            if language == "Thai (Thai script)" and not thai:
+                raise ValueError("Thai script missing from native translation")
+
+
 def generate(output: Path, pilot: bool, languages: list[str], model: str) -> dict:
     frequencies = frequency_data()
     english = frequencies["en-US"][:1000]
@@ -125,16 +188,25 @@ def generate(output: Path, pilot: bool, languages: list[str], model: str) -> dic
     checkpoint = output / "checkpoints"
     checkpoint.mkdir(exist_ok=True)
     datasets = {}
-    for code in dict.fromkeys(["en-US", *languages]):
+    ordered = list(dict.fromkeys(["en-US", *languages]))
+    if "th-Latn-TH" in ordered:
+        if "th-Thai-TH" in ordered:
+            ordered.remove("th-Thai-TH")
+        ordered.insert(ordered.index("th-Latn-TH"), "th-Thai-TH")
+    for code in ordered:
         if code not in LANGUAGES:
             raise ValueError(f"Unknown language: {code}")
-        source_tasks = tasks if code == "en-US" else datasets["en-US"]
+        source_tasks = (
+            tasks
+            if code == "en-US"
+            else datasets["th-Thai-TH" if code == "th-Latn-TH" else "en-US"]
+        )
         generated = []
         for start in range(0, len(source_tasks), 20):
             batch = source_tasks[start : start + 20]
             # Changing input/model invalidates the checkpoint rather than silently reusing it.
             digest = hashlib.sha256(
-                json.dumps([model, code, batch], sort_keys=True).encode()
+                json.dumps(["prompt-v2", model, code, batch], sort_keys=True).encode()
             ).hexdigest()[:20]
             file = checkpoint / f"{code}-{digest}.json"
             rows = (
@@ -143,10 +215,7 @@ def generate(output: Path, pilot: bool, languages: list[str], model: str) -> dic
                 else request_rows(batch, LANGUAGES[code], model)
             )
             validate_rows(rows, batch)
-            if code == "en-US":
-                expected = {task["id"]: normalize(task["word"]) for task in batch}
-                if any(normalize(row["word"]) != expected[row["id"]] for row in rows):
-                    raise ValueError("English generation changed a source word")
+            validate_language(rows, batch, LANGUAGES[code])
             file.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
             by_id = {r["id"]: r for r in rows}
             generated.extend({**by_id[t["id"]], "level": t["level"]} for t in batch)
@@ -178,11 +247,32 @@ def generate(output: Path, pilot: bool, languages: list[str], model: str) -> dic
         for r in rows
         if r["source_rank"] is None
     ]
-    (output / "review.md").write_text(
-        "# Curriculum review\n\nDraft, not published. Check sense alignment, naturalness, target-word inclusion, CEFR suitability, script and duplicate translations.\n\n"
-        + "\n".join("- " + i for i in issues),
-        encoding="utf-8",
-    )
+    review_lines = [
+        "# Curriculum pilot review",
+        "",
+        "Draft, not published. Check sense alignment, naturalness, target-word inclusion, CEFR suitability and script.",
+        "",
+    ]
+    for code, rows in datasets.items():
+        review_lines.extend(
+            [
+                "## " + LANGUAGES[code],
+                "",
+                "| Concept | Level | Word | Sentence | English meaning |",
+                "|---|---|---|---|---|",
+            ]
+        )
+        for row in rows:
+            cells = [str(row["id"]), row["level"], row["word"], row["sentence"], row["sense"]]
+            review_lines.append(
+                "| " + " | ".join(c.replace("|", "/").replace("\n", " ") for c in cells) + " |"
+            )
+        review_lines.append("")
+    review_lines.extend(["## Ranking matches to review", "", *["- " + i for i in issues]])
+    review_text = "\n".join(review_lines)
+    (output / "review.md").write_text(review_text, encoding="utf-8")
+    if pilot and os.environ.get("GITHUB_STEP_SUMMARY"):
+        Path(os.environ["GITHUB_STEP_SUMMARY"]).write_text(review_text, encoding="utf-8")
     return result
 
 

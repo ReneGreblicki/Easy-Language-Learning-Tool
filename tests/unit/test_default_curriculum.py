@@ -45,3 +45,14 @@ def test_publication_rejects_pilot_and_stale_review(tmp_path):
     curriculum.write_text(json.dumps({"pilot": False, "languages": {}}))
     with pytest.raises(ValueError, match="exact"):
         builder.publication_sql(curriculum, review, 1)
+
+
+def test_translation_checks_reject_copied_headwords_and_thai_script():
+    tasks = [{"id": i, "word": "the"} for i in range(5)]
+    copied = [{"id": i, "word": "the", "sentence": "Die Katze schläft."} for i in range(5)]
+    with pytest.raises(ValueError, match="not translated"):
+        builder.validate_language(copied, tasks, "German")
+    with pytest.raises(ValueError, match="script found"):
+        builder.validate_language(
+            [{"id": 0, "word": "แมว", "sentence": "maaeo"}], tasks, "Thai (Paiboon romanization)"
+        )
