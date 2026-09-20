@@ -107,7 +107,7 @@ class _DeckSelectionScreenState extends State<DeckSelectionScreen> {
                     for (final deck in filtered.where((d) => d.isDefault == isDefault))
                       RadioListTile<String>(
                         key: Key('deck-${deck.id}'), value: deck.id, title: Text(deck.title),
-                        subtitle: Text('${deck.cardCount} cards · ${deck.isDownloaded ? 'Downloaded' : 'Download on first use'}'),
+                        subtitle: Text('${deck.cardCount} cards · ${deck.isDownloaded ? 'Downloaded' : deck.isDefault && deck.contentVersion == null ? 'Content being prepared' : 'Download on first use'}'),
                       ),
                   ],
                 ],

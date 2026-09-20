@@ -99,7 +99,9 @@ class LearningAnalytics extends ChangeNotifier {
     });
   }
 
-  Future<void> record(String kind, String language, {String? cardId}) => _serial(() async {
+  Future<void> record(String kind, String language, {String? cardId}) {
+    if (!ready || !enabled || pendingDeletion) return Future.value();
+    return _serial(() async {
     if (!ready || !enabled || pendingDeletion) return;
     _events.add({'id': const Uuid().v4(), 'kind': kind, 'language': language,
       'card_id': cardId, 'at': DateTime.now().toUtc().toIso8601String()});
@@ -109,6 +111,8 @@ class LearningAnalytics extends ChangeNotifier {
     await _persist();
     await _flush();
   });
+
+  }
 
   Future<void> flush() => _serial(_flush);
 

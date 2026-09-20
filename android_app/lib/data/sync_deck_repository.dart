@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../models/deck.dart';
 import 'deck_repository.dart';
+import 'default_catalog.dart';
 import 'local_deck_store.dart';
 import 'supabase_deck_source.dart';
 
@@ -10,7 +11,7 @@ class SyncDeckRepository implements DeckRepository {
 
   final LocalDeckStore local;
   final SupabaseDeckSource cloud;
-  final Set<String> _defaultIds = {};
+  final Set<String> _defaultIds = defaultDeckCatalog.map((d) => d.id).toSet();
   String _translation = 'US English';
   String translationFor(String source) => _translation == source
       ? (source == 'US English' ? 'European Spanish' : 'US English') : _translation;
@@ -35,7 +36,7 @@ class SyncDeckRepository implements DeckRepository {
           .toList(growable: false);
     } on Exception {
       final catalog = await local.loadMetadata('defaults:catalog');
-      final defaults = catalog == null ? <Deck>[] : (jsonDecode(catalog) as List)
+      final defaults = catalog == null ? defaultDeckCatalog : (jsonDecode(catalog) as List)
           .map((row) => Deck.fromJson(Map<String, dynamic>.from(row as Map))).toList();
       _defaultIds.addAll(defaults.map((d) => d.id));
       if (downloaded.isNotEmpty || defaults.isNotEmpty) {

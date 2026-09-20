@@ -83,8 +83,10 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
     setState(() { _busy = true; _error = null; });
     try { await widget.analytics?.setEnabled(enabled); }
     catch (error) {
-      if (mounted) setState(() => _error = describeAppError(error,
+      if (mounted) {
+        setState(() => _error = describeAppError(error,
           fallback: 'The privacy preference could not be saved. Try again online.'));
+      }
     } finally { if (mounted) setState(() => _busy = false); }
   }
   @override

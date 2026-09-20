@@ -1,0 +1,27 @@
+name: Default deck content pilot
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['tools/build_default_decks.py', '.github/workflows/default-deck-pilot.yml']
+permissions:
+  contents: read
+jobs:
+  pilot:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Generate thirty concepts in representative languages
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python tools/build_default_decks.py --pilot --languages en-US es-ES de-DE th-Thai-TH th-Latn-TH --output default-deck-pilot
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: Default-deck-content-pilot
+          path: default-deck-pilot
+          if-no-files-found: warn
