@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../models/deck.dart';
 import 'deck_repository.dart';
 import 'local_deck_store.dart';
@@ -8,19 +10,38 @@ class SyncDeckRepository implements DeckRepository {
 
   final LocalDeckStore local;
   final SupabaseDeckSource cloud;
+  final Set<String> _defaultIds = {};
+  String _translation = 'US English';
+  String translationFor(String source) => _translation == source
+      ? (source == 'US English' ? 'European Spanish' : 'US English') : _translation;
+  Future<void> setDefaultTranslation(String language) async {
+    _translation = language;
+    await local.saveMetadata('defaults:translation', language);
+  }
 
   @override
   Future<List<Deck>> cloudLibrary() async {
+    _translation = await local.loadMetadata('defaults:translation') ?? 'US English';
     await synchronizePendingProgress();
     final downloaded = await local.downloadedDecks();
     try {
-      final remote = await cloud.fetchLibrary();
+      final defaults = await cloud.fetchDefaults();
+      _defaultIds.addAll(defaults.map((d) => d.id));
+      await local.saveMetadata('defaults:catalog', jsonEncode(defaults.map((d) => d.toJson()).toList()));
+      final remote = [...defaults, ...await cloud.fetchLibrary()];
       final localById = {for (final deck in downloaded) deck.id: deck};
       return remote
           .map((deck) => deck.copyWith(isDownloaded: localById.containsKey(deck.id)))
           .toList(growable: false);
     } on Exception {
-      if (downloaded.isNotEmpty) return downloaded;
+      final catalog = await local.loadMetadata('defaults:catalog');
+      final defaults = catalog == null ? <Deck>[] : (jsonDecode(catalog) as List)
+          .map((row) => Deck.fromJson(Map<String, dynamic>.from(row as Map))).toList();
+      _defaultIds.addAll(defaults.map((d) => d.id));
+      if (downloaded.isNotEmpty || defaults.isNotEmpty) {
+        final byId = {for (final deck in defaults) deck.id: deck, for (final deck in downloaded) deck.id: deck};
+        return byId.values.toList();
+      }
       rethrow;
     }
   }
@@ -33,7 +54,7 @@ class SyncDeckRepository implements DeckRepository {
 
   @override
   Future<void> download(String deckId) async {
-    await cloud.restoreMobileDeck(deckId);
+    if (!_defaultIds.contains(deckId)) await cloud.restoreMobileDeck(deckId);
     await loadDeck(deckId);
   }
 
@@ -47,7 +68,8 @@ class SyncDeckRepository implements DeckRepository {
   }) async {
     Deck? deck;
     try {
-      deck = await cloud.fetchDeck(
+      deck = _defaultIds.contains(deckId) ? await cloud.fetchDefault(deckId, translation: translationFor(
+          (await cloud.fetchDefaults()).firstWhere((d) => d.id == deckId).sourceLanguage)) : await cloud.fetchDeck(
         deckId,
         includeAudio: includeAudio,
         fromRank: fromRank,
@@ -56,10 +78,12 @@ class SyncDeckRepository implements DeckRepository {
     } on Exception {
       final downloaded = await local.downloadedDecks();
       deck = downloaded.where((candidate) => candidate.id == deckId).firstOrNull;
-      if (deck == null) rethrow;
+      if (deck == null || (deck.isDefault && deck.translationLanguage != translationFor(deck.sourceLanguage))) rethrow;
     }
     if (deck == null) throw StateError('Deck not found: $deckId');
-    await cloud.markUsed(deckId);
+    if (!_defaultIds.contains(deckId)) {
+      try { await cloud.markUsed(deckId); } on Exception { /* Offline study remains available. */ }
+    }
     await local.saveDeck(deck, downloadAudio: downloadAudio);
     if (!downloadAudio) return deck;
     final localDecks = await local.downloadedDecks();
@@ -100,17 +124,20 @@ class SyncDeckRepository implements DeckRepository {
   @override
   Future<void> removeDownload(String deckId) async {
     await local.removeDownload(deckId);
-    await cloud.scheduleMobileRemoval(deckId);
+    if (!_defaultIds.contains(deckId)) await cloud.scheduleMobileRemoval(deckId);
   }
 
   @override
-  Future<void> markDeckUsed(String deckId) => cloud.markUsed(deckId);
+  Future<void> markDeckUsed(String deckId) async {
+    if (!_defaultIds.contains(deckId)) await cloud.markUsed(deckId);
+  }
 
   @override
   Future<void> runMaintenance() => cloud.runMaintenance();
 
   @override
   Future<void> deleteEverywhere(String deckId) async {
+    if (_defaultIds.contains(deckId)) throw StateError('Default decks cannot be deleted.');
     await cloud.deleteEverywhere(deckId);
     await local.removeDownload(deckId);
   }
