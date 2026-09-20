@@ -70,15 +70,15 @@ begin
   if p_revision is distinct from p.revision then return 'stale'; end if;
   if p_event_id is null or p_kind is null or p_kind not in ('deck_opened','card_opened') or
     p_language is null or not exists(select 1 from public.default_decks where source_language=p_language)
-    then raise exception 'Invalid learning event'; end if;
-  if p_occurred_at is null or p_occurred_at>now()+interval '5 minutes' then raise exception 'Invalid event time'; end if;
+    then return 'invalid'; end if;
+  if p_occurred_at is null or p_occurred_at>now()+interval '5 minutes' then return 'invalid'; end if;
   if p_occurred_at<now()-interval '90 days' then return 'expired'; end if;
   if p_kind='card_opened' and (p_card_id is null or not (
     exists(select 1 from public.cards c join public.decks d on d.id=c.deck_id
       where c.id=p_card_id and c.user_id=auth.uid() and d.source_language=p_language)
     or exists(select 1 from public.default_card_identity c join public.default_decks d on d.id=c.deck_id
       where c.id=p_card_id and d.source_language=p_language and d.content_version is not null)))
-    then raise exception 'Card is not accessible in this language'; end if;
+    then return 'invalid'; end if;
   insert into public.learning_receipts(user_id,event_id) values(auth.uid(),p_event_id) on conflict do nothing;
   get diagnostics added=row_count;
   if added=0 then return 'ok'; end if;

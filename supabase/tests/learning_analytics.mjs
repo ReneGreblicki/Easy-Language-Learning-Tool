@@ -30,12 +30,12 @@ select public.record_learning_activity(gen_random_uuid(),'card_opened','German',
 assert.equal(await scalar("select count(*)::int from public.learning_unique_cards"),1000);
 assert.deepEqual((await db.query("select milestone from public.learning_events where kind='card_milestone' order by milestone")).rows.map(r=>r.milestone),[10,100,500,1000]);
 assert.equal(await scalar("select count(*)::int from public.learning_events where kind='first_deck_opened'"),1);
-await assert.rejects(db.exec(`select public.record_learning_activity(gen_random_uuid(),'card_opened','French',now(),1,md5('1')::uuid)`));
+assert.equal(await scalar(`select public.record_learning_activity(gen_random_uuid(),'card_opened','French',now(),1,md5('1')::uuid)`),'invalid');
 await db.exec(`insert into public.mobile_generation_jobs values('${user}','${user}','German','running');
 update public.mobile_generation_jobs set status='completed'; update public.mobile_generation_jobs set status='completed';`);
 assert.equal(await scalar("select count(*)::int from public.learning_events where kind='deck_generated'"),1);
 await db.exec(`set test.account_id='${other}'; select public.set_learning_analytics(true);`);
-await assert.rejects(db.exec(`select public.record_learning_activity(gen_random_uuid(),'card_opened','German',now(),1,md5('1')::uuid)`));
+assert.equal(await scalar(`select public.record_learning_activity(gen_random_uuid(),'card_opened','German',now(),1,md5('1')::uuid)`),'invalid');
 await db.exec(`set role authenticated;`);
 await assert.rejects(db.exec('select * from public.learning_unique_cards'));
 await assert.rejects(db.exec('update public.default_decks set content_version=1'));
