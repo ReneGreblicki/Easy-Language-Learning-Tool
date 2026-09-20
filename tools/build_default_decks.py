@@ -61,7 +61,9 @@ def request_rows(tasks: list[dict], language: str, model: str) -> list[dict]:
     elif language == "Thai (Paiboon romanization)":
         instruction += (
             "Transliterate the supplied Thai headwords and sentences into Paiboon "
-            "romanization with appropriate vowel symbols and tone marks. NO Thai characters "
+            "romanization with appropriate vowel symbols and tone marks. Follow spellings like "
+            "châi, mâi, kráp, nîi, kɔ̀ɔp-kun, dtɛ̀ɛ, à-rai. Use diacritics for tones, "
+            "not unmarked ASCII approximations like thi, chan or tongkan. NO Thai characters "
             "anywhere in target_word or target_sentence. Do not translate them into English. "
         )
     else:
@@ -69,7 +71,10 @@ def request_rows(tasks: list[dict], language: str, model: str) -> list[dict]:
             "Translate BOTH the source word AND its sentence. For example English "
             "'the' in German can be target_word 'die' in 'Die Katze ...'; in Spanish 'el' in "
             "'El gato ...'. When no standalone equivalent exists, use a natural contextual "
-            "phrase in the target language that expresses that meaning. Do not retain the "
+            "phrase in the target language that expresses that meaning. For Thai, the English "
+            "definite article has no standalone equivalent: translate the definite noun phrase "
+            "instead, e.g. the dog as สุนัขตัวนั้น, and use that phrase in the sentence. "
+            "Do not substitute an unrelated Thai word merely to fill the headword field. Do not retain the "
             "English headword as a label. Adapt grammar naturally while preserving meaning. "
         )
     schema = {
@@ -132,9 +137,21 @@ def request_rows(tasks: list[dict], language: str, model: str) -> list[dict]:
             validate_rows(rows, tasks)
             validate_language(rows, tasks, language)
             return rows
-        except (ValueError, KeyError, OSError):
+        except (ValueError, KeyError, OSError) as error:
             if attempt == 2:
                 raise
+            if isinstance(error, (ValueError, KeyError)):
+                retry_body = json.loads(body)
+                retry_body["messages"].append(
+                    {
+                        "role": "user",
+                        "content": "The previous response failed validation: "
+                        + str(error)
+                        + ". Correct the entire batch.",
+                    }
+                )
+                body = json.dumps(retry_body, ensure_ascii=False).encode()
+                request.data = body
             time.sleep(2**attempt)
     raise AssertionError("unreachable")
 
@@ -161,7 +178,15 @@ def validate_language(rows: list[dict], tasks: list[dict], language: str) -> Non
         copied = sum(normalize(r["word"]) == normalize(original[r["id"]]["word"]) for r in rows)
         if copied / len(rows) > 0.6:
             raise ValueError("Most headwords were not translated")
+    if language == "Thai (Paiboon romanization)":
+        combined = unicodedata.normalize("NFD", " ".join(r["sentence"] for r in rows))
+        if not any(mark in combined for mark in ("\u0300", "\u0301", "\u0302", "\u030c")):
+            raise ValueError("Paiboon sentences lack tone marks; unmarked ASCII is not accepted")
     for row in rows:
+        if language == "Thai (Thai script)" and normalize(row["word"]) not in normalize(
+            row["sentence"]
+        ):
+            raise ValueError("Thai target headword or phrase is absent from its example sentence")
         for key in ("word", "sentence"):
             thai = bool(re.search(r"[\u0e00-\u0e7f]", row[key]))
             if language == "Thai (Paiboon romanization)" and thai:
@@ -206,7 +231,7 @@ def generate(output: Path, pilot: bool, languages: list[str], model: str) -> dic
             batch = source_tasks[start : start + 20]
             # Changing input/model invalidates the checkpoint rather than silently reusing it.
             digest = hashlib.sha256(
-                json.dumps(["prompt-v2", model, code, batch], sort_keys=True).encode()
+                json.dumps(["prompt-v3", model, code, batch], sort_keys=True).encode()
             ).hexdigest()[:20]
             file = checkpoint / f"{code}-{digest}.json"
             rows = (
