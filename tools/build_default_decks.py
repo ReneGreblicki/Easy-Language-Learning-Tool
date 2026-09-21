@@ -26,6 +26,19 @@ LANGUAGES = dict(
         (ROOT / "android_app/lib/generation/generation_settings.dart").read_text(),
     )
 )
+API_USAGE = {
+    "requests": 0,
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "total_tokens": 0,
+}
+
+
+def record_usage(payload: dict) -> None:
+    usage = payload.get("usage", {})
+    API_USAGE["requests"] += 1
+    for key in ("prompt_tokens", "completion_tokens", "total_tokens"):
+        API_USAGE[key] += int(usage.get(key, 0))
 
 
 def stable_id(value: str) -> str:
@@ -128,6 +141,7 @@ def request_rows(tasks: list[dict], language: str, model: str) -> list[dict]:
         try:
             with urllib.request.urlopen(request, timeout=120) as response:
                 payload = json.load(response)
+            record_usage(payload)
             raw = json.loads(payload["choices"][0]["message"]["content"])["rows"]
             rows = [
                 {
@@ -160,6 +174,134 @@ def request_rows(tasks: list[dict], language: str, model: str) -> list[dict]:
     raise AssertionError("unreachable")
 
 
+def review_rows(
+    tasks: list[dict],
+    draft_rows: list[dict],
+    language: str,
+    model: str,
+) -> list[dict]:
+    """Apply a separate editorial pass before accepting translated content."""
+    instruction = (
+        "You are the final language editor for a frequency-based learning curriculum. "
+        "Return one corrected row per id with target_word, target_sentence, and "
+        "sense_in_english. Review the draft rather than merely repeating it. The target "
+        "word and sentence must be natural " + language + ", express exactly the source "
+        "meaning and proposition, and be appropriate for the supplied CEFR level. Preserve "
+        "the exact sense_in_english text from the source. Use a useful dictionary headword "
+        "when one exists; grammatical inflection in the sentence is allowed. For English "
+        "function words without a direct standalone equivalent, use the shortest natural "
+        "contextual equivalent or construction—never force an ungrammatical marker. Correct "
+        "literal calques, altered subjects/objects/actions, unnatural register, and sentences "
+        "that do not demonstrate the study item. B1 examples must contain two connected ideas. "
+    )
+    if language == "Thai (Paiboon romanization)":
+        instruction += (
+            "Use tone-marked Paiboon romanization only, with no Thai characters. Preserve "
+            "the supplied Thai meaning and use consistent spellings such as châi, mâi, kráp, "
+            "nîi, kɔ̀ɔp-kun, dtɛ̀ɛ and à-rai. "
+        )
+    drafts_by_id = {row["id"]: row for row in draft_rows}
+    payload_rows = [
+        {
+            "id": task["id"],
+            "level": task["level"],
+            "source_word": task["word"],
+            "source_sentence": task["sentence"],
+            "sense_in_english": task["sense"],
+            "draft_target_word": drafts_by_id[task["id"]]["word"],
+            "draft_target_sentence": drafts_by_id[task["id"]]["sentence"],
+        }
+        for task in tasks
+    ]
+    schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["rows"],
+        "properties": {
+            "rows": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": [
+                        "id",
+                        "target_word",
+                        "target_sentence",
+                        "sense_in_english",
+                    ],
+                    "properties": {
+                        "id": {"type": "integer"},
+                        "target_word": {"type": "string"},
+                        "target_sentence": {"type": "string"},
+                        "sense_in_english": {"type": "string"},
+                    },
+                },
+            }
+        },
+    }
+    body = json.dumps(
+        {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": instruction},
+                {"role": "user", "content": json.dumps(payload_rows, ensure_ascii=False)},
+            ],
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "reviewed_learning_rows",
+                    "strict": True,
+                    "schema": schema,
+                },
+            },
+            "temperature": 0.1,
+        },
+        ensure_ascii=False,
+    ).encode()
+    request = urllib.request.Request(
+        "https://api.openai.com/v1/chat/completions",
+        data=body,
+        headers={
+            "Authorization": "Bearer " + os.environ["OPENAI_API_KEY"],
+            "Content-Type": "application/json",
+        },
+    )
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(request, timeout=120) as response:
+                payload = json.load(response)
+            record_usage(payload)
+            raw = json.loads(payload["choices"][0]["message"]["content"])["rows"]
+            rows = [
+                {
+                    "id": row["id"],
+                    "word": row["target_word"],
+                    "sentence": row["target_sentence"],
+                    "sense": row["sense_in_english"],
+                }
+                for row in raw
+            ]
+            validate_rows(rows, tasks)
+            validate_language(rows, tasks, language)
+            return rows
+        except (ValueError, KeyError, OSError) as error:
+            if attempt == 2:
+                raise
+            retry_body = json.loads(body)
+            retry_body["messages"].append(
+                {
+                    "role": "user",
+                    "content": "The editorial response failed validation: "
+                    + str(error)
+                    + ". Return the complete corrected batch.",
+                }
+            )
+            body = json.dumps(retry_body, ensure_ascii=False).encode()
+            request.data = body
+            time.sleep(2**attempt)
+    raise AssertionError("unreachable")
+
+
 def validate_rows(rows: list[dict], tasks: list[dict]) -> None:
     if len(rows) != len(tasks) or {r["id"] for r in rows} != {t["id"] for t in tasks}:
         raise ValueError("Missing or duplicated concept IDs")
@@ -182,6 +324,12 @@ def validate_language(rows: list[dict], tasks: list[dict], language: str) -> Non
         copied = sum(normalize(r["word"]) == normalize(original[r["id"]]["word"]) for r in rows)
         if copied / len(rows) > 0.6:
             raise ValueError("Most headwords were not translated")
+        if any(
+            "sense" in original[row["id"]]
+            and normalize(row["sense"]) != normalize(original[row["id"]]["sense"])
+            for row in rows
+        ):
+            raise ValueError("English sense changed during translation")
     if language == "Thai (Paiboon romanization)":
         combined = unicodedata.normalize("NFD", " ".join(r["sentence"] for r in rows))
         if not any(mark in combined for mark in ("\u0300", "\u0301", "\u0302", "\u030c")):
@@ -200,6 +348,8 @@ def validate_language(rows: list[dict], tasks: list[dict], language: str) -> Non
 
 
 def generate(output: Path, pilot: bool, languages: list[str], model: str) -> dict:
+    for key in API_USAGE:
+        API_USAGE[key] = 0
     frequencies = frequency_data()
     english = frequencies["en-US"][:1000]
     if len(english) != 1000 or len({r["rank"] for r in english}) != 1000:
@@ -235,7 +385,7 @@ def generate(output: Path, pilot: bool, languages: list[str], model: str) -> dic
             batch = source_tasks[start : start + 20]
             # Changing input/model invalidates the checkpoint rather than silently reusing it.
             digest = hashlib.sha256(
-                json.dumps(["prompt-v4", model, code, batch], sort_keys=True).encode()
+                json.dumps(["prompt-v5-editorial", model, code, batch], sort_keys=True).encode()
             ).hexdigest()[:20]
             file = checkpoint / f"{code}-{digest}.json"
             rows = (
@@ -243,6 +393,8 @@ def generate(output: Path, pilot: bool, languages: list[str], model: str) -> dic
                 if file.exists()
                 else request_rows(batch, LANGUAGES[code], model)
             )
+            if not file.exists() and code != "en-US":
+                rows = review_rows(batch, rows, LANGUAGES[code], model)
             validate_rows(rows, batch)
             validate_language(rows, batch, LANGUAGES[code])
             file.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -266,10 +418,14 @@ def generate(output: Path, pilot: bool, languages: list[str], model: str) -> dic
         "source_attribution": {
             k: english[0].get(k) for k in ("source", "licence", "source_url", "source_revision")
         },
+        "api_usage": dict(API_USAGE),
         "languages": datasets,
     }
     content = json.dumps(result, ensure_ascii=False, indent=2)
     (output / "curriculum.json").write_text(content, encoding="utf-8")
+    (output / "language_codes.json").write_text(
+        json.dumps(list(LANGUAGES), indent=2), encoding="utf-8"
+    )
     issues = [
         f"{code} concept {r['id']}: translation not matched to ranked source"
         for code, rows in datasets.items()

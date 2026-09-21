@@ -58,6 +58,21 @@ def test_translation_checks_reject_copied_headwords_and_thai_script():
         )
 
 
+def test_translation_checks_reject_changed_english_sense():
+    tasks = [{"id": index, "word": "word", "sense": "the intended meaning"} for index in range(5)]
+    rows = [
+        {
+            "id": index,
+            "word": f"Wort{index}",
+            "sentence": f"Wort{index} steht hier.",
+            "sense": "a different meaning" if index == 3 else "the intended meaning",
+        }
+        for index in range(5)
+    ]
+    with pytest.raises(ValueError, match="sense changed"):
+        builder.validate_language(rows, tasks, "German")
+
+
 def test_romanization_requires_tones_and_native_target_must_be_used():
     tasks = [{"id": 1, "word": "ที่"}]
     with pytest.raises(ValueError, match="tone marks"):
