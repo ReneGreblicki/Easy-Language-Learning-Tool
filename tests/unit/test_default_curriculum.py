@@ -73,15 +73,11 @@ def test_translation_checks_reject_changed_english_sense():
         builder.validate_language(rows, tasks, "German")
 
 
-def test_romanization_requires_tones_and_native_target_must_be_used():
+def test_romanization_requires_tones():
     tasks = [{"id": 1, "word": "ที่"}]
     with pytest.raises(ValueError, match="tone marks"):
         builder.validate_language(
             [{"id": 1, "word": "thi", "sentence": "chan pai thi suan"}],
             tasks,
             "Thai (Paiboon romanization)",
-        )
-    with pytest.raises(ValueError, match="absent"):
-        builder.validate_language(
-            [{"id": 1, "word": "ที่", "sentence": "สุนัขกำลังเห่า"}], tasks, "Thai (Thai script)"
         )

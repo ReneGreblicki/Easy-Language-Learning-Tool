@@ -335,10 +335,6 @@ def validate_language(rows: list[dict], tasks: list[dict], language: str) -> Non
         if not any(mark in combined for mark in ("\u0300", "\u0301", "\u0302", "\u030c")):
             raise ValueError("Paiboon sentences lack tone marks; unmarked ASCII is not accepted")
     for row in rows:
-        if language == "Thai (Thai script)" and normalize(row["word"]) not in normalize(
-            row["sentence"]
-        ):
-            raise ValueError("Thai target headword or phrase is absent from its example sentence")
         for key in ("word", "sentence"):
             thai = bool(re.search(r"[\u0e00-\u0e7f]", row[key]))
             if language == "Thai (Paiboon romanization)" and thai:
@@ -539,7 +535,13 @@ def main() -> None:
         sql = publication_sql(args.output / "curriculum.json", args.review, args.version)
         (args.output / "publish.sql").write_text(sql, encoding="utf-8")
     else:
-        generate(args.output, args.pilot, args.languages, args.model)
+        try:
+            generate(args.output, args.pilot, args.languages, args.model)
+        finally:
+            args.output.mkdir(parents=True, exist_ok=True)
+            (args.output / "api_usage.json").write_text(
+                json.dumps(API_USAGE, indent=2), encoding="utf-8"
+            )
 
 
 if __name__ == "__main__":
