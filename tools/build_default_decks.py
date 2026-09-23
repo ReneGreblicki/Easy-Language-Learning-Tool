@@ -14,6 +14,7 @@ import os
 import re
 import time
 import unicodedata
+import urllib.error
 import urllib.request
 from pathlib import Path
 from uuid import UUID
@@ -48,6 +49,19 @@ def generation_options(
     if reasoning_effort:
         return {"reasoning_effort": reasoning_effort}
     return {"temperature": temperature}
+
+
+def retry_delay(error: Exception, attempt: int) -> float:
+    if isinstance(error, urllib.error.HTTPError) and error.code == 429:
+        try:
+            return max(10.0, float(error.headers.get("Retry-After", 0)))
+        except (TypeError, ValueError):
+            return 10.0 * (attempt + 1)
+    return float(2**attempt)
+
+
+def request_timeout(reasoning_effort: str | None) -> int:
+    return 300 if reasoning_effort else 120
 
 
 def stable_id(value: str) -> str:
@@ -148,9 +162,11 @@ def request_rows(
             "Content-Type": "application/json",
         },
     )
-    for attempt in range(3):
+    for attempt in range(5):
         try:
-            with urllib.request.urlopen(request, timeout=120) as response:
+            with urllib.request.urlopen(
+                request, timeout=request_timeout(reasoning_effort)
+            ) as response:
                 payload = json.load(response)
             record_usage(payload)
             raw = json.loads(payload["choices"][0]["message"]["content"])["rows"]
@@ -167,7 +183,7 @@ def request_rows(
             validate_language(rows, tasks, language)
             return rows
         except (ValueError, KeyError, OSError) as error:
-            if attempt == 2:
+            if attempt == 4:
                 raise
             if isinstance(error, (ValueError, KeyError)):
                 retry_body = json.loads(body)
@@ -181,7 +197,7 @@ def request_rows(
                 )
                 body = json.dumps(retry_body, ensure_ascii=False).encode()
                 request.data = body
-            time.sleep(2**attempt)
+            time.sleep(retry_delay(error, attempt))
     raise AssertionError("unreachable")
 
 
@@ -278,9 +294,11 @@ def review_rows(
             "Content-Type": "application/json",
         },
     )
-    for attempt in range(3):
+    for attempt in range(5):
         try:
-            with urllib.request.urlopen(request, timeout=120) as response:
+            with urllib.request.urlopen(
+                request, timeout=request_timeout(reasoning_effort)
+            ) as response:
                 payload = json.load(response)
             record_usage(payload)
             raw = json.loads(payload["choices"][0]["message"]["content"])["rows"]
@@ -297,7 +315,7 @@ def review_rows(
             validate_language(rows, tasks, language)
             return rows
         except (ValueError, KeyError, OSError) as error:
-            if attempt == 2:
+            if attempt == 4:
                 raise
             retry_body = json.loads(body)
             retry_body["messages"].append(
@@ -310,7 +328,7 @@ def review_rows(
             )
             body = json.dumps(retry_body, ensure_ascii=False).encode()
             request.data = body
-            time.sleep(2**attempt)
+            time.sleep(retry_delay(error, attempt))
     raise AssertionError("unreachable")
 
 

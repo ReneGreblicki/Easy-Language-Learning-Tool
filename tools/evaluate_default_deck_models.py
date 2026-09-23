@@ -9,6 +9,7 @@ import json
 import os
 import statistics
 import time
+import urllib.error
 import urllib.request
 from collections import defaultdict
 from pathlib import Path
@@ -120,7 +121,7 @@ def judge_language(
         },
     }
     expected = {(row["concept_id"], row["label"]) for row in candidates}
-    for attempt in range(3):
+    for attempt in range(5):
         request = urllib.request.Request(
             "https://api.openai.com/v1/chat/completions",
             data=json.dumps(body, ensure_ascii=False).encode(),
@@ -144,7 +145,7 @@ def judge_language(
                 "total_tokens": int(usage.get("total_tokens", 0)),
             }
         except (KeyError, OSError, ValueError) as error:
-            if attempt == 2:
+            if attempt == 4:
                 raise
             body["messages"].append(
                 {
@@ -152,7 +153,14 @@ def judge_language(
                     "content": f"The prior evaluation failed validation: {error}. Return all rows.",
                 }
             )
-            time.sleep(2**attempt)
+            if isinstance(error, urllib.error.HTTPError) and error.code == 429:
+                try:
+                    delay = max(10.0, float(error.headers.get("Retry-After", 0)))
+                except (TypeError, ValueError):
+                    delay = 10.0 * (attempt + 1)
+            else:
+                delay = float(2**attempt)
+            time.sleep(delay)
     raise AssertionError("unreachable")
 
 

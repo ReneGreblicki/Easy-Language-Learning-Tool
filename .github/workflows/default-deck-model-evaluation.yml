@@ -15,6 +15,7 @@ jobs:
     timeout-minutes: 45
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         include:
           - model: gpt-4.1
@@ -22,10 +23,10 @@ jobs:
             reasoning: ''
           - model: gpt-5.6-luna
             slug: gpt-5-6-luna
-            reasoning: high
+            reasoning: medium
           - model: gpt-5.6-terra
             slug: gpt-5-6-terra
-            reasoning: high
+            reasoning: medium
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v7

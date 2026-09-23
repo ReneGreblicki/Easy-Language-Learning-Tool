@@ -1,6 +1,7 @@
 import hashlib
 import importlib.util
 import json
+import urllib.error
 from pathlib import Path
 
 import pytest
@@ -24,6 +25,15 @@ def test_source_and_identity():
 def test_reasoning_models_do_not_receive_temperature():
     assert builder.generation_options("gpt-5.6-luna", "high", 0.2) == {"reasoning_effort": "high"}
     assert builder.generation_options("gpt-4.1", None, 0.2) == {"temperature": 0.2}
+
+
+def test_rate_limit_retry_respects_server_delay():
+    error = urllib.error.HTTPError(
+        "https://api.openai.com", 429, "rate limited", {"Retry-After": "17"}, None
+    )
+    assert builder.retry_delay(error, 0) == 17
+    assert builder.request_timeout("medium") == 300
+    assert builder.request_timeout(None) == 120
 
 
 def test_reject_duplicate_concepts():
