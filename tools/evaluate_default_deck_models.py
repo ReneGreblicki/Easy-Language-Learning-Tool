@@ -260,6 +260,14 @@ def evaluate(
     curricula = {
         model: json.loads(path.read_text(encoding="utf-8")) for model, path in input_paths.items()
     }
+    audits = {}
+    for model, path in input_paths.items():
+        audit_path = path.parent / "audit.json"
+        audits[model] = (
+            json.loads(audit_path.read_text(encoding="utf-8"))
+            if audit_path.exists()
+            else {"errors": ["Audit result unavailable"], "warnings": []}
+        )
     language_sets = {tuple(data["languages"]) for data in curricula.values()}
     if len(language_sets) != 1:
         raise ValueError("Model curricula contain different language sets")
@@ -287,12 +295,17 @@ def evaluate(
             row["model"] = key[(row["concept_id"], row["label"])]
             judged.append(row)
 
+    summary = summarize(judged, curricula)
+    for model, audit in audits.items():
+        summary[model]["audit_errors"] = audit.get("errors", [])
+        summary[model]["audit_warnings"] = audit.get("warnings", [])
+
     result = {
         "judge_model": judge_model,
         "judge_reasoning_effort": reasoning_effort,
         "judge_usage": dict(judge_usage),
         "rubric_weights": WEIGHTS,
-        "summary": summarize(judged, curricula),
+        "summary": summary,
         "known_regressions": [
             {
                 "language": language,
@@ -319,15 +332,15 @@ def evaluate(
         "",
         "Automated blind evaluation only. Native-language approval remains required.",
         "",
-        "| Model | Quality / 100 | Fatal rows | Wins | Generation tokens | Seconds |",
-        "|---|---:|---:|---:|---:|---:|",
+        "| Model | Quality / 100 | Fatal rows | Audit errors | Wins | Generation tokens | Seconds |",
+        "|---|---:|---:|---:|---:|---:|---:|",
     ]
     for model, row in sorted(
         result["summary"].items(), key=lambda item: item[1]["quality_score"], reverse=True
     ):
         lines.append(
             f"| {model} | {row['quality_score']:.3f} | {row['fatal_errors']} | "
-            f"{row['wins']:.3f} | {row['generation_usage'].get('total_tokens', 0)} | "
+            f"{len(row['audit_errors'])} | {row['wins']:.3f} | {row['generation_usage'].get('total_tokens', 0)} | "
             f"{row['generation_elapsed_seconds']} |"
         )
     lines.extend(["", "## Known-regression rows", ""])
