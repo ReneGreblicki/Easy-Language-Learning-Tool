@@ -41,6 +41,15 @@ def record_usage(payload: dict) -> None:
         API_USAGE[key] += int(usage.get(key, 0))
 
 
+def generation_options(
+    model: str, reasoning_effort: str | None, temperature: float
+) -> dict[str, object]:
+    """Return API options accepted by both reasoning and non-reasoning models."""
+    if reasoning_effort:
+        return {"reasoning_effort": reasoning_effort}
+    return {"temperature": temperature}
+
+
 def stable_id(value: str) -> str:
     return str(UUID(hashlib.md5(value.encode(), usedforsecurity=False).hexdigest()))
 
@@ -60,7 +69,9 @@ def frequency_data() -> dict[str, list[dict]]:
     return result
 
 
-def request_rows(tasks: list[dict], language: str, model: str) -> list[dict]:
+def request_rows(
+    tasks: list[dict], language: str, model: str, reasoning_effort: str | None = None
+) -> list[dict]:
     instruction = (
         "Return one row per input id with target_word, target_sentence, and sense_in_english. "
         "All target_word and target_sentence values MUST be in " + language + ". "
@@ -126,7 +137,7 @@ def request_rows(tasks: list[dict], language: str, model: str) -> list[dict]:
                 "type": "json_schema",
                 "json_schema": {"name": "learning_rows", "strict": True, "schema": schema},
             },
-            "temperature": 0.2,
+            **generation_options(model, reasoning_effort, 0.2),
         }
     ).encode()
     request = urllib.request.Request(
@@ -179,6 +190,7 @@ def review_rows(
     draft_rows: list[dict],
     language: str,
     model: str,
+    reasoning_effort: str | None = None,
 ) -> list[dict]:
     """Apply a separate editorial pass before accepting translated content."""
     instruction = (
@@ -254,7 +266,7 @@ def review_rows(
                     "schema": schema,
                 },
             },
-            "temperature": 0.1,
+            **generation_options(model, reasoning_effort, 0.1),
         },
         ensure_ascii=False,
     ).encode()
@@ -343,7 +355,14 @@ def validate_language(rows: list[dict], tasks: list[dict], language: str) -> Non
                 raise ValueError("Thai script missing from native translation")
 
 
-def generate(output: Path, pilot: bool, languages: list[str], model: str) -> dict:
+def generate(
+    output: Path,
+    pilot: bool,
+    languages: list[str],
+    model: str,
+    reasoning_effort: str | None = None,
+) -> dict:
+    started = time.monotonic()
     for key in API_USAGE:
         API_USAGE[key] = 0
     frequencies = frequency_data()
@@ -381,16 +400,19 @@ def generate(output: Path, pilot: bool, languages: list[str], model: str) -> dic
             batch = source_tasks[start : start + 20]
             # Changing input/model invalidates the checkpoint rather than silently reusing it.
             digest = hashlib.sha256(
-                json.dumps(["prompt-v5-editorial", model, code, batch], sort_keys=True).encode()
+                json.dumps(
+                    ["prompt-v5-editorial", model, reasoning_effort, code, batch],
+                    sort_keys=True,
+                ).encode()
             ).hexdigest()[:20]
             file = checkpoint / f"{code}-{digest}.json"
             rows = (
                 json.loads(file.read_text())
                 if file.exists()
-                else request_rows(batch, LANGUAGES[code], model)
+                else request_rows(batch, LANGUAGES[code], model, reasoning_effort)
             )
             if not file.exists() and code != "en-US":
-                rows = review_rows(batch, rows, LANGUAGES[code], model)
+                rows = review_rows(batch, rows, LANGUAGES[code], model, reasoning_effort)
             validate_rows(rows, batch)
             validate_language(rows, batch, LANGUAGES[code])
             file.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -410,6 +432,8 @@ def generate(output: Path, pilot: bool, languages: list[str], model: str) -> dic
     result = {
         "pilot": pilot,
         "model": model,
+        "reasoning_effort": reasoning_effort,
+        "elapsed_seconds": round(time.monotonic() - started, 3),
         "source_sha256": hashlib.sha256(SOURCE.read_bytes()).hexdigest(),
         "source_attribution": {
             k: english[0].get(k) for k in ("source", "licence", "source_url", "source_revision")
@@ -528,6 +552,10 @@ def main() -> None:
     parser.add_argument("--pilot", action="store_true")
     parser.add_argument("--languages", nargs="+", default=list(LANGUAGES))
     parser.add_argument("--model", default="gpt-4o-mini")
+    parser.add_argument(
+        "--reasoning-effort",
+        choices=("none", "low", "medium", "high", "xhigh", "max"),
+    )
     parser.add_argument("--review", type=Path)
     parser.add_argument("--version", type=int, default=1)
     args = parser.parse_args()
@@ -536,7 +564,13 @@ def main() -> None:
         (args.output / "publish.sql").write_text(sql, encoding="utf-8")
     else:
         try:
-            generate(args.output, args.pilot, args.languages, args.model)
+            generate(
+                args.output,
+                args.pilot,
+                args.languages,
+                args.model,
+                args.reasoning_effort,
+            )
         finally:
             args.output.mkdir(parents=True, exist_ok=True)
             (args.output / "api_usage.json").write_text(

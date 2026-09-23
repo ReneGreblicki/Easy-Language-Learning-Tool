@@ -21,6 +21,11 @@ def test_source_and_identity():
     assert builder.stable_id("default-card:de-DE:1") != builder.stable_id("default-card:fr-FR:1")
 
 
+def test_reasoning_models_do_not_receive_temperature():
+    assert builder.generation_options("gpt-5.6-luna", "high", 0.2) == {"reasoning_effort": "high"}
+    assert builder.generation_options("gpt-4.1", None, 0.2) == {"temperature": 0.2}
+
+
 def test_reject_duplicate_concepts():
     row = {"id": 1, "word": "a", "sentence": "A cat sleeps.", "sense": "article"}
     with pytest.raises(ValueError, match="duplicated"):
