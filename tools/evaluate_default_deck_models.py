@@ -25,7 +25,7 @@ WEIGHTS = {
 }
 KNOWN_REGRESSIONS = {
     ("fr-FR", 406): "matter/be important, not importer",
-    ("ml-IN", 708): "iron clothing, not sit",
+    ("ml-IN", 708): "press or push firmly, not sit",
     ("tr-TR", 1): "do not leave English 'the' as the target",
     ("zh-CN", 2): "use a pedagogically useful infinitive construction",
     ("ja-JP", 2): "use a natural Japanese infinitive/desire construction",
