@@ -20,6 +20,11 @@ import urllib.request
 from pathlib import Path
 from uuid import UUID
 
+try:
+    from api_cost_guard import CostBudget
+except ModuleNotFoundError:  # Imported directly by unit tests from the repository root.
+    from tools.api_cost_guard import CostBudget
+
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "resources/frequency_data/production/words.jsonl.gz"
 LANGUAGES = dict(
@@ -33,7 +38,10 @@ API_USAGE = {
     "prompt_tokens": 0,
     "completion_tokens": 0,
     "total_tokens": 0,
+    "estimated_cost_usd": 0.0,
 }
+ACTIVE_BUDGET: CostBudget | None = None
+MAX_COMPLETION_TOKENS = 4096
 LAST_OPENAI_REQUEST_AT = 0.0
 MAX_API_ATTEMPTS = 7
 NON_RETRYABLE_429_CODES = {
@@ -45,11 +53,20 @@ NON_RETRYABLE_429_CODES = {
 }
 
 
-def record_usage(payload: dict) -> None:
+def record_usage(payload: dict, model: str) -> None:
     usage = payload.get("usage", {})
     API_USAGE["requests"] += 1
     for key in ("prompt_tokens", "completion_tokens", "total_tokens"):
         API_USAGE[key] += int(usage.get(key, 0))
+    if ACTIVE_BUDGET:
+        API_USAGE["estimated_cost_usd"] = round(ACTIVE_BUDGET.record(model, usage), 8) + float(
+            API_USAGE["estimated_cost_usd"]
+        )
+
+
+def preflight_request(model: str, body: bytes) -> None:
+    if ACTIVE_BUDGET:
+        ACTIVE_BUDGET.preflight(model, body, MAX_COMPLETION_TOKENS)
 
 
 def generation_options(
@@ -192,9 +209,11 @@ def request_rows(
                 "type": "json_schema",
                 "json_schema": {"name": "learning_rows", "strict": True, "schema": schema},
             },
+            "max_completion_tokens": MAX_COMPLETION_TOKENS,
             **generation_options(model, reasoning_effort, 0.2),
         }
     ).encode()
+    preflight_request(model, body)
     request = urllib.request.Request(
         "https://api.openai.com/v1/chat/completions",
         data=body,
@@ -205,12 +224,13 @@ def request_rows(
     )
     for attempt in range(MAX_API_ATTEMPTS):
         try:
+            preflight_request(model, body)
             pace_openai_requests()
             with urllib.request.urlopen(
                 request, timeout=request_timeout(reasoning_effort)
             ) as response:
                 payload = json.load(response)
-            record_usage(payload)
+            record_usage(payload, model)
             raw = json.loads(payload["choices"][0]["message"]["content"])["rows"]
             rows = [
                 {
@@ -336,10 +356,12 @@ def review_rows(
                     "schema": schema,
                 },
             },
+            "max_completion_tokens": MAX_COMPLETION_TOKENS,
             **generation_options(model, reasoning_effort, 0.1),
         },
         ensure_ascii=False,
     ).encode()
+    preflight_request(model, body)
     request = urllib.request.Request(
         "https://api.openai.com/v1/chat/completions",
         data=body,
@@ -350,12 +372,13 @@ def review_rows(
     )
     for attempt in range(MAX_API_ATTEMPTS):
         try:
+            preflight_request(model, body)
             pace_openai_requests()
             with urllib.request.urlopen(
                 request, timeout=request_timeout(reasoning_effort)
             ) as response:
                 payload = json.load(response)
-            record_usage(payload)
+            record_usage(payload, model)
             raw = json.loads(payload["choices"][0]["message"]["content"])["rows"]
             rows = [
                 {
@@ -448,10 +471,13 @@ def generate(
     model: str,
     reasoning_effort: str | None = None,
     editorial_mode: str = "selective",
+    max_cost_usd: float = 0.10,
 ) -> dict:
+    global ACTIVE_BUDGET
     started = time.monotonic()
     for key in API_USAGE:
         API_USAGE[key] = 0
+    ACTIVE_BUDGET = CostBudget(max_cost_usd)
     frequencies = frequency_data()
     english = frequencies["en-US"][:1000]
     if len(english) != 1000 or len({r["rank"] for r in english}) != 1000:
@@ -521,6 +547,7 @@ def generate(
         "model": model,
         "reasoning_effort": reasoning_effort,
         "editorial_mode": editorial_mode,
+        "max_cost_usd": max_cost_usd,
         "elapsed_seconds": round(time.monotonic() - started, 3),
         "source_sha256": hashlib.sha256(SOURCE.read_bytes()).hexdigest(),
         "source_attribution": {
@@ -641,6 +668,12 @@ def main() -> None:
     parser.add_argument("--languages", nargs="+", default=list(LANGUAGES))
     parser.add_argument("--model", default="gpt-4o-mini")
     parser.add_argument(
+        "--max-cost-usd",
+        type=float,
+        default=0.10,
+        help="Hard preflight budget for this generator process.",
+    )
+    parser.add_argument(
         "--reasoning-effort",
         choices=("none", "low", "medium", "high", "xhigh", "max"),
     )
@@ -665,6 +698,7 @@ def main() -> None:
                 args.model,
                 args.reasoning_effort,
                 args.editorial_mode,
+                args.max_cost_usd,
             )
         finally:
             args.output.mkdir(parents=True, exist_ok=True)

@@ -14,6 +14,11 @@ import urllib.request
 from collections import defaultdict
 from pathlib import Path
 
+try:
+    from api_cost_guard import CostBudget
+except ModuleNotFoundError:  # Imported directly by unit tests from the repository root.
+    from tools.api_cost_guard import CostBudget
+
 SCORE_FIELDS = ("meaning", "naturalness", "headword", "level", "script", "format")
 WEIGHTS = {
     "meaning": 35,
@@ -31,6 +36,8 @@ KNOWN_REGRESSIONS = {
     ("ja-JP", 2): "use a natural Japanese infinitive/desire construction",
     ("ko-KR", 2): "use a natural Korean desire construction",
 }
+MAX_JUDGE_COMPLETION_TOKENS = 16_000
+DEFAULT_EVALUATION_LANGUAGES = ("en-US", "es-ES", "de-DE", "th-Latn-TH", "ja-JP")
 
 
 def parse_inputs(values: list[str]) -> dict[str, Path]:
@@ -89,6 +96,7 @@ def judge_language(
     candidates: list[dict],
     model: str,
     reasoning_effort: str,
+    budget: CostBudget,
 ) -> tuple[list[dict], dict[str, int]]:
     instruction = (
         "Act as a strict multilingual curriculum evaluator. The model identities are hidden. "
@@ -111,6 +119,7 @@ def judge_language(
             {"role": "user", "content": json.dumps(candidates, ensure_ascii=False)},
         ],
         "reasoning_effort": reasoning_effort,
+        "max_completion_tokens": MAX_JUDGE_COMPLETION_TOKENS,
         "response_format": {
             "type": "json_schema",
             "json_schema": {
@@ -122,9 +131,11 @@ def judge_language(
     }
     expected = {(row["concept_id"], row["label"]) for row in candidates}
     for attempt in range(5):
+        encoded_body = json.dumps(body, ensure_ascii=False).encode()
+        budget.preflight(model, encoded_body, MAX_JUDGE_COMPLETION_TOKENS)
         request = urllib.request.Request(
             "https://api.openai.com/v1/chat/completions",
-            data=json.dumps(body, ensure_ascii=False).encode(),
+            data=encoded_body,
             headers={
                 "Authorization": "Bearer " + os.environ["OPENAI_API_KEY"],
                 "Content-Type": "application/json",
@@ -133,16 +144,18 @@ def judge_language(
         try:
             with urllib.request.urlopen(request, timeout=300) as response:
                 payload = json.load(response)
+            provider_usage = payload.get("usage", {})
+            request_cost = budget.record(model, provider_usage)
             rows = json.loads(payload["choices"][0]["message"]["content"])["evaluations"]
             actual = {(row["concept_id"], row["label"]) for row in rows}
             if actual != expected or len(rows) != len(expected):
                 raise ValueError("Judge omitted or duplicated candidates")
-            usage = payload.get("usage", {})
             return rows, {
                 "requests": 1,
-                "prompt_tokens": int(usage.get("prompt_tokens", 0)),
-                "completion_tokens": int(usage.get("completion_tokens", 0)),
-                "total_tokens": int(usage.get("total_tokens", 0)),
+                "prompt_tokens": int(provider_usage.get("prompt_tokens", 0)),
+                "completion_tokens": int(provider_usage.get("completion_tokens", 0)),
+                "total_tokens": int(provider_usage.get("total_tokens", 0)),
+                "estimated_cost_usd": request_cost,
             }
         except (KeyError, OSError, ValueError) as error:
             if attempt == 4:
@@ -256,6 +269,8 @@ def evaluate(
     output: Path,
     judge_model: str,
     reasoning_effort: str,
+    languages: list[str] | None = None,
+    max_cost_usd: float = 0.20,
 ) -> dict:
     curricula = {
         model: json.loads(path.read_text(encoding="utf-8")) for model, path in input_paths.items()
@@ -276,24 +291,58 @@ def evaluate(
             raise ValueError("Only pilot curricula may be evaluated by this workflow")
 
     output.mkdir(parents=True, exist_ok=True)
+    checkpoint_dir = output / "checkpoints"
+    checkpoint_dir.mkdir(exist_ok=True)
     blind_path = output / "blind_review.csv"
     blind_path.unlink(missing_ok=True)
     key_output = {}
     judged = []
     judge_usage = defaultdict(int)
-    for language in next(iter(language_sets)):
+    budget = CostBudget(max_cost_usd)
+    selected_languages = languages or list(DEFAULT_EVALUATION_LANGUAGES)
+    unknown = set(selected_languages) - set(next(iter(language_sets)))
+    if unknown:
+        raise ValueError(f"Unknown evaluation languages: {sorted(unknown)}")
+    for language in selected_languages:
         candidates, key = build_candidates(curricula, language)
         write_blind_pack(blind_path, candidates, language)
         key_output[language] = {
             f"{concept_id}:{label}": model for (concept_id, label), model in key.items()
         }
-        rows, usage = judge_language(language, candidates, judge_model, reasoning_effort)
+        digest = hashlib.sha256(
+            json.dumps([judge_model, reasoning_effort, candidates], ensure_ascii=False).encode()
+        ).hexdigest()[:24]
+        checkpoint = checkpoint_dir / f"judge-{language}-{digest}.json"
+        if checkpoint.exists():
+            saved = json.loads(checkpoint.read_text(encoding="utf-8"))
+            rows, usage = saved["rows"], saved["usage"]
+            usage = {**usage, "requests": 0, "estimated_cost_usd": 0.0, "cached_requests": 1}
+        else:
+            rows, usage = judge_language(
+                language, candidates, judge_model, reasoning_effort, budget
+            )
+            checkpoint.write_text(
+                json.dumps({"rows": rows, "usage": usage}, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
         for field, value in usage.items():
             judge_usage[field] += value
         for row in rows:
             row["language"] = language
             row["model"] = key[(row["concept_id"], row["label"])]
             judged.append(row)
+        (output / "evaluation_progress.json").write_text(
+            json.dumps(
+                {
+                    "completed_languages": sorted({row["language"] for row in judged}),
+                    "judge_usage": dict(judge_usage),
+                    "estimated_cost_usd": round(budget.spent_usd, 8),
+                    "max_cost_usd": max_cost_usd,
+                },
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
 
     summary = summarize(judged, curricula)
     for model, audit in audits.items():
@@ -304,6 +353,9 @@ def evaluate(
         "judge_model": judge_model,
         "judge_reasoning_effort": reasoning_effort,
         "judge_usage": dict(judge_usage),
+        "max_cost_usd": max_cost_usd,
+        "estimated_cost_usd": round(budget.spent_usd, 8),
+        "evaluated_languages": selected_languages,
         "rubric_weights": WEIGHTS,
         "summary": summary,
         "known_regressions": [
@@ -360,10 +412,19 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", action="append", required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--judge-model", default="gpt-6-astra")
-    parser.add_argument("--reasoning-effort", default="high")
+    parser.add_argument("--judge-model", default="gpt-6-luna")
+    parser.add_argument("--reasoning-effort", default="none")
+    parser.add_argument("--languages", nargs="+", default=list(DEFAULT_EVALUATION_LANGUAGES))
+    parser.add_argument("--max-cost-usd", type=float, default=0.20)
     args = parser.parse_args()
-    evaluate(parse_inputs(args.input), args.output, args.judge_model, args.reasoning_effort)
+    evaluate(
+        parse_inputs(args.input),
+        args.output,
+        args.judge_model,
+        args.reasoning_effort,
+        args.languages,
+        args.max_cost_usd,
+    )
 
 
 if __name__ == "__main__":

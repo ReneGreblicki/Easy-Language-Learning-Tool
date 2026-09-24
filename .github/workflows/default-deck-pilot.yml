@@ -1,18 +1,13 @@
 name: Default deck content pilot
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - 'tools/build_default_decks.py'
-      - 'tools/audit_default_deck_curriculum.py'
-      - 'tools/default_deck_quality.py'
-      - 'tools/review_default_deck_curriculum.py'
-      - '.github/workflows/default-deck-pilot.yml'
+concurrency:
+  group: paid-default-deck-workflows
+  cancel-in-progress: false
 permissions:
   contents: read
 jobs:
   pilot:
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -20,6 +15,14 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
+      - uses: actions/cache/restore@v5
+        with:
+          path: |
+            default-deck-pilot/checkpoints
+            default-deck-reviewed/checkpoints
+          key: default-deck-paid-${{ runner.os }}-${{ hashFiles('tools/build_default_decks.py', 'tools/review_default_deck_curriculum.py', 'tools/default_deck_quality.py', 'resources/frequency_data/production/words.jsonl.gz') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            default-deck-paid-${{ runner.os }}-${{ hashFiles('tools/build_default_decks.py', 'tools/review_default_deck_curriculum.py', 'tools/default_deck_quality.py', 'resources/frequency_data/production/words.jsonl.gz') }}-
       - name: Validate the pinned 120,000-row source corpus
         run: >-
           python tools/default_deck_quality.py
@@ -42,6 +45,7 @@ jobs:
           --pilot
           --model gpt-4o-mini
           --editorial-mode selective
+          --max-cost-usd 0.10
           --output default-deck-pilot
       - name: Selectively repair and independently back-translate
         env:
@@ -50,7 +54,11 @@ jobs:
         run: >-
           python tools/review_default_deck_curriculum.py
           default-deck-pilot/curriculum.json
-          --repair-model gpt-4.1
+          --repair-model gpt-5.6-luna
+          --escalation-model gpt-4.1
+          --max-openai-cost-usd 0.40
+          --max-google-characters 100000
+          --max-google-requests 48
           --output default-deck-reviewed
       - name: Final network-free verification
         run: >-
@@ -67,3 +75,10 @@ jobs:
             default-deck-reviewed
             default-deck-final
           if-no-files-found: warn
+      - uses: actions/cache/save@v5
+        if: always()
+        with:
+          path: |
+            default-deck-pilot/checkpoints
+            default-deck-reviewed/checkpoints
+          key: default-deck-paid-${{ runner.os }}-${{ hashFiles('tools/build_default_decks.py', 'tools/review_default_deck_curriculum.py', 'tools/default_deck_quality.py', 'resources/frequency_data/production/words.jsonl.gz') }}-${{ github.run_id }}-${{ github.run_attempt }}

@@ -2,8 +2,10 @@ name: Default deck model evaluation
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths: ['.github/workflows/default-deck-model-evaluation.yml']
+
+concurrency:
+  group: paid-default-deck-workflows
+  cancel-in-progress: false
 
 permissions:
   actions: read
@@ -11,7 +13,6 @@ permissions:
 
 jobs:
   generate:
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
@@ -30,12 +31,18 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
+      - uses: actions/cache/restore@v5
+        with:
+          path: model-${{ matrix.slug }}/checkpoints
+          key: default-deck-eval-${{ runner.os }}-${{ matrix.slug }}-${{ hashFiles('tools/build_default_decks.py', 'resources/frequency_data/production/words.jsonl.gz') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            default-deck-eval-${{ runner.os }}-${{ matrix.slug }}-${{ hashFiles('tools/build_default_decks.py', 'resources/frequency_data/production/words.jsonl.gz') }}-
       - name: Generate ${{ matrix.model }} pilot
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         shell: bash
         run: |
-          args=(--pilot --model '${{ matrix.model }}' --output 'model-${{ matrix.slug }}')
+          args=(--pilot --model '${{ matrix.model }}' --max-cost-usd 0.15 --languages es-ES de-DE th-Latn-TH ja-JP --output 'model-${{ matrix.slug }}')
           if [[ -n '${{ matrix.reasoning }}' ]]; then
             args+=(--reasoning-effort '${{ matrix.reasoning }}')
           fi
@@ -54,6 +61,11 @@ jobs:
           name: default-deck-model-${{ matrix.slug }}
           path: model-${{ matrix.slug }}
           if-no-files-found: warn
+      - uses: actions/cache/save@v5
+        if: always()
+        with:
+          path: model-${{ matrix.slug }}/checkpoints
+          key: default-deck-eval-${{ runner.os }}-${{ matrix.slug }}-${{ hashFiles('tools/build_default_decks.py', 'resources/frequency_data/production/words.jsonl.gz') }}-${{ github.run_id }}-${{ github.run_attempt }}
 
   evaluate:
     needs: generate
@@ -64,6 +76,12 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
+      - uses: actions/cache/restore@v5
+        with:
+          path: model-evaluation/checkpoints
+          key: default-deck-judge-${{ runner.os }}-${{ hashFiles('tools/evaluate_default_deck_models.py') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            default-deck-judge-${{ runner.os }}-${{ hashFiles('tools/evaluate_default_deck_models.py') }}-
       - uses: actions/download-artifact@v6
         with:
           pattern: default-deck-model-*
@@ -91,8 +109,10 @@ jobs:
           --input gpt-4.1=model-artifacts/default-deck-model-gpt-4-1/curriculum.json
           --input gpt-5.6-luna=model-artifacts/default-deck-model-gpt-5-6-luna/curriculum.json
           --input gpt-5.6-terra=model-artifacts/default-deck-model-gpt-5-6-terra/curriculum.json
-          --judge-model gpt-6-astra
-          --reasoning-effort medium
+          --judge-model gpt-6-luna
+          --reasoning-effort none
+          --languages en-US es-ES de-DE th-Latn-TH ja-JP
+          --max-cost-usd 0.20
           --output model-evaluation
       - name: Add evaluation summary
         run: cat model-evaluation/report.md >> "$GITHUB_STEP_SUMMARY"
@@ -102,3 +122,8 @@ jobs:
           name: default-deck-model-evaluation
           path: model-evaluation
           if-no-files-found: warn
+      - uses: actions/cache/save@v5
+        if: always()
+        with:
+          path: model-evaluation/checkpoints
+          key: default-deck-judge-${{ runner.os }}-${{ hashFiles('tools/evaluate_default_deck_models.py') }}-${{ github.run_id }}-${{ github.run_attempt }}
