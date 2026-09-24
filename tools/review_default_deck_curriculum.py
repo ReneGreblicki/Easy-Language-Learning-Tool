@@ -283,9 +283,7 @@ def repair_rows(
         if actual != expected or len(rows) != len(expected):
             raise ValueError("Repair model omitted, duplicated, or added rows")
         if checkpoint and not checkpoint.exists():
-            checkpoint.write_text(
-                json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
+            checkpoint.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
         repaired.extend(rows)
     return repaired, dict(usage)
 

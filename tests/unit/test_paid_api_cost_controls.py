@@ -14,12 +14,8 @@ import review_default_deck_curriculum as review  # noqa: E402
 def curriculum() -> dict:
     return {
         "languages": {
-            "en-US": [
-                {"id": 1, "word": "cat", "sentence": "The cat sleeps.", "sense": "animal"}
-            ],
-            "es-ES": [
-                {"id": 1, "word": "gato", "sentence": "El gato duerme.", "sense": "animal"}
-            ],
+            "en-US": [{"id": 1, "word": "cat", "sentence": "The cat sleeps.", "sense": "animal"}],
+            "es-ES": [{"id": 1, "word": "gato", "sentence": "El gato duerme.", "sense": "animal"}],
         }
     }
 
