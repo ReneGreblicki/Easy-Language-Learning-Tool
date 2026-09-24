@@ -379,6 +379,7 @@ def generate(
     languages: list[str],
     model: str,
     reasoning_effort: str | None = None,
+    editorial_mode: str = "selective",
 ) -> dict:
     started = time.monotonic()
     for key in API_USAGE:
@@ -419,7 +420,7 @@ def generate(
             # Changing input/model invalidates the checkpoint rather than silently reusing it.
             digest = hashlib.sha256(
                 json.dumps(
-                    ["prompt-v5-editorial", model, reasoning_effort, code, batch],
+                    ["prompt-v6-cost-gated", model, reasoning_effort, editorial_mode, code, batch],
                     sort_keys=True,
                 ).encode()
             ).hexdigest()[:20]
@@ -429,7 +430,7 @@ def generate(
                 if file.exists()
                 else request_rows(batch, LANGUAGES[code], model, reasoning_effort)
             )
-            if not file.exists() and code != "en-US":
+            if not file.exists() and code != "en-US" and editorial_mode == "full":
                 rows = review_rows(batch, rows, LANGUAGES[code], model, reasoning_effort)
             validate_rows(rows, batch)
             validate_language(rows, batch, LANGUAGES[code])
@@ -451,6 +452,7 @@ def generate(
         "pilot": pilot,
         "model": model,
         "reasoning_effort": reasoning_effort,
+        "editorial_mode": editorial_mode,
         "elapsed_seconds": round(time.monotonic() - started, 3),
         "source_sha256": hashlib.sha256(SOURCE.read_bytes()).hexdigest(),
         "source_attribution": {
@@ -574,6 +576,12 @@ def main() -> None:
         "--reasoning-effort",
         choices=("none", "low", "medium", "high", "xhigh", "max"),
     )
+    parser.add_argument(
+        "--editorial-mode",
+        choices=("selective", "full"),
+        default="selective",
+        help="Use full for the legacy all-row second pass; selective defers review to the cost-gated pipeline.",
+    )
     parser.add_argument("--review", type=Path)
     parser.add_argument("--version", type=int, default=1)
     args = parser.parse_args()
@@ -588,6 +596,7 @@ def main() -> None:
                 args.languages,
                 args.model,
                 args.reasoning_effort,
+                args.editorial_mode,
             )
         finally:
             args.output.mkdir(parents=True, exist_ok=True)
