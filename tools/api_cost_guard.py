@@ -8,6 +8,7 @@ from dataclasses import dataclass
 # before changing models; provider billing remains authoritative.
 MODEL_PRICES = {
     "gpt-4o-mini": (0.15, 0.60),
+    "gpt-4.1-mini": (0.40, 1.60),
     "gpt-4.1": (2.00, 8.00),
     "gpt-5.6-luna": (0.20, 1.20),
     "gpt-5.6-terra": (2.00, 12.00),

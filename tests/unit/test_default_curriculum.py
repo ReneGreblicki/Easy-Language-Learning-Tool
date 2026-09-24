@@ -122,3 +122,111 @@ def test_romanization_requires_tones():
             tasks,
             "Thai (Paiboon romanization)",
         )
+
+
+def test_google_sentence_request_keeps_key_out_of_url(monkeypatch):
+    captured = {}
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def read(self):
+            return json.dumps(
+                {"data": {"translations": [{"translatedText": "El gato duerme."}]}}
+            ).encode()
+
+    def fake_urlopen(request, timeout):
+        captured["url"] = request.full_url
+        captured["key"] = request.headers["X-goog-api-key"]
+        captured["timeout"] = timeout
+        captured["body"] = json.loads(request.data)
+        return Response()
+
+    monkeypatch.setattr(builder.urllib.request, "urlopen", fake_urlopen)
+    assert builder.translate_google_sentences(["The cat sleeps."], "es", "secret") == [
+        "El gato duerme."
+    ]
+    assert "secret" not in captured["url"]
+    assert captured["key"] == "secret"
+    assert captured["body"]["source"] == "en"
+    assert captured["timeout"] == 180
+
+
+def test_frequency_candidates_use_ranked_corpus_order():
+    corpus = [
+        {"lemma": "gato", "rank": 10},
+        {"lemma": "duerme", "rank": 20},
+        {"lemma": "perro", "rank": 30},
+    ]
+    assert builder.frequency_candidates("El gato duerme.", corpus) == [
+        {"lemma": "gato", "rank": 10},
+        {"lemma": "duerme", "rank": 20},
+    ]
+
+
+def test_hybrid_generation_writes_content_bound_evidence(tmp_path, monkeypatch):
+    frequencies = {
+        "en-US": [
+            {"rank": rank, "lemma": f"word{rank}", "source": "test"} for rank in range(1, 1001)
+        ],
+        "es-ES": [
+            {"rank": rank, "lemma": f"palabra{rank}", "source": "test"} for rank in range(1, 1001)
+        ],
+    }
+
+    def fake_request(tasks, _language, _model, _reasoning=None):
+        return [
+            {
+                "id": task["id"],
+                "word": task["word"],
+                "sentence": f"English example {task['id']}.",
+                "sense": f"sense {task['id']}",
+            }
+            for task in tasks
+        ]
+
+    def fake_google(tasks, _code, _key, _checkpoint):
+        return [
+            {
+                "id": task["id"],
+                "word": "draft",
+                "sentence": f"Borrador {task['id']}.",
+                "sense": task["sense"],
+            }
+            for task in tasks
+        ]
+
+    def fake_review(tasks, _drafts, _language, _model, _reasoning=None):
+        return [
+            {
+                "id": task["id"],
+                "word": f"palabra{task['id']}",
+                "sentence": f"La palabra {task['id']} aparece aquí.",
+                "sense": task["sense"],
+            }
+            for task in tasks
+        ]
+
+    monkeypatch.setenv("GOOGLE_TRANSLATE_API_KEY", "secret")
+    monkeypatch.setattr(builder, "frequency_data", lambda: frequencies)
+    monkeypatch.setattr(builder, "request_rows", fake_request)
+    monkeypatch.setattr(builder, "google_draft_rows", fake_google)
+    monkeypatch.setattr(builder, "review_rows", fake_review)
+    result = builder.generate(
+        tmp_path,
+        True,
+        ["es-ES"],
+        "gpt-5.6-luna",
+        max_cost_usd=0.5,
+        pipeline="hybrid",
+        max_google_characters=100_000,
+        max_google_requests=48,
+    )
+    evidence = json.loads((tmp_path / "hybrid_evidence.json").read_text())
+    assert result["pipeline"] == "hybrid"
+    assert len(evidence["rows"]) == 30
+    assert all(row["draft_provider"] == "google-cloud-translation-v2" for row in evidence["rows"])

@@ -1,8 +1,9 @@
-"""Cost-gated automated review, repair, and independent translation checks.
+"""Cost-gated automated review, repair, and hybrid-evidence checks.
 
-The expensive model sees only rows flagged by deterministic checks. Google Cloud
-Translation is used only as an independent back-translation source. Final release
-approval is delegated to ``default_deck_quality.py``, which has no network code.
+The adjudicator sees only rows flagged by deterministic checks. The preferred pipeline
+uses content-bound Google-draft/GPT-edit evidence; legacy back-translation evidence is
+still accepted. Final release approval is delegated to ``default_deck_quality.py``,
+which has no network code.
 """
 
 from __future__ import annotations
@@ -327,6 +328,29 @@ def merge_backtranslations(existing: dict, updates: dict) -> dict:
     }
 
 
+def update_hybrid_evidence(
+    evidence: dict, curriculum: dict, repaired: list[dict], adjudicator_model: str
+) -> dict:
+    """Bind repaired rows to the existing Google-draft provenance chain."""
+    changed = {(row["language"], row["id"]): row for row in repaired}
+    by_key = {(row["language"], row["id"]): row for row in evidence.get("rows", [])}
+    curriculum_rows = {
+        (code, row["id"]): row for code, rows in curriculum["languages"].items() for row in rows
+    }
+    for key, repair in changed.items():
+        row = curriculum_rows[key]
+        proof = by_key.get(key)
+        if proof is None:
+            raise ValueError(f"Hybrid evidence is missing for repaired row {key}")
+        proof["target_sha256"] = hashlib.sha256(
+            (row["word"] + "\n" + row["sentence"]).encode()
+        ).hexdigest()
+        proof["adjudicator_model"] = adjudicator_model
+        proof["adjudication"] = repair.get("explanation", "corrected")
+    evidence["rows"] = list(by_key.values())
+    return evidence
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("curriculum", type=Path)
@@ -338,8 +362,9 @@ def main() -> None:
         help="Independent higher-cost model used only for residual deterministic errors.",
     )
     parser.add_argument("--backtranslations", type=Path)
+    parser.add_argument("--hybrid-evidence", type=Path)
     parser.add_argument("--skip-google", action="store_true")
-    parser.add_argument("--max-openai-cost-usd", type=float, default=0.40)
+    parser.add_argument("--max-openai-cost-usd", type=float, default=1.0)
     parser.add_argument("--max-google-characters", type=int, default=100_000)
     parser.add_argument("--max-google-requests", type=int, default=48)
     args = parser.parse_args()
@@ -361,6 +386,16 @@ def main() -> None:
     budget = CostBudget(args.max_openai_cost_usd)
     checkpoint_dir = args.output / "checkpoints"
     trace_path = args.output / "review_trace.json"
+    hybrid_evidence = (
+        json.loads(args.hybrid_evidence.read_text(encoding="utf-8"))
+        if args.hybrid_evidence
+        else None
+    )
+    hybrid_evidence_path = args.output / "hybrid_evidence.json" if hybrid_evidence else None
+    if hybrid_evidence_path:
+        hybrid_evidence_path.write_text(
+            json.dumps(hybrid_evidence, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
 
     def persist_trace() -> None:
         trace["openai_estimated_cost_usd"] = round(budget.spent_usd, 8)
@@ -368,7 +403,9 @@ def main() -> None:
 
     persist_trace()
 
-    first_report = quality.verify(draft_path, args.corpus, args.backtranslations, False)
+    first_report = quality.verify(
+        draft_path, args.corpus, args.backtranslations, False, hybrid_evidence_path
+    )
     repaired = []
     if args.repair_model:
         if args.repair_model == curriculum.get("model"):
@@ -378,10 +415,18 @@ def main() -> None:
             first_report,
             args.repair_model,
             os.environ["OPENAI_API_KEY"],
+            errors_only=hybrid_evidence is not None,
             budget=budget,
             checkpoint_dir=checkpoint_dir,
         )
         curriculum = apply_repairs(curriculum, repaired, args.corpus)
+        if hybrid_evidence is not None:
+            hybrid_evidence = update_hybrid_evidence(
+                hybrid_evidence, curriculum, repaired, args.repair_model
+            )
+            hybrid_evidence_path.write_text(
+                json.dumps(hybrid_evidence, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
         draft_path.write_text(
             json.dumps(curriculum, ensure_ascii=False, indent=2), encoding="utf-8"
         )
@@ -389,7 +434,7 @@ def main() -> None:
         trace["repaired_rows"] = len(repaired)
         persist_trace()
 
-        residual_report = quality.verify(draft_path, args.corpus, None, False)
+        residual_report = quality.verify(draft_path, args.corpus, None, False, hybrid_evidence_path)
         residual_model = args.escalation_model or args.repair_model
         residual_repairs, residual_usage = repair_rows(
             curriculum,
@@ -402,6 +447,13 @@ def main() -> None:
         )
         if residual_repairs:
             curriculum = apply_repairs(curriculum, residual_repairs, args.corpus)
+            if hybrid_evidence is not None:
+                hybrid_evidence = update_hybrid_evidence(
+                    hybrid_evidence, curriculum, residual_repairs, residual_model
+                )
+                hybrid_evidence_path.write_text(
+                    json.dumps(hybrid_evidence, ensure_ascii=False, indent=2), encoding="utf-8"
+                )
             draft_path.write_text(
                 json.dumps(curriculum, ensure_ascii=False, indent=2), encoding="utf-8"
             )
@@ -416,7 +468,7 @@ def main() -> None:
         if backtranslations_path
         else {"provider": None, "rows": []}
     )
-    if backtranslations_path is None and not args.skip_google:
+    if backtranslations_path is None and hybrid_evidence is None and not args.skip_google:
         if not os.environ.get("GOOGLE_TRANSLATE_API_KEY"):
             blocked = quality.verify(draft_path, args.corpus, None, True)
             quality.write_outputs(blocked, args.output)
@@ -483,7 +535,9 @@ def main() -> None:
                 trace["google_refresh_usage"] = refresh_usage
                 persist_trace()
 
-    final_report = quality.verify(draft_path, args.corpus, backtranslations_path, True)
+    final_report = quality.verify(
+        draft_path, args.corpus, backtranslations_path, True, hybrid_evidence_path
+    )
     quality.write_outputs(final_report, args.output)
     trace["approved"] = final_report["approved"]
     trace["final_summary"] = final_report["summary"]

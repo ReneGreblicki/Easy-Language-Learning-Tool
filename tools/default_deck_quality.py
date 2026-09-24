@@ -204,6 +204,21 @@ def load_backtranslations(path: Path | None) -> dict[tuple[str, int], dict]:
     return result
 
 
+def load_hybrid_evidence(path: Path | None) -> dict[tuple[str, int], dict]:
+    if path is None:
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if data.get("pipeline") != "google-draft-gpt-post-edit-v1":
+        raise ValueError("Unsupported hybrid evidence pipeline")
+    result = {}
+    for row in data.get("rows", []):
+        key = (row["language"], int(row["id"]))
+        if key in result:
+            raise ValueError(f"Duplicate hybrid evidence: {key}")
+        result[key] = row
+    return result
+
+
 def expected_level_counts(pilot: bool) -> dict[str, int]:
     return {"A1": 10, "A2": 10, "B1": 10} if pilot else {"A1": 400, "A2": 300, "B1": 300}
 
@@ -213,14 +228,17 @@ def verify(
     corpus_path: Path = DEFAULT_CORPUS,
     backtranslations_path: Path | None = None,
     require_independent: bool = True,
+    hybrid_evidence_path: Path | None = None,
 ) -> dict:
     curriculum_bytes = curriculum_path.read_bytes()
     curriculum = json.loads(curriculum_bytes)
     corpus, corpus_sha = load_corpus(corpus_path)
     independent = load_backtranslations(backtranslations_path)
+    hybrid = load_hybrid_evidence(hybrid_evidence_path)
     findings: list[Finding] = []
     languages: dict[str, list[dict]] = curriculum.get("languages", {})
     english_rows = {row["id"]: row for row in languages.get("en-US", [])}
+    thai_rows = {row["id"]: row for row in languages.get("th-Thai-TH", [])}
     expected_ids = set(english_rows)
     level_counts = expected_level_counts(bool(curriculum.get("pilot")))
     row_status: dict[str, dict[int, str]] = defaultdict(dict)
@@ -392,7 +410,52 @@ def verify(
             if code != "en-US":
                 independent_expected += 1
                 evidence = independent.get((code, concept_id))
-                if evidence:
+                hybrid_row = hybrid.get((code, concept_id))
+                if hybrid_row:
+                    independent_present += 1
+                    evidence_source = thai_rows.get(concept_id) if code == "th-Latn-TH" else source
+                    if evidence_source is None:
+                        add(
+                            "error",
+                            "hybrid_source_missing",
+                            "The source row for hybrid evidence is missing.",
+                            False,
+                        )
+                        evidence_source = {"word": "", "sentence": "", "sense": ""}
+                    expected_source_hash = hashlib.sha256(
+                        (
+                            evidence_source["word"]
+                            + "\n"
+                            + evidence_source["sentence"]
+                            + "\n"
+                            + evidence_source["sense"]
+                        ).encode()
+                    ).hexdigest()
+                    expected_target_hash = hashlib.sha256(
+                        (word + "\n" + sentence).encode()
+                    ).hexdigest()
+                    expected_provider = (
+                        "thai-script-specialized"
+                        if code == "th-Latn-TH"
+                        else "google-cloud-translation-v2"
+                    )
+                    if (
+                        hybrid_row.get("source_sha256") != expected_source_hash
+                        or hybrid_row.get("target_sha256") != expected_target_hash
+                        or hybrid_row.get("draft_provider") != expected_provider
+                        or not hybrid_row.get("editor_model")
+                        or (
+                            code != "th-Latn-TH"
+                            and not str(hybrid_row.get("google_draft_sentence", "")).strip()
+                        )
+                    ):
+                        add(
+                            "error",
+                            "stale_hybrid_evidence",
+                            "Hybrid Google-draft/GPT-edit evidence is incomplete or does not match the row.",
+                            False,
+                        )
+                elif evidence:
                     independent_present += 1
                     if (
                         evidence.get("source_sha256")
@@ -526,6 +589,7 @@ def main() -> None:
     parser.add_argument("curriculum", type=Path, nargs="?")
     parser.add_argument("--corpus", type=Path, default=DEFAULT_CORPUS)
     parser.add_argument("--backtranslations", type=Path)
+    parser.add_argument("--hybrid-evidence", type=Path)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--allow-missing-independent", action="store_true")
     parser.add_argument("--check-corpus", action="store_true")
@@ -539,7 +603,11 @@ def main() -> None:
     if args.curriculum is None or args.output is None:
         parser.error("curriculum and --output are required unless --check-corpus is used")
     report = verify(
-        args.curriculum, args.corpus, args.backtranslations, not args.allow_missing_independent
+        args.curriculum,
+        args.corpus,
+        args.backtranslations,
+        not args.allow_missing_independent,
+        args.hybrid_evidence,
     )
     write_outputs(report, args.output)
     print(json.dumps(report["summary"], indent=2))

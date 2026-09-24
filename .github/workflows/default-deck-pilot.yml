@@ -37,34 +37,37 @@ jobs:
             echo "::error::Add the GOOGLE_TRANSLATE_API_KEY repository secret before running the paid content review."
             exit 1
           fi
-      - name: Generate thirty concepts in every supported language and script
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: >-
-          python tools/build_default_decks.py
-          --pilot
-          --model gpt-4o-mini
-          --editorial-mode selective
-          --max-cost-usd 0.10
-          --output default-deck-pilot
-      - name: Selectively repair and independently back-translate
+      - name: Generate English, translate with Google, and post-edit with Luna
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GOOGLE_TRANSLATE_API_KEY: ${{ secrets.GOOGLE_TRANSLATE_API_KEY }}
         run: >-
-          python tools/review_default_deck_curriculum.py
-          default-deck-pilot/curriculum.json
-          --repair-model gpt-5.6-luna
-          --escalation-model gpt-4.1
-          --max-openai-cost-usd 0.40
+          python tools/build_default_decks.py
+          --pilot
+          --pipeline hybrid
+          --model gpt-5.6-luna
+          --editorial-mode selective
+          --max-cost-usd 0.50
           --max-google-characters 100000
           --max-google-requests 48
+          --output default-deck-pilot
+      - name: Adjudicate only deterministic failures
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: >-
+          python tools/review_default_deck_curriculum.py
+          default-deck-pilot/curriculum.json
+          --hybrid-evidence default-deck-pilot/hybrid_evidence.json
+          --repair-model gpt-4.1-mini
+          --escalation-model gpt-4.1-mini
+          --max-openai-cost-usd 0.50
+          --skip-google
           --output default-deck-reviewed
       - name: Final network-free verification
         run: >-
           python tools/default_deck_quality.py
           default-deck-reviewed/reviewed_curriculum.json
-          --backtranslations default-deck-reviewed/independent_backtranslations.json
+          --hybrid-evidence default-deck-reviewed/hybrid_evidence.json
           --output default-deck-final
       - uses: actions/upload-artifact@v6
         if: always()

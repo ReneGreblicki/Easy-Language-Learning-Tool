@@ -97,3 +97,56 @@ def test_backtranslation_checks_word_sense_and_sentence():
         > 0.4
     )
     assert quality.content_similarity("The cat sleeps.", "We bought a car.") == 0
+
+
+def test_content_bound_hybrid_evidence_is_accepted(tmp_path):
+    corpus = tmp_path / "corpus.jsonl.gz"
+    source_sha = write_corpus(corpus, ["en-US", "ko-KR"])
+    english = rows("en-US")
+    korean = rows("ko-KR")
+    curriculum = tmp_path / "curriculum.json"
+    curriculum.write_text(
+        json.dumps(
+            {
+                "pilot": True,
+                "source_sha256": source_sha,
+                "languages": {"en-US": english, "ko-KR": korean},
+            }
+        )
+    )
+    evidence = tmp_path / "hybrid.json"
+    evidence.write_text(
+        json.dumps(
+            {
+                "pipeline": "google-draft-gpt-post-edit-v1",
+                "rows": [
+                    {
+                        "language": "ko-KR",
+                        "id": target["id"],
+                        "draft_provider": "google-cloud-translation-v2",
+                        "editor_model": "gpt-5.6-luna",
+                        "google_draft_sentence": target["sentence"],
+                        "source_sha256": hashlib.sha256(
+                            (
+                                source["word"] + "\n" + source["sentence"] + "\n" + source["sense"]
+                            ).encode()
+                        ).hexdigest(),
+                        "target_sha256": hashlib.sha256(
+                            (target["word"] + "\n" + target["sentence"]).encode()
+                        ).hexdigest(),
+                    }
+                    for source, target in zip(english, korean, strict=True)
+                ],
+            }
+        )
+    )
+    report = quality.verify(curriculum, corpus, hybrid_evidence_path=evidence)
+    assert report["approved"] is True
+    assert report["summary"]["independent_reviews_present"] == 30
+
+    payload = json.loads(evidence.read_text())
+    payload["rows"][0]["target_sha256"] = "stale"
+    evidence.write_text(json.dumps(payload))
+    report = quality.verify(curriculum, corpus, hybrid_evidence_path=evidence)
+    assert report["approved"] is False
+    assert report["finding_counts"]["stale_hybrid_evidence"] == 1

@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import gzip
 import hashlib
+import html
 import json
 import os
 import random
@@ -40,6 +41,7 @@ API_USAGE = {
     "total_tokens": 0,
     "estimated_cost_usd": 0.0,
 }
+GOOGLE_USAGE = {"requests": 0, "cached_requests": 0, "characters": 0}
 ACTIVE_BUDGET: CostBudget | None = None
 MAX_COMPLETION_TOKENS = 4096
 LAST_OPENAI_REQUEST_AT = 0.0
@@ -50,6 +52,31 @@ NON_RETRYABLE_429_CODES = {
     "insufficient_quota",
     "organization_spend_limit_exceeded",
     "project_spend_limit_exceeded",
+}
+
+GOOGLE_TARGETS = {
+    "es-ES": "es",
+    "de-DE": "de",
+    "pt-PT": "pt",
+    "fr-FR": "fr",
+    "it-IT": "it",
+    "th-Thai-TH": "th",
+    "pl-PL": "pl",
+    "nl-NL": "nl",
+    "da-DK": "da",
+    "hr-HR": "hr",
+    "vi-VN": "vi",
+    "zh-CN": "zh-CN",
+    "ml-IN": "ml",
+    "sk-SK": "sk",
+    "ru-RU": "ru",
+    "nb-NO": "no",
+    "ko-KR": "ko",
+    "hu-HU": "hu",
+    "sv-SE": "sv",
+    "id-ID": "id",
+    "ja-JP": "ja",
+    "tr-TR": "tr",
 }
 
 
@@ -120,6 +147,72 @@ def pace_openai_requests() -> None:
 
 def request_timeout(reasoning_effort: str | None) -> int:
     return 300 if reasoning_effort else 120
+
+
+def translate_google_sentences(values: list[str], target: str, api_key: str) -> list[str]:
+    """Translate one paid batch without automatic retries or putting the key in the URL."""
+    body = json.dumps({"q": values, "source": "en", "target": target, "format": "text"}).encode()
+    request = urllib.request.Request(
+        "https://translation.googleapis.com/language/translate/v2",
+        data=body,
+        headers={"Content-Type": "application/json", "X-goog-api-key": api_key},
+    )
+    with urllib.request.urlopen(request, timeout=180) as response:
+        payload = json.load(response)
+    translations = payload["data"]["translations"]
+    if len(translations) != len(values):
+        raise ValueError("Google Translation returned an incomplete sentence batch")
+    return [html.unescape(row["translatedText"]) for row in translations]
+
+
+def google_draft_rows(
+    tasks: list[dict],
+    code: str,
+    api_key: str,
+    checkpoint_dir: Path,
+) -> list[dict]:
+    values = [row["sentence"] for row in tasks]
+    digest = hashlib.sha256(
+        json.dumps(["google-sentence-v1", code, values], ensure_ascii=False).encode()
+    ).hexdigest()[:24]
+    checkpoint = checkpoint_dir / f"google-draft-{code}-{digest}.json"
+    GOOGLE_USAGE["characters"] += sum(len(value) for value in values)
+    if checkpoint.exists():
+        translated = json.loads(checkpoint.read_text(encoding="utf-8"))
+        GOOGLE_USAGE["cached_requests"] += 1
+    else:
+        translated = translate_google_sentences(values, GOOGLE_TARGETS[code], api_key)
+        checkpoint.write_text(
+            json.dumps(translated, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        GOOGLE_USAGE["requests"] += 1
+    return [
+        {
+            "id": task["id"],
+            "word": "(select the natural dictionary headword)",
+            "sentence": translated[index],
+            "sense": task["sense"],
+        }
+        for index, task in enumerate(tasks)
+    ]
+
+
+def frequency_candidates(sentence: str, rows: list[dict], limit: int = 12) -> list[dict]:
+    """Return high-frequency corpus entries visible in a Google draft."""
+    haystack = normalize(sentence)
+    matches = []
+    for row in rows[:5000]:
+        lemma = normalize(row["lemma"])
+        visible = (
+            bool(re.search(rf"(?<!\w){re.escape(lemma)}(?!\w)", haystack))
+            if lemma.isascii()
+            else lemma in haystack
+        )
+        if lemma and visible:
+            matches.append({"lemma": row["lemma"], "rank": row["rank"]})
+            if len(matches) == limit:
+                break
+    return matches
 
 
 def stable_id(value: str) -> str:
@@ -295,6 +388,10 @@ def review_rows(
         "contextual equivalent or construction—never force an ungrammatical marker. Correct "
         "literal calques, altered subjects/objects/actions, unnatural register, and sentences "
         "that do not demonstrate the study item. B1 examples must contain two connected ideas. "
+        "The draft sentence may come from Google Cloud Translation. Keep it when it is accurate "
+        "and natural; otherwise make the smallest necessary correction. Select the dictionary "
+        "headword for the supplied English sense. Prefer a ranked_target_candidate only when it "
+        "expresses that exact sense; never choose a frequent but semantically unrelated word. "
     )
     if language == "Thai (Paiboon romanization)":
         instruction += (
@@ -312,6 +409,7 @@ def review_rows(
             "sense_in_english": task["sense"],
             "draft_target_word": drafts_by_id[task["id"]]["word"],
             "draft_target_sentence": drafts_by_id[task["id"]]["sentence"],
+            "ranked_target_candidates": task.get("ranked_target_candidates", []),
         }
         for task in tasks
     ]
@@ -471,12 +569,25 @@ def generate(
     model: str,
     reasoning_effort: str | None = None,
     editorial_mode: str = "selective",
-    max_cost_usd: float = 0.10,
+    max_cost_usd: float = 4.0,
+    pipeline: str = "hybrid",
+    max_google_characters: int = 950_000,
+    max_google_requests: int = 1100,
 ) -> dict:
     global ACTIVE_BUDGET
     started = time.monotonic()
+    if pipeline == "hybrid" and not os.environ.get("GOOGLE_TRANSLATE_API_KEY"):
+        raise ValueError("GOOGLE_TRANSLATE_API_KEY is required for the hybrid pipeline")
+    worst_case_google_usd = max_google_characters * 20.0 / 1_000_000
+    if pipeline == "hybrid" and max_cost_usd + worst_case_google_usd > 23.0:
+        raise ValueError(
+            "Hybrid generation caps exceed the reserved $23 build budget: "
+            f"openai=${max_cost_usd:.2f}, google=${worst_case_google_usd:.2f}"
+        )
     for key in API_USAGE:
         API_USAGE[key] = 0
+    for key in GOOGLE_USAGE:
+        GOOGLE_USAGE[key] = 0
     ACTIVE_BUDGET = CostBudget(max_cost_usd)
     frequencies = frequency_data()
     english = frequencies["en-US"][:1000]
@@ -495,11 +606,13 @@ def generate(
     checkpoint = output / "checkpoints"
     checkpoint.mkdir(exist_ok=True)
     datasets = {}
+    hybrid_evidence: list[dict] = []
     ordered = list(dict.fromkeys(["en-US", *languages]))
     if "th-Latn-TH" in ordered:
         if "th-Thai-TH" in ordered:
             ordered.remove("th-Thai-TH")
         ordered.insert(ordered.index("th-Latn-TH"), "th-Thai-TH")
+    google_plan_checked = False
     for code in ordered:
         if code not in LANGUAGES:
             raise ValueError(f"Unknown language: {code}")
@@ -514,21 +627,99 @@ def generate(
             # Changing input/model invalidates the checkpoint rather than silently reusing it.
             digest = hashlib.sha256(
                 json.dumps(
-                    ["prompt-v6-cost-gated", model, reasoning_effort, editorial_mode, code, batch],
+                    [
+                        "prompt-v7-hybrid",
+                        pipeline,
+                        model,
+                        reasoning_effort,
+                        editorial_mode,
+                        code,
+                        batch,
+                    ],
                     sort_keys=True,
                 ).encode()
             ).hexdigest()[:20]
             file = checkpoint / f"{code}-{digest}.json"
-            rows = (
-                json.loads(file.read_text())
-                if file.exists()
-                else request_rows(batch, LANGUAGES[code], model, reasoning_effort)
+            evidence_file = checkpoint / f"{code}-{digest}.evidence.json"
+            batch_evidence: list[dict] = []
+            cache_valid = file.exists() and (
+                pipeline != "hybrid" or code == "en-US" or evidence_file.exists()
             )
-            if not file.exists() and code != "en-US" and editorial_mode == "full":
+            if cache_valid:
+                rows = json.loads(file.read_text())
+                if evidence_file.exists():
+                    batch_evidence = json.loads(evidence_file.read_text(encoding="utf-8"))
+            elif pipeline == "hybrid" and code in GOOGLE_TARGETS:
+                drafts = google_draft_rows(
+                    batch, code, os.environ["GOOGLE_TRANSLATE_API_KEY"], checkpoint
+                )
+                enriched = [
+                    {
+                        **task,
+                        "ranked_target_candidates": frequency_candidates(
+                            drafts[index]["sentence"], frequencies[code]
+                        ),
+                    }
+                    for index, task in enumerate(batch)
+                ]
+                rows = review_rows(enriched, drafts, LANGUAGES[code], model, reasoning_effort)
+                for task, draft, row in zip(batch, drafts, rows, strict=True):
+                    batch_evidence.append(
+                        {
+                            "language": code,
+                            "id": row["id"],
+                            "draft_provider": "google-cloud-translation-v2",
+                            "editor_model": model,
+                            "source_sha256": hashlib.sha256(
+                                (
+                                    task["word"] + "\n" + task["sentence"] + "\n" + task["sense"]
+                                ).encode()
+                            ).hexdigest(),
+                            "google_draft_sentence": draft["sentence"],
+                            "target_sha256": hashlib.sha256(
+                                (row["word"] + "\n" + row["sentence"]).encode()
+                            ).hexdigest(),
+                        }
+                    )
+            else:
+                rows = request_rows(batch, LANGUAGES[code], model, reasoning_effort)
+                if code == "th-Latn-TH" and pipeline == "hybrid":
+                    for task, row in zip(batch, rows, strict=True):
+                        batch_evidence.append(
+                            {
+                                "language": code,
+                                "id": row["id"],
+                                "draft_provider": "thai-script-specialized",
+                                "editor_model": model,
+                                "source_sha256": hashlib.sha256(
+                                    (
+                                        task["word"]
+                                        + "\n"
+                                        + task["sentence"]
+                                        + "\n"
+                                        + task["sense"]
+                                    ).encode()
+                                ).hexdigest(),
+                                "target_sha256": hashlib.sha256(
+                                    (row["word"] + "\n" + row["sentence"]).encode()
+                                ).hexdigest(),
+                            }
+                        )
+            if (
+                not cache_valid
+                and code != "en-US"
+                and editorial_mode == "full"
+                and pipeline != "hybrid"
+            ):
                 rows = review_rows(batch, rows, LANGUAGES[code], model, reasoning_effort)
             validate_rows(rows, batch)
             validate_language(rows, batch, LANGUAGES[code])
             file.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
+            if batch_evidence:
+                evidence_file.write_text(
+                    json.dumps(batch_evidence, ensure_ascii=False, indent=2), encoding="utf-8"
+                )
+                hybrid_evidence.extend(batch_evidence)
             by_id = {r["id"]: r for r in rows}
             generated.extend({**by_id[t["id"]], "level": t["level"]} for t in batch)
         lookup = {normalize(r["lemma"]): r["rank"] for r in frequencies[code]}
@@ -542,22 +733,50 @@ def generate(
             for rank, row in enumerate(group, 1):
                 row["rank"] = rank
         datasets[code] = generated
+        if pipeline == "hybrid" and code == "en-US" and not google_plan_checked:
+            google_codes = [item for item in ordered if item in GOOGLE_TARGETS]
+            planned_characters = sum(len(row["sentence"]) for row in generated) * len(google_codes)
+            planned_requests = ((len(generated) + 19) // 20) * len(google_codes)
+            if planned_characters > max_google_characters or planned_requests > max_google_requests:
+                raise RuntimeError(
+                    "Google Translation hard cap blocks this run before any request: "
+                    f"characters={planned_characters}/{max_google_characters}, "
+                    f"requests={planned_requests}/{max_google_requests}"
+                )
+            google_plan_checked = True
     result = {
         "pilot": pilot,
         "model": model,
         "reasoning_effort": reasoning_effort,
         "editorial_mode": editorial_mode,
+        "pipeline": pipeline,
         "max_cost_usd": max_cost_usd,
+        "max_google_characters": max_google_characters,
+        "max_google_requests": max_google_requests,
         "elapsed_seconds": round(time.monotonic() - started, 3),
         "source_sha256": hashlib.sha256(SOURCE.read_bytes()).hexdigest(),
         "source_attribution": {
             k: english[0].get(k) for k in ("source", "licence", "source_url", "source_revision")
         },
         "api_usage": dict(API_USAGE),
+        "google_usage": dict(GOOGLE_USAGE),
         "languages": datasets,
     }
     content = json.dumps(result, ensure_ascii=False, indent=2)
     (output / "curriculum.json").write_text(content, encoding="utf-8")
+    if pipeline == "hybrid":
+        (output / "hybrid_evidence.json").write_text(
+            json.dumps(
+                {
+                    "pipeline": "google-draft-gpt-post-edit-v1",
+                    "rows": hybrid_evidence,
+                    "google_usage": dict(GOOGLE_USAGE),
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
     (output / "language_codes.json").write_text(
         json.dumps(list(LANGUAGES), indent=2), encoding="utf-8"
     )
@@ -666,13 +885,21 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--pilot", action="store_true")
     parser.add_argument("--languages", nargs="+", default=list(LANGUAGES))
-    parser.add_argument("--model", default="gpt-4o-mini")
+    parser.add_argument("--model", default="gpt-5.6-luna")
+    parser.add_argument(
+        "--pipeline",
+        choices=("hybrid", "direct"),
+        default="hybrid",
+        help="Hybrid uses Google sentence drafts followed by model post-editing.",
+    )
     parser.add_argument(
         "--max-cost-usd",
         type=float,
-        default=0.10,
+        default=4.0,
         help="Hard preflight budget for this generator process.",
     )
+    parser.add_argument("--max-google-characters", type=int, default=950_000)
+    parser.add_argument("--max-google-requests", type=int, default=1100)
     parser.add_argument(
         "--reasoning-effort",
         choices=("none", "low", "medium", "high", "xhigh", "max"),
@@ -699,11 +926,17 @@ def main() -> None:
                 args.reasoning_effort,
                 args.editorial_mode,
                 args.max_cost_usd,
+                args.pipeline,
+                args.max_google_characters,
+                args.max_google_requests,
             )
         finally:
             args.output.mkdir(parents=True, exist_ok=True)
             (args.output / "api_usage.json").write_text(
                 json.dumps(API_USAGE, indent=2), encoding="utf-8"
+            )
+            (args.output / "google_usage.json").write_text(
+                json.dumps(GOOGLE_USAGE, indent=2), encoding="utf-8"
             )
 
 

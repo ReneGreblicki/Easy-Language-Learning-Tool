@@ -42,7 +42,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         shell: bash
         run: |
-          args=(--pilot --model '${{ matrix.model }}' --max-cost-usd 0.15 --languages es-ES de-DE th-Latn-TH ja-JP --output 'model-${{ matrix.slug }}')
+          args=(--pilot --pipeline direct --model '${{ matrix.model }}' --max-cost-usd 0.15 --languages es-ES de-DE th-Latn-TH ja-JP --output 'model-${{ matrix.slug }}')
           if [[ -n '${{ matrix.reasoning }}' ]]; then
             args+=(--reasoning-effort '${{ matrix.reasoning }}')
           fi
