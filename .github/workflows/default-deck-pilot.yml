@@ -25,6 +25,15 @@ jobs:
           python tools/default_deck_quality.py
           --check-corpus
           --corpus resources/frequency_data/production/words.jsonl.gz
+      - name: Verify independent translation credential
+        env:
+          GOOGLE_TRANSLATE_API_KEY: ${{ secrets.GOOGLE_TRANSLATE_API_KEY }}
+        shell: bash
+        run: |
+          if [[ -z "$GOOGLE_TRANSLATE_API_KEY" ]]; then
+            echo "::error::Add the GOOGLE_TRANSLATE_API_KEY repository secret before running the paid content review."
+            exit 1
+          fi
       - name: Generate thirty concepts in every supported language and script
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

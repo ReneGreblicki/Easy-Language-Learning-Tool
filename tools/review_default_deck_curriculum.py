@@ -151,6 +151,7 @@ def repair_rows(
     model: str,
     api_key: str,
     accepted_codes: set[str] = REPAIRABLE_CODES,
+    errors_only: bool = False,
 ) -> tuple[list[dict], dict]:
     source = {row["id"]: row for row in curriculum["languages"]["en-US"]}
     by_language = {
@@ -159,7 +160,12 @@ def repair_rows(
     reasons: dict[tuple[str, int], set[str]] = defaultdict(set)
     for finding in report["findings"]:
         key = (finding["language"], finding["concept_id"])
-        if finding["repairable"] and finding["code"] in accepted_codes and key[0] != "*":
+        if (
+            finding["repairable"]
+            and finding["code"] in accepted_codes
+            and key[0] != "*"
+            and (not errors_only or finding["severity"] == "error")
+        ):
             reasons[key].add(finding["code"])
     candidates = []
     for (code, concept_id), codes in sorted(reasons.items()):
@@ -303,6 +309,22 @@ def main() -> None:
         trace["repair_usage"] = usage
         trace["repaired_rows"] = len(repaired)
 
+        residual_report = quality.verify(draft_path, args.corpus, None, False)
+        residual_repairs, residual_usage = repair_rows(
+            curriculum,
+            residual_report,
+            args.repair_model,
+            os.environ["OPENAI_API_KEY"],
+            errors_only=True,
+        )
+        if residual_repairs:
+            curriculum = apply_repairs(curriculum, residual_repairs, args.corpus)
+            draft_path.write_text(
+                json.dumps(curriculum, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            trace["residual_repair_usage"] = residual_usage
+            trace["residual_repaired_rows"] = len(residual_repairs)
+
     backtranslations_path = args.backtranslations
     evidence = (
         json.loads(backtranslations_path.read_text(encoding="utf-8"))
@@ -310,6 +332,16 @@ def main() -> None:
         else {"provider": None, "rows": []}
     )
     if backtranslations_path is None and not args.skip_google:
+        if not os.environ.get("GOOGLE_TRANSLATE_API_KEY"):
+            blocked = quality.verify(draft_path, args.corpus, None, True)
+            quality.write_outputs(blocked, args.output)
+            trace["approved"] = False
+            trace["blocker"] = "GOOGLE_TRANSLATE_API_KEY is not configured"
+            trace["final_summary"] = blocked["summary"]
+            (args.output / "review_trace.json").write_text(
+                json.dumps(trace, indent=2), encoding="utf-8"
+            )
+            raise ValueError("GOOGLE_TRANSLATE_API_KEY is not configured")
         evidence, google_usage = build_backtranslations(
             curriculum, os.environ["GOOGLE_TRANSLATE_API_KEY"]
         )
