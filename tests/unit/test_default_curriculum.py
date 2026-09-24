@@ -1,5 +1,6 @@
 import hashlib
 import importlib.util
+import io
 import json
 import urllib.error
 from pathlib import Path
@@ -27,13 +28,38 @@ def test_reasoning_models_do_not_receive_temperature():
     assert builder.generation_options("gpt-4.1", None, 0.2) == {"temperature": 0.2}
 
 
-def test_rate_limit_retry_respects_server_delay():
+def test_rate_limit_retry_respects_server_delay(monkeypatch):
+    monkeypatch.setattr(builder.random, "uniform", lambda _low, _high: 0)
     error = urllib.error.HTTPError(
         "https://api.openai.com", 429, "rate limited", {"Retry-After": "17"}, None
     )
     assert builder.retry_delay(error, 0) == 17
+    assert (
+        builder.retry_delay(
+            urllib.error.HTTPError("https://api.openai.com", 429, "rate limited", {}, None), 2
+        )
+        == 40
+    )
     assert builder.request_timeout("medium") == 300
     assert builder.request_timeout(None) == 120
+
+
+def test_spend_limit_429_is_not_retried():
+    body = io.BytesIO(
+        json.dumps(
+            {
+                "error": {
+                    "type": "insufficient_quota",
+                    "code": "project_spend_limit_exceeded",
+                    "message": "Project limit reached.",
+                }
+            }
+        ).encode()
+    )
+    error = urllib.error.HTTPError("https://api.openai.com", 429, "rate limited", {}, body)
+    details = builder.openai_error_details(error)
+    assert details["code"] == "project_spend_limit_exceeded"
+    assert not builder.retryable_http_error(error, details)
 
 
 def test_reject_duplicate_concepts():
