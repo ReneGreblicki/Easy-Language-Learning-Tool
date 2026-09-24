@@ -11,6 +11,7 @@ import gzip
 import hashlib
 import json
 import os
+import random
 import re
 import time
 import unicodedata
@@ -33,6 +34,15 @@ API_USAGE = {
     "completion_tokens": 0,
     "total_tokens": 0,
 }
+LAST_OPENAI_REQUEST_AT = 0.0
+MAX_API_ATTEMPTS = 7
+NON_RETRYABLE_429_CODES = {
+    "billing_hard_limit_reached",
+    "credit_balance_exhausted",
+    "insufficient_quota",
+    "organization_spend_limit_exceeded",
+    "project_spend_limit_exceeded",
+}
 
 
 def record_usage(payload: dict) -> None:
@@ -54,10 +64,41 @@ def generation_options(
 def retry_delay(error: Exception, attempt: int) -> float:
     if isinstance(error, urllib.error.HTTPError) and error.code == 429:
         try:
-            return max(10.0, float(error.headers.get("Retry-After", 0)))
+            server_delay = float(error.headers.get("Retry-After", 0))
         except (TypeError, ValueError):
-            return 10.0 * (attempt + 1)
+            server_delay = 0.0
+        return max(server_delay, min(180.0, 10.0 * (2**attempt))) + random.uniform(0.0, 2.0)
     return float(2**attempt)
+
+
+def openai_error_details(error: urllib.error.HTTPError) -> dict[str, str]:
+    """Extract safe diagnostics so permanent 429s are not retried blindly."""
+    try:
+        payload = json.loads(error.read().decode("utf-8", errors="replace"))
+        details = payload.get("error", {})
+        return {
+            "type": str(details.get("type") or ""),
+            "code": str(details.get("code") or ""),
+            "message": str(details.get("message") or "")[:500],
+        }
+    except (AttributeError, json.JSONDecodeError, OSError):
+        return {"type": "", "code": "", "message": ""}
+
+
+def retryable_http_error(error: urllib.error.HTTPError, details: dict[str, str]) -> bool:
+    if error.code == 503:
+        return True
+    return error.code == 429 and details.get("code") not in NON_RETRYABLE_429_CODES
+
+
+def pace_openai_requests() -> None:
+    """Keep bulk generation steady instead of bursting into project limits."""
+    global LAST_OPENAI_REQUEST_AT
+    interval = max(0.0, float(os.environ.get("OPENAI_REQUEST_INTERVAL_SECONDS", "6")))
+    remaining = interval - (time.monotonic() - LAST_OPENAI_REQUEST_AT)
+    if LAST_OPENAI_REQUEST_AT and remaining > 0:
+        time.sleep(remaining)
+    LAST_OPENAI_REQUEST_AT = time.monotonic()
 
 
 def request_timeout(reasoning_effort: str | None) -> int:
@@ -162,8 +203,9 @@ def request_rows(
             "Content-Type": "application/json",
         },
     )
-    for attempt in range(5):
+    for attempt in range(MAX_API_ATTEMPTS):
         try:
+            pace_openai_requests()
             with urllib.request.urlopen(
                 request, timeout=request_timeout(reasoning_effort)
             ) as response:
@@ -183,7 +225,19 @@ def request_rows(
             validate_language(rows, tasks, language)
             return rows
         except (ValueError, KeyError, OSError) as error:
-            if attempt == 4:
+            if isinstance(error, urllib.error.HTTPError):
+                details = openai_error_details(error)
+                print(
+                    "OpenAI API error: "
+                    f"status={error.code} type={details['type']!r} code={details['code']!r} "
+                    f"message={details['message']!r}",
+                    flush=True,
+                )
+                if not retryable_http_error(error, details):
+                    raise RuntimeError(
+                        f"OpenAI API request requires account action: {details['code'] or error.code}"
+                    ) from error
+            if attempt == MAX_API_ATTEMPTS - 1:
                 raise
             if isinstance(error, (ValueError, KeyError)):
                 retry_body = json.loads(body)
@@ -294,8 +348,9 @@ def review_rows(
             "Content-Type": "application/json",
         },
     )
-    for attempt in range(5):
+    for attempt in range(MAX_API_ATTEMPTS):
         try:
+            pace_openai_requests()
             with urllib.request.urlopen(
                 request, timeout=request_timeout(reasoning_effort)
             ) as response:
@@ -315,19 +370,32 @@ def review_rows(
             validate_language(rows, tasks, language)
             return rows
         except (ValueError, KeyError, OSError) as error:
-            if attempt == 4:
+            if isinstance(error, urllib.error.HTTPError):
+                details = openai_error_details(error)
+                print(
+                    "OpenAI API error: "
+                    f"status={error.code} type={details['type']!r} code={details['code']!r} "
+                    f"message={details['message']!r}",
+                    flush=True,
+                )
+                if not retryable_http_error(error, details):
+                    raise RuntimeError(
+                        f"OpenAI API request requires account action: {details['code'] or error.code}"
+                    ) from error
+            if attempt == MAX_API_ATTEMPTS - 1:
                 raise
-            retry_body = json.loads(body)
-            retry_body["messages"].append(
-                {
-                    "role": "user",
-                    "content": "The editorial response failed validation: "
-                    + str(error)
-                    + ". Return the complete corrected batch.",
-                }
-            )
-            body = json.dumps(retry_body, ensure_ascii=False).encode()
-            request.data = body
+            if isinstance(error, (ValueError, KeyError)):
+                retry_body = json.loads(body)
+                retry_body["messages"].append(
+                    {
+                        "role": "user",
+                        "content": "The editorial response failed validation: "
+                        + str(error)
+                        + ". Return the complete corrected batch.",
+                    }
+                )
+                body = json.dumps(retry_body, ensure_ascii=False).encode()
+                request.data = body
             time.sleep(retry_delay(error, attempt))
     raise AssertionError("unreachable")
 
