@@ -21,12 +21,10 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validate the pinned 120,000-row source corpus
-        env:
-          PYTHONPATH: src
         run: >-
-          python tools/check_release_data.py
-          resources/frequency_data/production/words.jsonl.gz
-          --minimum 5000
+          python tools/default_deck_quality.py
+          --check-corpus
+          --corpus resources/frequency_data/production/words.jsonl.gz
       - name: Generate thirty concepts in every supported language and script
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

@@ -95,6 +95,11 @@ def normalized(value: str) -> str:
     return " ".join(unicodedata.normalize("NFKC", value).casefold().split())
 
 
+def corpus_normalized(value: str) -> str:
+    """Match the corpus contract without collapsing lexical symbols such as º into o."""
+    return " ".join(value.casefold().split())
+
+
 def english_tokens(value: str) -> set[str]:
     return {
         token
@@ -129,8 +134,60 @@ def load_corpus(path: Path) -> tuple[dict[str, dict[str, dict]], str]:
     with gzip.open(path, "rt", encoding="utf-8") as stream:
         for line in stream:
             row = json.loads(line)
-            indexes[row["language"]][normalized(row["lemma"])] = row
+            indexes[row["language"]][corpus_normalized(row["lemma"])] = row
     return dict(indexes), hashlib.sha256(raw).hexdigest()
+
+
+def validate_corpus(path: Path, expected_languages: int = 24, expected_rows: int = 5000) -> dict:
+    rows_by_language: dict[str, list[dict]] = defaultdict(list)
+    with gzip.open(path, "rt", encoding="utf-8") as stream:
+        for line_number, line in enumerate(stream, 1):
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError as error:
+                raise ValueError(f"Malformed corpus JSON at line {line_number}") from error
+            rows_by_language[row.get("language", "")].append(row)
+    errors = []
+    if len(rows_by_language) != expected_languages:
+        errors.append(f"languages={len(rows_by_language)}; expected={expected_languages}")
+    required = {
+        "language",
+        "rank",
+        "lemma",
+        "forms",
+        "source",
+        "licence",
+        "source_url",
+        "source_revision",
+        "validation_status",
+    }
+    for code, rows in sorted(rows_by_language.items()):
+        if len(rows) != expected_rows:
+            errors.append(f"{code}: rows={len(rows)}; expected={expected_rows}")
+        ranks = [row.get("rank") for row in rows]
+        if any(not isinstance(rank, int) for rank in ranks) or sorted(ranks) != list(
+            range(1, expected_rows + 1)
+        ):
+            errors.append(f"{code}: ranks are not unique and contiguous")
+        lemmas = [corpus_normalized(str(row.get("lemma", ""))) for row in rows]
+        if "" in lemmas or len(lemmas) != len(set(lemmas)):
+            errors.append(f"{code}: lemmas are empty or duplicated after normalization")
+        if any(required - set(row) for row in rows):
+            errors.append(f"{code}: required fields are missing")
+        if any(row.get("validation_status") != "automated" for row in rows):
+            errors.append(f"{code}: rows are not marked automated")
+        pattern = EXPECTED_SCRIPTS.get(code)
+        if pattern and any(not pattern.search(str(row.get("lemma", ""))) for row in rows):
+            errors.append(f"{code}: ranked lemmas violate the expected script")
+        if code == "th-Latn-TH" and any(THAI.search(str(row.get("lemma", ""))) for row in rows):
+            errors.append(f"{code}: romanized corpus contains Thai script")
+    return {
+        "approved": not errors,
+        "languages": len(rows_by_language),
+        "rows": sum(len(rows) for rows in rows_by_language.values()),
+        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "errors": errors,
+    }
 
 
 def load_backtranslations(path: Path | None) -> dict[tuple[str, int], dict]:
@@ -277,7 +334,7 @@ def verify(
                         True,
                     )
 
-            corpus_row = corpus.get(code, {}).get(normalized(word))
+            corpus_row = corpus.get(code, {}).get(corpus_normalized(word))
             if corpus_row:
                 frequency_matches += 1
                 stored_rank = row.get("source_rank")
@@ -310,7 +367,9 @@ def verify(
                 and len(word) > 2
                 and normalized(word) == normalized(source["word"])
             ):
-                severity = "error" if normalized(word) not in corpus.get(code, {}) else "warning"
+                severity = (
+                    "error" if corpus_normalized(word) not in corpus.get(code, {}) else "warning"
+                )
                 add(
                     severity,
                     "possible_untranslated_word",
@@ -464,12 +523,21 @@ def write_outputs(report: dict, output: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("curriculum", type=Path)
+    parser.add_argument("curriculum", type=Path, nargs="?")
     parser.add_argument("--corpus", type=Path, default=DEFAULT_CORPUS)
     parser.add_argument("--backtranslations", type=Path)
-    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--output", type=Path)
     parser.add_argument("--allow-missing-independent", action="store_true")
+    parser.add_argument("--check-corpus", action="store_true")
     args = parser.parse_args()
+    if args.check_corpus:
+        corpus_report = validate_corpus(args.corpus)
+        print(json.dumps(corpus_report, indent=2))
+        if not corpus_report["approved"]:
+            raise SystemExit(1)
+        return
+    if args.curriculum is None or args.output is None:
+        parser.error("curriculum and --output are required unless --check-corpus is used")
     report = verify(
         args.curriculum, args.corpus, args.backtranslations, not args.allow_missing_independent
     )
