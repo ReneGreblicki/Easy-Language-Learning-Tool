@@ -37,9 +37,13 @@ partial curriculum.
 - The pilot has a hard `$0.50` build-model budget and `$0.50` adjudication budget. Every model
   request reserves a conservative maximum output allowance before it is sent; a request that could
   exceed the remaining budget is blocked locally.
-- A full build is capped at `$4` for English generation and Luna post-editing, 950,000 Google source
-  characters (`$19` without any free credit), and `$1` for selective adjudication. The aggregate
-  worst-case cap is `$24`, leaving `$1` below the requested `$25` ceiling.
+- The pilot measured 32,670 Google source characters for 30 concepts per language. The full build
+  therefore uses a conservative 1,200,000-character plan cap, `$4.50` for English generation and
+  Luna post-editing, and `$1` for selective adjudication. The absolute no-credit cap is `$29.50`;
+  with Google's current monthly 500,000-character credit, it is capped at `$19.50`.
+- Every production run independently stops before purchasing more than 100,000 new Google
+  characters. Cached characters do not consume that allowance. This local stop protects the bill
+  even if the provider-side daily quota is missing or misconfigured.
 - The comparison workflow uses five representative language/script options, `gpt-6-luna` as its
   judge, and a combined maximum of `$0.50`. `gpt-6-astra` is not part of the automated workflow.
 - Generate English once, translate once, and post-edit once.
@@ -61,8 +65,9 @@ The result is not published directly: Luna must post-edit it against the pinned 
 CEFR level and target-language frequency corpus.
 
 The complete Google plan is calculated before the first request. The pilot is blocked when it would
-exceed 100,000 source characters or 48 requests; a full build is blocked above 950,000 characters or
-1,100 requests. Each request contains at most 20 sentences so its GPT post-edit checkpoint has the
+exceed 100,000 source characters or 48 requests; a full build is blocked above 1,200,000 characters
+or 1,100 requests. Each production run pauses before 100,000 newly purchased characters. Each
+request contains at most 20 sentences so its GPT post-edit checkpoint has the
 same content boundary. Automatic retries are disabled
 for Google calls because repeating a request could be billable. Every successful batch is saved in
 a content-addressed checkpoint and restored by GitHub Actions on a later run. Changed rows consume
@@ -129,5 +134,5 @@ python tools/default_deck_quality.py \
 ```
 
 Run the 30-row-per-language pilot first. A full 1,000-row-per-language build may proceed only after
-the automated pilot creates `review.json`. With the 100,000-character provider quota, the resumable
-full build is expected to require approximately ten daily runs; completed batches are not repurchased.
+the automated pilot creates `review.json`. The resumable full build is expected to require about
+eleven daily runs; completed batches are restored and neither Google nor OpenAI is repurchased.
