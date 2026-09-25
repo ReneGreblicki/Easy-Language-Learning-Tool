@@ -102,6 +102,8 @@ def generation_options(
     """Return API options accepted by both reasoning and non-reasoning models."""
     if reasoning_effort:
         return {"reasoning_effort": reasoning_effort}
+    if model.startswith("gpt-5"):
+        return {}
     return {"temperature": temperature}
 
 
