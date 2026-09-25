@@ -70,7 +70,7 @@ jobs:
         run: flutter build apk --release
       - uses: actions/upload-artifact@v6
         with:
-          name: Easy-Language-Learning-Tool-Android-0.5.0
+          name: Easy-Language-Learning-Tool-Android-0.6.0
           path: android_app/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
   package-macos:
@@ -89,7 +89,7 @@ jobs:
           path: release-artifacts
       - uses: actions/download-artifact@v8
         with:
-          name: Easy-Language-Learning-Tool-Android-0.5.0
+          name: Easy-Language-Learning-Tool-Android-0.6.0
           path: release-artifacts/android
       - uses: actions/download-artifact@v8
         with:
@@ -108,7 +108,7 @@ jobs:
           Compress-Archive -Path release-artifacts\\EasyLanguageLearningTool `
             -DestinationPath "release-artifacts\\EasyLanguageLearningTool-Portable-$releaseTag.zip"
           Move-Item release-artifacts\\android\\app-release.apk `
-            release-artifacts\\android\\EasyLanguageLearningTool-Android-0.5.0.apk
+            release-artifacts\\android\\EasyLanguageLearningTool-Android-0.6.0.apk
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -128,7 +128,7 @@ jobs:
             "release-artifacts\\installer\\SHA256SUMS.txt",
             "release-artifacts\\installer\\BUILD_PROVENANCE.txt",
             "release-artifacts\\EasyLanguageLearningTool-Portable-$releaseTag.zip",
-            "release-artifacts\\android\\EasyLanguageLearningTool-Android-0.5.0.apk"
+            "release-artifacts\\android\\EasyLanguageLearningTool-Android-0.6.0.apk"
           )
           $assets += Get-ChildItem release-artifacts\\macos -Recurse -File | ForEach-Object { $_.FullName }
           gh release view "$releaseTag" *> $null

@@ -1,7 +1,7 @@
 name: easy_language_flashcards
 description: Offline Android companion for Easy Language Learning Tool.
 publish_to: none
-version: 0.5.0+11
+version: 0.6.0+12
 
 environment:
   sdk: ">=3.5.0 <4.0.0"
@@ -18,6 +18,7 @@ dependencies:
   supabase_flutter: ^2.10.3
   url_launcher: ^6.3.2
   uuid: ^4.5.2
+  shared_preferences: ^2.5.3
 
 dev_dependencies:
   flutter_test:
