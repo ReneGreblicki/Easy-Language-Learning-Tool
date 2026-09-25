@@ -258,7 +258,6 @@ def frequency_data() -> dict[str, list[dict]]:
     return result
 
 
-
 def romanization_row_error(row: dict, task: dict) -> str | None:
     """Return a deterministic reason when a Paiboon row is unsafe to accept."""
     if row.get("id") != task["id"]:
@@ -378,9 +377,7 @@ def request_romanization_corrections(
         },
     )
     pace_openai_requests()
-    with urllib.request.urlopen(
-        request, timeout=request_timeout(reasoning_effort)
-    ) as response:
+    with urllib.request.urlopen(request, timeout=request_timeout(reasoning_effort)) as response:
         payload = json.load(response)
     record_usage(payload, model)
     raw = json.loads(payload["choices"][0]["message"]["content"])["rows"]
@@ -550,9 +547,7 @@ def request_rows(
                 for r in raw
             ]
             if language == "Thai (Paiboon romanization)":
-                rows = repair_invalid_romanization_rows(
-                    tasks, rows, model, reasoning_effort
-                )
+                rows = repair_invalid_romanization_rows(tasks, rows, model, reasoning_effort)
             validate_rows(rows, tasks)
             validate_language(rows, tasks, language)
             return rows
