@@ -29,7 +29,7 @@ def test_cost_budget_blocks_expensive_request_before_dispatch():
 
 def test_hybrid_aggregate_cap_blocks_configuration_before_api_use(tmp_path, monkeypatch):
     monkeypatch.setenv("GOOGLE_TRANSLATE_API_KEY", "secret")
-    with pytest.raises(ValueError, match=r"\$23 build budget"):
+    with pytest.raises(ValueError, match=r"\$29 build budget"):
         builder.generate(
             tmp_path,
             True,
@@ -37,8 +37,27 @@ def test_hybrid_aggregate_cap_blocks_configuration_before_api_use(tmp_path, monk
             "gpt-5.6-luna",
             max_cost_usd=4.0,
             pipeline="hybrid",
-            max_google_characters=1_000_000,
+            max_google_characters=1_300_000,
         )
+
+
+def test_google_per_run_cap_pauses_before_paid_request(tmp_path, monkeypatch):
+    calls = 0
+
+    def unexpected(*_args, **_kwargs):
+        nonlocal calls
+        calls += 1
+        return []
+
+    monkeypatch.setattr(builder, "translate_google_sentences", unexpected)
+    monkeypatch.setattr(builder, "MAX_GOOGLE_NEW_CHARACTERS", 3)
+    for key in builder.GOOGLE_USAGE:
+        builder.GOOGLE_USAGE[key] = 0
+    tasks = [{"id": 1, "sentence": "four", "sense": "number"}]
+    with pytest.raises(builder.GenerationPaused, match="per-run character cap"):
+        builder.google_draft_rows(tasks, "es-ES", "secret", tmp_path)
+    assert calls == 0
+    assert builder.GOOGLE_USAGE["characters"] == 0
 
 
 def test_google_character_cap_blocks_before_network(monkeypatch):
@@ -98,10 +117,13 @@ def test_paid_workflows_are_manual_only_and_budgeted():
     root = Path(__file__).resolve().parents[2]
     pilot = (root / ".github/workflows/default-deck-pilot.yml").read_text()
     evaluation = (root / ".github/workflows/default-deck-model-evaluation.yml").read_text()
+    production = (root / ".github/workflows/default-deck-production.yml").read_text()
     assert "pull_request:" not in pilot
     assert "pull_request:" not in evaluation
+    assert "pull_request:" not in production
     assert "paid-default-deck-workflows" in pilot
     assert "paid-default-deck-workflows" in evaluation
+    assert "paid-default-deck-workflows" in production
     assert "--pipeline hybrid" in pilot
     assert "--model gpt-5.6-luna" in pilot
     assert "--max-cost-usd 0.50" in pilot
@@ -112,6 +134,10 @@ def test_paid_workflows_are_manual_only_and_budgeted():
     assert "--pipeline direct" in evaluation
     assert "--judge-model gpt-6-luna" in evaluation
     assert "gpt-6-astra" not in evaluation
+    assert "--max-google-new-characters 100000" in production
+    assert "--max-google-characters 1200000" in production
+    assert "--max-cost-usd 4.50" in production
+    assert "--max-openai-cost-usd 1.00" in production
 
 
 def test_hybrid_repair_rebinds_content_evidence():
