@@ -258,6 +258,197 @@ def frequency_data() -> dict[str, list[dict]]:
     return result
 
 
+
+def romanization_row_error(row: dict, task: dict) -> str | None:
+    """Return a deterministic reason when a Paiboon row is unsafe to accept."""
+    if row.get("id") != task["id"]:
+        return "missing or incorrect concept id"
+    for key in ("word", "sentence", "sense"):
+        value = row.get(key)
+        if not isinstance(value, str) or not value.strip():
+            return f"empty {key}"
+    combined = row["word"] + " " + row["sentence"]
+    if re.search(r"[\u0e00-\u0e7f]", combined):
+        return "Thai script found in romanization"
+    for character in combined:
+        if character.isalpha() and "LATIN" not in unicodedata.name(character, ""):
+            return f"non-Latin letter found in romanization: {character!r}"
+    if "sense" in task and normalize(row["sense"]) != normalize(task["sense"]):
+        return "English sense changed during romanization"
+    return None
+
+
+def partition_romanization_rows(
+    rows: list[dict], tasks: list[dict]
+) -> tuple[dict[int, dict], list[dict]]:
+    """Keep valid rows and identify only the concepts that require regeneration."""
+    grouped: dict[int, list[dict]] = {}
+    for row in rows:
+        if isinstance(row, dict) and isinstance(row.get("id"), int):
+            grouped.setdefault(row["id"], []).append(row)
+    valid: dict[int, dict] = {}
+    invalid: list[dict] = []
+    for task in tasks:
+        candidates = grouped.get(task["id"], [])
+        if len(candidates) != 1 or romanization_row_error(candidates[0], task):
+            invalid.append(task)
+        else:
+            valid[task["id"]] = candidates[0]
+    return valid, invalid
+
+
+def request_romanization_corrections(
+    tasks: list[dict],
+    failed_rows: list[dict],
+    model: str,
+    reasoning_effort: str | None = None,
+) -> list[dict]:
+    """Request one focused, low-cost repair pass for only invalid Paiboon rows."""
+    failed_by_id = {
+        row.get("id"): row for row in failed_rows if isinstance(row, dict) and "id" in row
+    }
+    payload_rows = [
+        {
+            "id": task["id"],
+            "level": task.get("level"),
+            "thai_word": task["word"],
+            "thai_sentence": task["sentence"],
+            "sense_in_english": task.get("sense", ""),
+            "failed_target_word": failed_by_id.get(task["id"], {}).get("word", ""),
+            "failed_target_sentence": failed_by_id.get(task["id"], {}).get("sentence", ""),
+        }
+        for task in tasks
+    ]
+    instruction = (
+        "Correct only the supplied invalid Thai romanization rows. Transliterate the original "
+        "Thai word and sentence into tone-marked Paiboon romanization. Use Latin-script letters, "
+        "accepted Latin/IPA vowel symbols, combining tone marks, numbers, spaces and punctuation "
+        "only. Never output a Thai character. Preserve each id and the exact sense_in_english. "
+        "The romanized target word should occur in the romanized sentence whenever the original "
+        "Thai word occurs in the original sentence. Return every supplied id exactly once."
+    )
+    schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["rows"],
+        "properties": {
+            "rows": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["id", "target_word", "target_sentence", "sense_in_english"],
+                    "properties": {
+                        "id": {"type": "integer"},
+                        "target_word": {"type": "string"},
+                        "target_sentence": {"type": "string"},
+                        "sense_in_english": {"type": "string"},
+                    },
+                },
+            }
+        },
+    }
+    body = json.dumps(
+        {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": instruction},
+                {"role": "user", "content": json.dumps(payload_rows, ensure_ascii=False)},
+            ],
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "corrected_romanization_rows",
+                    "strict": True,
+                    "schema": schema,
+                },
+            },
+            "max_completion_tokens": MAX_COMPLETION_TOKENS,
+            **generation_options(model, reasoning_effort, 0.0),
+        },
+        ensure_ascii=False,
+    ).encode()
+    preflight_request(model, body)
+    request = urllib.request.Request(
+        "https://api.openai.com/v1/chat/completions",
+        data=body,
+        headers={
+            "Authorization": "Bearer " + os.environ["OPENAI_API_KEY"],
+            "Content-Type": "application/json",
+        },
+    )
+    pace_openai_requests()
+    with urllib.request.urlopen(
+        request, timeout=request_timeout(reasoning_effort)
+    ) as response:
+        payload = json.load(response)
+    record_usage(payload, model)
+    raw = json.loads(payload["choices"][0]["message"]["content"])["rows"]
+    return [
+        {
+            "id": row["id"],
+            "word": row["target_word"],
+            "sentence": row["target_sentence"],
+            "sense": row["sense_in_english"],
+        }
+        for row in raw
+    ]
+
+
+def repair_invalid_romanization_rows(
+    tasks: list[dict],
+    rows: list[dict],
+    model: str,
+    reasoning_effort: str | None = None,
+) -> list[dict]:
+    """Preserve valid rows, retry invalid subsets, then verify every repaired result."""
+    valid, remaining = partition_romanization_rows(rows, tasks)
+    latest_rows = rows
+    for attempt in range(3):
+        if not remaining:
+            break
+        try:
+            repaired = request_romanization_corrections(
+                remaining, latest_rows, model, reasoning_effort
+            )
+        except (ValueError, KeyError, OSError) as error:
+            if isinstance(error, urllib.error.HTTPError):
+                details = openai_error_details(error)
+                if not retryable_http_error(error, details):
+                    raise RuntimeError(
+                        f"OpenAI API request requires account action: {details['code'] or error.code}"
+                    ) from error
+            if attempt == 2:
+                break
+            time.sleep(retry_delay(error, attempt))
+            continue
+        accepted, remaining = partition_romanization_rows(repaired, remaining)
+        valid.update(accepted)
+        latest_rows = repaired
+        if remaining:
+            time.sleep(2**attempt)
+
+    # A final independent request per stubborn row avoids regenerating successful content.
+    for task in list(remaining):
+        try:
+            repaired = request_romanization_corrections(
+                [task], latest_rows, model, reasoning_effort
+            )
+        except (ValueError, KeyError, OSError):
+            continue
+        accepted, still_invalid = partition_romanization_rows(repaired, [task])
+        if not still_invalid:
+            valid.update(accepted)
+            remaining.remove(task)
+
+    if remaining:
+        ids = ", ".join(str(task["id"]) for task in remaining)
+        raise ValueError(f"Paiboon romanization repair failed for concept IDs: {ids}")
+    ordered = [valid[task["id"]] for task in tasks]
+    validate_rows(ordered, tasks)
+    return ordered
+
+
 def request_rows(
     tasks: list[dict], language: str, model: str, reasoning_effort: str | None = None
 ) -> list[dict]:
@@ -358,6 +549,10 @@ def request_rows(
                 }
                 for r in raw
             ]
+            if language == "Thai (Paiboon romanization)":
+                rows = repair_invalid_romanization_rows(
+                    tasks, rows, model, reasoning_effort
+                )
             validate_rows(rows, tasks)
             validate_language(rows, tasks, language)
             return rows
