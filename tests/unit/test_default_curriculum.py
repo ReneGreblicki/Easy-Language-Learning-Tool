@@ -233,7 +233,6 @@ def test_hybrid_generation_writes_content_bound_evidence(tmp_path, monkeypatch):
     assert all(row["draft_provider"] == "google-cloud-translation-v2" for row in evidence["rows"])
 
 
-
 def test_romanization_repair_retries_only_invalid_rows(monkeypatch):
     tasks = [
         {
