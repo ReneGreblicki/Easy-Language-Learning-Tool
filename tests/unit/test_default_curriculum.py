@@ -25,6 +25,7 @@ def test_source_and_identity():
 
 def test_reasoning_models_do_not_receive_temperature():
     assert builder.generation_options("gpt-5.6-luna", "high", 0.2) == {"reasoning_effort": "high"}
+    assert builder.generation_options("gpt-5.6-luna", None, 0.2) == {}
     assert builder.generation_options("gpt-4.1", None, 0.2) == {"temperature": 0.2}
 
 
