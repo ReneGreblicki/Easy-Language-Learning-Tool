@@ -231,3 +231,73 @@ def test_hybrid_generation_writes_content_bound_evidence(tmp_path, monkeypatch):
     assert result["pipeline"] == "hybrid"
     assert len(evidence["rows"]) == 30
     assert all(row["draft_provider"] == "google-cloud-translation-v2" for row in evidence["rows"])
+
+
+
+def test_romanization_repair_retries_only_invalid_rows(monkeypatch):
+    tasks = [
+        {
+            "id": 1,
+            "word": "แมว",
+            "sentence": "แมวนอนที่นี่",
+            "sense": "cat",
+            "level": "A1",
+        },
+        {
+            "id": 2,
+            "word": "สุนัข",
+            "sentence": "สุนัขอยู่ที่นี่",
+            "sense": "dog",
+            "level": "A1",
+        },
+    ]
+    valid_row = {
+        "id": 1,
+        "word": "mɛɛo",
+        "sentence": "Mɛɛo nɔɔn thîi-nîi.",
+        "sense": "cat",
+    }
+    invalid_row = {
+        "id": 2,
+        "word": "สุนัข",
+        "sentence": "สุนัข yùu thîi-nîi.",
+        "sense": "dog",
+    }
+    calls = []
+
+    def fake_repair(repair_tasks, _failed, _model, _reasoning=None):
+        calls.append([task["id"] for task in repair_tasks])
+        return [
+            {
+                "id": 2,
+                "word": "sù-nák",
+                "sentence": "Sù-nák yùu thîi-nîi.",
+                "sense": "dog",
+            }
+        ]
+
+    monkeypatch.setattr(builder, "request_romanization_corrections", fake_repair)
+    repaired = builder.repair_invalid_romanization_rows(
+        tasks, [valid_row, invalid_row], "gpt-5.6-luna"
+    )
+
+    assert calls == [[2]]
+    assert repaired[0] is valid_row
+    assert repaired[1]["word"] == "sù-nák"
+    builder.validate_language(repaired, tasks, "Thai (Paiboon romanization)")
+
+
+def test_romanization_partition_rejects_non_latin_letters_and_changed_sense():
+    tasks = [
+        {"id": 1, "word": "แมว", "sentence": "แมวนอน", "sense": "cat"},
+        {"id": 2, "word": "สุนัข", "sentence": "สุนัขนอน", "sense": "dog"},
+    ]
+    rows = [
+        {"id": 1, "word": "мɛɛo", "sentence": "мɛɛo nɔɔn.", "sense": "cat"},
+        {"id": 2, "word": "sù-nák", "sentence": "Sù-nák nɔɔn.", "sense": "hound"},
+    ]
+
+    valid, invalid = builder.partition_romanization_rows(rows, tasks)
+
+    assert valid == {}
+    assert [task["id"] for task in invalid] == [1, 2]
