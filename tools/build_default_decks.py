@@ -41,8 +41,14 @@ API_USAGE = {
     "total_tokens": 0,
     "estimated_cost_usd": 0.0,
 }
-GOOGLE_USAGE = {"requests": 0, "cached_requests": 0, "characters": 0}
+GOOGLE_USAGE = {
+    "requests": 0,
+    "cached_requests": 0,
+    "characters": 0,
+    "cached_characters": 0,
+}
 ACTIVE_BUDGET: CostBudget | None = None
+MAX_GOOGLE_NEW_CHARACTERS: int | None = None
 MAX_COMPLETION_TOKENS = 4096
 LAST_OPENAI_REQUEST_AT = 0.0
 MAX_API_ATTEMPTS = 7
@@ -78,6 +84,10 @@ GOOGLE_TARGETS = {
     "ja-JP": "ja",
     "tr-TR": "tr",
 }
+
+
+class GenerationPaused(RuntimeError):
+    """A resumable paid build reached its per-run purchase limit."""
 
 
 def record_usage(payload: dict, model: str) -> None:
@@ -178,16 +188,28 @@ def google_draft_rows(
         json.dumps(["google-sentence-v1", code, values], ensure_ascii=False).encode()
     ).hexdigest()[:24]
     checkpoint = checkpoint_dir / f"google-draft-{code}-{digest}.json"
-    GOOGLE_USAGE["characters"] += sum(len(value) for value in values)
+    characters = sum(len(value) for value in values)
     if checkpoint.exists():
         translated = json.loads(checkpoint.read_text(encoding="utf-8"))
         GOOGLE_USAGE["cached_requests"] += 1
+        GOOGLE_USAGE["cached_characters"] += characters
     else:
+        if (
+            MAX_GOOGLE_NEW_CHARACTERS is not None
+            and GOOGLE_USAGE["characters"] + characters > MAX_GOOGLE_NEW_CHARACTERS
+        ):
+            raise GenerationPaused(
+                "Google Translation per-run character cap reached; checkpoints were saved. "
+                "Resume after the provider daily quota resets: "
+                f"new_characters={GOOGLE_USAGE['characters']}/"
+                f"{MAX_GOOGLE_NEW_CHARACTERS}, next_batch={characters}"
+            )
         translated = translate_google_sentences(values, GOOGLE_TARGETS[code], api_key)
         checkpoint.write_text(
             json.dumps(translated, ensure_ascii=False, indent=2), encoding="utf-8"
         )
         GOOGLE_USAGE["requests"] += 1
+        GOOGLE_USAGE["characters"] += characters
     return [
         {
             "id": task["id"],
@@ -575,15 +597,16 @@ def generate(
     pipeline: str = "hybrid",
     max_google_characters: int = 950_000,
     max_google_requests: int = 1100,
+    max_google_new_characters: int | None = None,
 ) -> dict:
-    global ACTIVE_BUDGET
+    global ACTIVE_BUDGET, MAX_GOOGLE_NEW_CHARACTERS
     started = time.monotonic()
     if pipeline == "hybrid" and not os.environ.get("GOOGLE_TRANSLATE_API_KEY"):
         raise ValueError("GOOGLE_TRANSLATE_API_KEY is required for the hybrid pipeline")
     worst_case_google_usd = max_google_characters * 20.0 / 1_000_000
-    if pipeline == "hybrid" and max_cost_usd + worst_case_google_usd > 23.0:
+    if pipeline == "hybrid" and max_cost_usd + worst_case_google_usd > 29.0:
         raise ValueError(
-            "Hybrid generation caps exceed the reserved $23 build budget: "
+            "Hybrid generation caps exceed the reserved $29 build budget: "
             f"openai=${max_cost_usd:.2f}, google=${worst_case_google_usd:.2f}"
         )
     for key in API_USAGE:
@@ -591,6 +614,7 @@ def generate(
     for key in GOOGLE_USAGE:
         GOOGLE_USAGE[key] = 0
     ACTIVE_BUDGET = CostBudget(max_cost_usd)
+    MAX_GOOGLE_NEW_CHARACTERS = max_google_new_characters
     frequencies = frequency_data()
     english = frequencies["en-US"][:1000]
     if len(english) != 1000 or len({r["rank"] for r in english}) != 1000:
@@ -903,6 +927,11 @@ def main() -> None:
     parser.add_argument("--max-google-characters", type=int, default=950_000)
     parser.add_argument("--max-google-requests", type=int, default=1100)
     parser.add_argument(
+        "--max-google-new-characters",
+        type=int,
+        help="Stop and checkpoint before purchasing more than this many new characters per run.",
+    )
+    parser.add_argument(
         "--reasoning-effort",
         choices=("none", "low", "medium", "high", "xhigh", "max"),
     )
@@ -919,6 +948,7 @@ def main() -> None:
         sql = publication_sql(args.output / "curriculum.json", args.review, args.version)
         (args.output / "publish.sql").write_text(sql, encoding="utf-8")
     else:
+        paused: GenerationPaused | None = None
         try:
             generate(
                 args.output,
@@ -931,7 +961,11 @@ def main() -> None:
                 args.pipeline,
                 args.max_google_characters,
                 args.max_google_requests,
+                args.max_google_new_characters,
             )
+        except GenerationPaused as error:
+            paused = error
+            print(error)
         finally:
             args.output.mkdir(parents=True, exist_ok=True)
             (args.output / "api_usage.json").write_text(
@@ -940,6 +974,8 @@ def main() -> None:
             (args.output / "google_usage.json").write_text(
                 json.dumps(GOOGLE_USAGE, indent=2), encoding="utf-8"
             )
+        if paused:
+            raise SystemExit(75)
 
 
 if __name__ == "__main__":
