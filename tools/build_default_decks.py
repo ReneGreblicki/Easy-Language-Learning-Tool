@@ -23,8 +23,10 @@ from uuid import UUID
 
 try:
     from api_cost_guard import CostBudget
+    from default_deck_concepts import english_usage_issues, select_english_concepts
 except ModuleNotFoundError:  # Imported directly by unit tests from the repository root.
     from tools.api_cost_guard import CostBudget
+    from tools.default_deck_concepts import english_usage_issues, select_english_concepts
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "resources/frequency_data/production/words.jsonl.gz"
@@ -222,10 +224,10 @@ def google_draft_rows(
 
 
 def frequency_candidates(sentence: str, rows: list[dict], limit: int = 12) -> list[dict]:
-    """Return high-frequency corpus entries visible in a Google draft."""
+    """Return entries from the implemented top 1,000 that are visible in a Google draft."""
     haystack = normalize(sentence)
     matches = []
-    for row in rows[:5000]:
+    for row in rows[:1000]:
         lemma = normalize(row["lemma"])
         visible = (
             bool(re.search(rf"(?<!\w){re.escape(lemma)}(?!\w)", haystack))
@@ -735,6 +737,141 @@ def review_rows(
     raise AssertionError("unreachable")
 
 
+def review_english_rows(
+    tasks: list[dict],
+    draft_rows: list[dict],
+    model: str,
+    reasoning_effort: str | None = None,
+) -> list[dict]:
+    """Review existing English output while preserving every approved source word and ID."""
+    drafts = {row["id"]: row for row in draft_rows}
+    payload_rows = [
+        {
+            "id": task["id"],
+            "level": task["level"],
+            "required_word": task["word"],
+            "draft_sentence": drafts[task["id"]]["sentence"],
+            "draft_sense_in_english": drafts[task["id"]]["sense"],
+            "deterministic_issues": english_usage_issues(
+                task["word"],
+                drafts[task["id"]]["sentence"],
+                drafts[task["id"]]["sense"],
+            ),
+        }
+        for task in tasks
+    ]
+    instruction = (
+        "You are the final English editor for a 1,000-concept language curriculum. "
+        "Keep each required_word and id exactly unchanged. Preserve a draft when it is already "
+        "a natural, useful example of the word's common everyday meaning. Otherwise make the "
+        "smallest correction needed. Reject meta-language examples about spelling, abbreviations, "
+        "codes, symbols, initials, or dictionary entries. The sentence must naturally contain the "
+        "required word, demonstrate the supplied sense, and fit the supplied CEFR level. A1 uses "
+        "simple concrete language, A2 everyday situations, and B1 two connected ideas. Return a "
+        "short plain-English sense, not a description of the token itself."
+    )
+    schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["rows"],
+        "properties": {
+            "rows": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "required": ["id", "target_word", "target_sentence", "sense_in_english"],
+                    "properties": {
+                        "id": {"type": "integer"},
+                        "target_word": {"type": "string"},
+                        "target_sentence": {"type": "string"},
+                        "sense_in_english": {"type": "string"},
+                    },
+                },
+            }
+        },
+    }
+    body = json.dumps(
+        {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": instruction},
+                {"role": "user", "content": json.dumps(payload_rows, ensure_ascii=False)},
+            ],
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "reviewed_english_rows",
+                    "strict": True,
+                    "schema": schema,
+                },
+            },
+            "max_completion_tokens": MAX_COMPLETION_TOKENS,
+            **generation_options(model, reasoning_effort, 0.0),
+        },
+        ensure_ascii=False,
+    ).encode()
+    request = urllib.request.Request(
+        "https://api.openai.com/v1/chat/completions",
+        data=body,
+        headers={
+            "Authorization": "Bearer " + os.environ["OPENAI_API_KEY"],
+            "Content-Type": "application/json",
+        },
+    )
+    for attempt in range(MAX_API_ATTEMPTS):
+        try:
+            preflight_request(model, body)
+            pace_openai_requests()
+            with urllib.request.urlopen(
+                request, timeout=request_timeout(reasoning_effort)
+            ) as response:
+                payload = json.load(response)
+            record_usage(payload, model)
+            raw = json.loads(payload["choices"][0]["message"]["content"])["rows"]
+            rows = [
+                {
+                    "id": row["id"],
+                    "word": row["target_word"],
+                    "sentence": row["target_sentence"],
+                    "sense": row["sense_in_english"],
+                }
+                for row in raw
+            ]
+            validate_rows(rows, tasks)
+            validate_language(rows, tasks, "US English")
+            remaining = [
+                issue
+                for row in rows
+                for issue in english_usage_issues(row["word"], row["sentence"], row["sense"])
+            ]
+            if remaining:
+                raise ValueError("; ".join(sorted(set(remaining))))
+            return rows
+        except (ValueError, KeyError, OSError) as error:
+            if isinstance(error, urllib.error.HTTPError):
+                details = openai_error_details(error)
+                if not retryable_http_error(error, details):
+                    raise RuntimeError(
+                        f"OpenAI API request requires account action: {details['code'] or error.code}"
+                    ) from error
+            if attempt == MAX_API_ATTEMPTS - 1:
+                raise
+            retry_body = json.loads(body)
+            retry_body["messages"].append(
+                {
+                    "role": "user",
+                    "content": "The review failed validation: "
+                    + str(error)
+                    + ". Return the complete corrected batch and preserve every required word.",
+                }
+            )
+            body = json.dumps(retry_body, ensure_ascii=False).encode()
+            request.data = body
+            time.sleep(retry_delay(error, attempt))
+    raise AssertionError("unreachable")
+
+
 def validate_rows(rows: list[dict], tasks: list[dict]) -> None:
     if len(rows) != len(tasks) or {r["id"] for r in rows} != {t["id"] for t in tasks}:
         raise ValueError("Missing or duplicated concept IDs")
@@ -776,6 +913,81 @@ def validate_language(rows: list[dict], tasks: list[dict], language: str) -> Non
                 raise ValueError("Thai script missing from native translation")
 
 
+def source_row_hash(task: dict) -> str:
+    return hashlib.sha256(
+        (task["word"] + "\n" + task["sentence"] + "\n" + task["sense"]).encode()
+    ).hexdigest()
+
+
+def reusable_checkpoint_rows(
+    checkpoint: Path,
+    code: str,
+    tasks: list[dict],
+    language: str,
+    *,
+    require_evidence: bool,
+) -> tuple[list[dict], list[dict]]:
+    """Recover compatible cells when a changed batch digest invalidates only some IDs."""
+    task_by_id = {task["id"]: task for task in tasks}
+    accepted: dict[int, dict] = {}
+    accepted_evidence: dict[int, dict] = {}
+    files = sorted(
+        checkpoint.glob(f"{code}-*.json"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    for file in files:
+        if file.name.endswith(".evidence.json"):
+            continue
+        evidence_file = file.with_name(file.stem + ".evidence.json")
+        evidence_by_id: dict[int, dict] = {}
+        if evidence_file.exists():
+            try:
+                evidence_by_id = {
+                    int(row["id"]): row
+                    for row in json.loads(evidence_file.read_text(encoding="utf-8"))
+                }
+            except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+                continue
+        try:
+            candidates = json.loads(file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        for row in candidates:
+            concept_id = row.get("id") if isinstance(row, dict) else None
+            if concept_id in accepted or concept_id not in task_by_id:
+                continue
+            task = task_by_id[concept_id]
+            evidence = evidence_by_id.get(concept_id)
+            if require_evidence and (
+                not evidence
+                or evidence.get("source_sha256") != source_row_hash(task)
+                or evidence.get("target_sha256")
+                != hashlib.sha256((row["word"] + "\n" + row["sentence"]).encode()).hexdigest()
+            ):
+                continue
+            try:
+                validate_rows([row], [task])
+                validate_language([row], [task], language)
+            except (KeyError, TypeError, ValueError):
+                continue
+            accepted[concept_id] = row
+            if evidence:
+                accepted_evidence[concept_id] = evidence
+    ordered_rows = [accepted[task["id"]] for task in tasks if task["id"] in accepted]
+    ordered_evidence = [
+        accepted_evidence[task["id"]] for task in tasks if task["id"] in accepted_evidence
+    ]
+    return ordered_rows, ordered_evidence
+
+
+def generation_schedule(
+    codes: list[str], row_count: int, batch_size: int = 20
+) -> list[tuple[int, str]]:
+    """Process every language for an ID block before advancing to the next block."""
+    return [(start, code) for start in range(0, row_count, batch_size) for code in codes]
+
+
 def generate(
     output: Path,
     pilot: bool,
@@ -806,68 +1018,73 @@ def generate(
     ACTIVE_BUDGET = CostBudget(max_cost_usd)
     MAX_GOOGLE_NEW_CHARACTERS = max_google_new_characters
     frequencies = frequency_data()
-    english = frequencies["en-US"][:1000]
-    if len(english) != 1000 or len({r["rank"] for r in english}) != 1000:
-        raise ValueError("Expected 1,000 English source entries")
+    english, source_replacements = select_english_concepts(frequencies["en-US"])
+    english_by_id = {row["concept_id"]: row for row in english}
     tasks = [
         {
-            "id": r["rank"],
+            "id": r["concept_id"],
             "word": r["lemma"],
-            "level": "A1" if r["rank"] <= 400 else "A2" if r["rank"] <= 700 else "B1",
+            "level": ("A1" if r["concept_id"] <= 400 else "A2" if r["concept_id"] <= 700 else "B1"),
         }
         for r in english
-        if not pilot or r["rank"] in {*range(1, 11), *range(401, 411), *range(701, 711)}
+        if not pilot or r["concept_id"] in {*range(1, 11), *range(401, 411), *range(701, 711)}
     ]
     output.mkdir(parents=True, exist_ok=True)
     checkpoint = output / "checkpoints"
     checkpoint.mkdir(exist_ok=True)
-    datasets = {}
+    datasets: dict[str, list[dict]] = {}
     hybrid_evidence: list[dict] = []
     ordered = list(dict.fromkeys(["en-US", *languages]))
     if "th-Latn-TH" in ordered:
         if "th-Thai-TH" in ordered:
             ordered.remove("th-Thai-TH")
         ordered.insert(ordered.index("th-Latn-TH"), "th-Thai-TH")
-    google_plan_checked = False
     for code in ordered:
         if code not in LANGUAGES:
             raise ValueError(f"Unknown language: {code}")
-        source_tasks = (
-            tasks
-            if code == "en-US"
-            else datasets["th-Thai-TH" if code == "th-Latn-TH" else "en-US"]
-        )
-        generated = []
-        for start in range(0, len(source_tasks), 20):
-            batch = source_tasks[start : start + 20]
-            # Changing input/model invalidates the checkpoint rather than silently reusing it.
-            digest = hashlib.sha256(
-                json.dumps(
-                    [
-                        "prompt-v7-hybrid",
-                        pipeline,
-                        model,
-                        reasoning_effort,
-                        editorial_mode,
-                        code,
-                        batch,
-                    ],
-                    sort_keys=True,
-                ).encode()
-            ).hexdigest()[:20]
-            file = checkpoint / f"{code}-{digest}.json"
-            evidence_file = checkpoint / f"{code}-{digest}.evidence.json"
-            batch_evidence: list[dict] = []
-            cache_valid = file.exists() and (
-                pipeline != "hybrid" or code == "en-US" or evidence_file.exists()
+
+    def build_batch(code: str, batch: list[dict]) -> tuple[list[dict], list[dict]]:
+        """Build one ID-aligned language batch and reuse every compatible saved cell."""
+        digest = hashlib.sha256(
+            json.dumps(
+                [
+                    "prompt-v7-hybrid",
+                    pipeline,
+                    model,
+                    reasoning_effort,
+                    editorial_mode,
+                    code,
+                    batch,
+                ],
+                sort_keys=True,
+            ).encode()
+        ).hexdigest()[:20]
+        file = checkpoint / f"{code}-{digest}.json"
+        evidence_file = checkpoint / f"{code}-{digest}.evidence.json"
+        batch_evidence: list[dict] = []
+        # Hybrid rows must be recovered through the content-bound evidence path.
+        # This deliberately avoids accepting an exact filename hit whose English
+        # source changed during the new editorial review.
+        cache_valid = file.exists() and pipeline != "hybrid"
+        if cache_valid:
+            rows = json.loads(file.read_text(encoding="utf-8"))
+            if evidence_file.exists():
+                batch_evidence = json.loads(evidence_file.read_text(encoding="utf-8"))
+        else:
+            rows, batch_evidence = reusable_checkpoint_rows(
+                checkpoint,
+                code,
+                batch,
+                LANGUAGES[code],
+                require_evidence=pipeline == "hybrid" and code != "en-US",
             )
-            if cache_valid:
-                rows = json.loads(file.read_text())
-                if evidence_file.exists():
-                    batch_evidence = json.loads(evidence_file.read_text(encoding="utf-8"))
-            elif pipeline == "hybrid" and code in GOOGLE_TARGETS:
+            existing = {row["id"] for row in rows}
+            missing = [task for task in batch if task["id"] not in existing]
+            new_rows: list[dict] = []
+            new_evidence: list[dict] = []
+            if missing and pipeline == "hybrid" and code in GOOGLE_TARGETS:
                 drafts = google_draft_rows(
-                    batch, code, os.environ["GOOGLE_TRANSLATE_API_KEY"], checkpoint
+                    missing, code, os.environ["GOOGLE_TRANSLATE_API_KEY"], checkpoint
                 )
                 enriched = [
                     {
@@ -876,90 +1093,127 @@ def generate(
                             drafts[index]["sentence"], frequencies[code]
                         ),
                     }
-                    for index, task in enumerate(batch)
+                    for index, task in enumerate(missing)
                 ]
-                rows = review_rows(enriched, drafts, LANGUAGES[code], model, reasoning_effort)
-                for task, draft, row in zip(batch, drafts, rows, strict=True):
-                    batch_evidence.append(
+                new_rows = review_rows(enriched, drafts, LANGUAGES[code], model, reasoning_effort)
+                for task, draft, row in zip(missing, drafts, new_rows, strict=True):
+                    new_evidence.append(
                         {
                             "language": code,
                             "id": row["id"],
                             "draft_provider": "google-cloud-translation-v2",
                             "editor_model": model,
-                            "source_sha256": hashlib.sha256(
-                                (
-                                    task["word"] + "\n" + task["sentence"] + "\n" + task["sense"]
-                                ).encode()
-                            ).hexdigest(),
+                            "source_sha256": source_row_hash(task),
                             "google_draft_sentence": draft["sentence"],
                             "target_sha256": hashlib.sha256(
                                 (row["word"] + "\n" + row["sentence"]).encode()
                             ).hexdigest(),
                         }
                     )
-            else:
-                rows = request_rows(batch, LANGUAGES[code], model, reasoning_effort)
+            elif missing:
+                new_rows = request_rows(missing, LANGUAGES[code], model, reasoning_effort)
                 if code == "th-Latn-TH" and pipeline == "hybrid":
-                    for task, row in zip(batch, rows, strict=True):
-                        batch_evidence.append(
+                    for task, row in zip(missing, new_rows, strict=True):
+                        new_evidence.append(
                             {
                                 "language": code,
                                 "id": row["id"],
                                 "draft_provider": "thai-script-specialized",
                                 "editor_model": model,
-                                "source_sha256": hashlib.sha256(
-                                    (
-                                        task["word"]
-                                        + "\n"
-                                        + task["sentence"]
-                                        + "\n"
-                                        + task["sense"]
-                                    ).encode()
-                                ).hexdigest(),
+                                "source_sha256": source_row_hash(task),
                                 "target_sha256": hashlib.sha256(
                                     (row["word"] + "\n" + row["sentence"]).encode()
                                 ).hexdigest(),
                             }
                         )
-            if (
-                not cache_valid
-                and code != "en-US"
-                and editorial_mode == "full"
-                and pipeline != "hybrid"
-            ):
-                rows = review_rows(batch, rows, LANGUAGES[code], model, reasoning_effort)
-            validate_rows(rows, batch)
-            validate_language(rows, batch, LANGUAGES[code])
-            file.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
-            if batch_evidence:
-                evidence_file.write_text(
-                    json.dumps(batch_evidence, ensure_ascii=False, indent=2), encoding="utf-8"
-                )
-                hybrid_evidence.extend(batch_evidence)
-            by_id = {r["id"]: r for r in rows}
-            generated.extend({**by_id[t["id"]], "level": t["level"]} for t in batch)
-        lookup = {normalize(r["lemma"]): r["rank"] for r in frequencies[code]}
-        for row in generated:
-            row["source_rank"] = lookup.get(normalize(row["word"]))
+            if missing and code != "en-US" and editorial_mode == "full" and pipeline != "hybrid":
+                new_rows = review_rows(missing, new_rows, LANGUAGES[code], model, reasoning_effort)
+            by_id = {row["id"]: row for row in [*rows, *new_rows]}
+            rows = [by_id[task["id"]] for task in batch]
+            evidence_by_id = {row["id"]: row for row in [*batch_evidence, *new_evidence]}
+            batch_evidence = [
+                evidence_by_id[task["id"]] for task in batch if task["id"] in evidence_by_id
+            ]
+
+        if code == "en-US":
+            review_digest = hashlib.sha256(
+                json.dumps(
+                    ["english-review-v1", model, reasoning_effort, batch, rows],
+                    sort_keys=True,
+                ).encode()
+            ).hexdigest()[:20]
+            reviewed_file = checkpoint / f"reviewed-en-US-{review_digest}.json"
+            rows = (
+                json.loads(reviewed_file.read_text(encoding="utf-8"))
+                if reviewed_file.exists()
+                else review_english_rows(batch, rows, model, reasoning_effort)
+            )
+            reviewed_file.write_text(
+                json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+
+        validate_rows(rows, batch)
+        validate_language(rows, batch, LANGUAGES[code])
+        file.write_text(json.dumps(rows, ensure_ascii=False, indent=2), encoding="utf-8")
+        if batch_evidence:
+            evidence_file.write_text(
+                json.dumps(batch_evidence, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+        return rows, batch_evidence
+
+    def finalize_rows(code: str, generated: list[dict]) -> list[dict]:
+        if code == "en-US":
+            source_ranks = {concept_id: row["rank"] for concept_id, row in english_by_id.items()}
+            for row in generated:
+                row["source_rank"] = source_ranks[row["id"]]
+        else:
+            lookup = {normalize(row["lemma"]): row["rank"] for row in frequencies[code][:1000]}
+            for row in generated:
+                row["source_rank"] = lookup.get(normalize(row["word"]))
         for level in ("A1", "A2", "B1"):
             group = sorted(
-                (r for r in generated if r["level"] == level),
-                key=lambda r: (r["source_rank"] or 99999, r["id"]),
+                (row for row in generated if row["level"] == level),
+                key=lambda row: (row["source_rank"] or 99999, row["id"]),
             )
             for rank, row in enumerate(group, 1):
                 row["rank"] = rank
-        datasets[code] = generated
-        if pipeline == "hybrid" and code == "en-US" and not google_plan_checked:
-            google_codes = [item for item in ordered if item in GOOGLE_TARGETS]
-            planned_characters = sum(len(row["sentence"]) for row in generated) * len(google_codes)
-            planned_requests = ((len(generated) + 19) // 20) * len(google_codes)
-            if planned_characters > max_google_characters or planned_requests > max_google_requests:
-                raise RuntimeError(
-                    "Google Translation hard cap blocks this run before any request: "
-                    f"characters={planned_characters}/{max_google_characters}, "
-                    f"requests={planned_requests}/{max_google_requests}"
-                )
-            google_plan_checked = True
+        return generated
+
+    english_generated: list[dict] = []
+    for start in range(0, len(tasks), 20):
+        batch = tasks[start : start + 20]
+        rows, _evidence = build_batch("en-US", batch)
+        by_id = {row["id"]: row for row in rows}
+        english_generated.extend({**by_id[task["id"]], "level": task["level"]} for task in batch)
+    datasets["en-US"] = finalize_rows("en-US", english_generated)
+
+    if pipeline == "hybrid":
+        google_codes = [code for code in ordered if code in GOOGLE_TARGETS]
+        planned_characters = sum(len(row["sentence"]) for row in datasets["en-US"]) * len(
+            google_codes
+        )
+        planned_requests = ((len(datasets["en-US"]) + 19) // 20) * len(google_codes)
+        if planned_characters > max_google_characters or planned_requests > max_google_requests:
+            raise RuntimeError(
+                "Google Translation hard cap blocks this run before any request: "
+                f"characters={planned_characters}/{max_google_characters}, "
+                f"requests={planned_requests}/{max_google_requests}"
+            )
+
+    target_codes = [code for code in ordered if code != "en-US"]
+    generated_by_code: dict[str, list[dict]] = {code: [] for code in target_codes}
+    for start, code in generation_schedule(target_codes, len(tasks)):
+        source_rows = generated_by_code["th-Thai-TH"] if code == "th-Latn-TH" else datasets["en-US"]
+        batch = source_rows[start : start + 20]
+        rows, batch_evidence = build_batch(code, batch)
+        hybrid_evidence.extend(batch_evidence)
+        by_id = {row["id"]: row for row in rows}
+        generated_by_code[code].extend(
+            {**by_id[task["id"]], "level": task["level"]} for task in batch
+        )
+
+    for code in target_codes:
+        datasets[code] = finalize_rows(code, generated_by_code[code])
     result = {
         "pilot": pilot,
         "model": model,
@@ -974,12 +1228,40 @@ def generate(
         "source_attribution": {
             k: english[0].get(k) for k in ("source", "licence", "source_url", "source_revision")
         },
+        "concept_source": {
+            "policy": "first-1000-valid-ranked-english-v1",
+            "implemented_frequency_limit": 1000,
+            "raw_frequency_slots": 1000,
+            "replacement_count": len(source_replacements),
+            "replacements": source_replacements,
+            "concepts": [
+                {
+                    "id": row["concept_id"],
+                    "word": row["lemma"],
+                    "source_rank": row["rank"],
+                    "raw_slot_rank": row["raw_slot_rank"],
+                }
+                for row in english
+            ],
+        },
         "api_usage": dict(API_USAGE),
         "google_usage": dict(GOOGLE_USAGE),
         "languages": datasets,
     }
     content = json.dumps(result, ensure_ascii=False, indent=2)
     (output / "curriculum.json").write_text(content, encoding="utf-8")
+    (output / "source_replacements.json").write_text(
+        json.dumps(
+            {
+                "policy": result["concept_source"]["policy"],
+                "replacement_count": len(source_replacements),
+                "replacements": source_replacements,
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
     if pipeline == "hybrid":
         (output / "hybrid_evidence.json").write_text(
             json.dumps(
