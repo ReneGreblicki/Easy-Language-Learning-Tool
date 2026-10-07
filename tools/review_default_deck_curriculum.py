@@ -302,7 +302,9 @@ def apply_repairs(curriculum: dict, repaired: list[dict], corpus_path: Path) -> 
             row["sentence"] = replacement["target_sentence"].strip()
             row["sense"] = replacement["sense_in_english"].strip()
             corpus_row = indexes.get(code, {}).get(quality.corpus_normalized(row["word"]))
-            row["source_rank"] = corpus_row["rank"] if corpus_row else None
+            row["source_rank"] = (
+                corpus_row["rank"] if corpus_row and corpus_row["rank"] <= 1000 else None
+            )
     return result
 
 
@@ -312,7 +314,7 @@ def reconcile_source_ranks(curriculum: dict, corpus_path: Path) -> int:
     for code, rows in curriculum["languages"].items():
         for row in rows:
             corpus_row = indexes.get(code, {}).get(quality.corpus_normalized(row["word"]))
-            expected = corpus_row["rank"] if corpus_row else None
+            expected = corpus_row["rank"] if corpus_row and corpus_row["rank"] <= 1000 else None
             if row.get("source_rank") != expected:
                 row["source_rank"] = expected
                 changes += 1
