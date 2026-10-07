@@ -9,6 +9,11 @@ import unicodedata
 from collections import Counter
 from pathlib import Path
 
+try:
+    from default_deck_concepts import english_usage_issues
+except ModuleNotFoundError:
+    from tools.default_deck_concepts import english_usage_issues
+
 EXPECTED_SCRIPTS = {
     "zh-CN": re.compile(r"[\u3400-\u9fff]"),
     "ml-IN": re.compile(r"[\u0d00-\u0d7f]"),
@@ -37,6 +42,13 @@ def audit(path: Path, expected_codes: set[str] | None = None) -> dict[str, objec
         )
 
     english = {row["id"]: row for row in languages.get("en-US", [])}
+    concept_source = data.get("concept_source", {})
+    if (
+        concept_source.get("policy") != "first-1000-valid-ranked-english-v1"
+        or concept_source.get("implemented_frequency_limit") != 1000
+        or len(concept_source.get("concepts", [])) != 1000
+    ):
+        errors.append("clean 1,000-concept source manifest is missing or invalid")
     expected_ids = set(english)
     summary: dict[str, dict[str, object]] = {}
     for code, rows in languages.items():
@@ -85,7 +97,18 @@ def audit(path: Path, expected_codes: set[str] | None = None) -> dict[str, objec
 
         sense_drift = 0
         absent_headwords = 0
-        if code != "en-US":
+        if code == "en-US":
+            usage_issues = [
+                (row["id"], issue)
+                for row in rows
+                for issue in english_usage_issues(row["word"], row["sentence"], row["sense"])
+            ]
+            if usage_issues:
+                errors.append(
+                    f"en-US: {len(usage_issues)} English source/usage issues; "
+                    f"first={usage_issues[0]}"
+                )
+        else:
             sense_drift = sum(
                 normalized(row["sense"]) != normalized(english[row["id"]]["sense"])
                 for row in rows
@@ -100,6 +123,14 @@ def audit(path: Path, expected_codes: set[str] | None = None) -> dict[str, objec
                 warnings.append(
                     f"{code}: manually inspect {absent_headwords} headwords absent verbatim "
                     "from their sentences (inflection may be valid)"
+                )
+            ranks_over_limit = sum(
+                isinstance(row.get("source_rank"), int) and row["source_rank"] > 1000
+                for row in rows
+            )
+            if ranks_over_limit:
+                errors.append(
+                    f"{code}: {ranks_over_limit} source ranks exceed the implemented top 1,000"
                 )
 
         summary[code] = {
