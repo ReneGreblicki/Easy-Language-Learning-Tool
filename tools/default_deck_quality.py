@@ -18,6 +18,11 @@ from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+try:
+    from default_deck_concepts import english_usage_issues, select_english_concepts
+except ModuleNotFoundError:
+    from tools.default_deck_concepts import english_usage_issues, select_english_concepts
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CORPUS = ROOT / "resources/frequency_data/production/words.jsonl.gz"
 
@@ -138,6 +143,15 @@ def load_corpus(path: Path) -> tuple[dict[str, dict[str, dict]], str]:
     return dict(indexes), hashlib.sha256(raw).hexdigest()
 
 
+def load_ranked_language(path: Path, language: str) -> list[dict]:
+    with gzip.open(path, "rt", encoding="utf-8") as stream:
+        rows = [json.loads(line) for line in stream]
+    return sorted(
+        (row for row in rows if row.get("language") == language),
+        key=lambda row: row["rank"],
+    )
+
+
 def validate_corpus(path: Path, expected_languages: int = 24, expected_rows: int = 5000) -> dict:
     rows_by_language: dict[str, list[dict]] = defaultdict(list)
     with gzip.open(path, "rt", encoding="utf-8") as stream:
@@ -233,6 +247,12 @@ def verify(
     curriculum_bytes = curriculum_path.read_bytes()
     curriculum = json.loads(curriculum_bytes)
     corpus, corpus_sha = load_corpus(corpus_path)
+    ranked_english = load_ranked_language(corpus_path, "en-US")
+    selection_count = min(1000, len(ranked_english))
+    selected_english, expected_replacements = select_english_concepts(
+        ranked_english, selection_count
+    )
+    canonical_english = {row["concept_id"]: row for row in selected_english}
     independent = load_backtranslations(backtranslations_path)
     hybrid = load_hybrid_evidence(hybrid_evidence_path)
     findings: list[Finding] = []
@@ -242,6 +262,33 @@ def verify(
     expected_ids = set(english_rows)
     level_counts = expected_level_counts(bool(curriculum.get("pilot")))
     row_status: dict[str, dict[int, str]] = defaultdict(dict)
+
+    concept_source = curriculum.get("concept_source", {})
+    manifest_concepts = {int(row.get("id", -1)): row for row in concept_source.get("concepts", [])}
+    expected_manifest = {
+        row["concept_id"]: {
+            "id": row["concept_id"],
+            "word": row["lemma"],
+            "source_rank": row["rank"],
+            "raw_slot_rank": row["raw_slot_rank"],
+        }
+        for row in selected_english
+    }
+    if (
+        concept_source.get("policy") != "first-1000-valid-ranked-english-v1"
+        or concept_source.get("implemented_frequency_limit") != 1000
+        or concept_source.get("replacements") != expected_replacements
+        or manifest_concepts != expected_manifest
+    ):
+        findings.append(
+            Finding(
+                "*",
+                None,
+                "error",
+                "concept_source_manifest_mismatch",
+                "The clean 1,000-concept source manifest does not match the pinned corpus.",
+            )
+        )
 
     if curriculum.get("source_sha256") != corpus_sha:
         findings.append(
@@ -320,6 +367,25 @@ def verify(
                 add("error", "missing_content", "Word, sentence, or sense is empty.", True)
             if normalized(word) in PLACEHOLDERS:
                 add("error", "placeholder", f"Unusable headword placeholder: {word!r}.", True)
+            if code == "en-US":
+                expected_source = canonical_english.get(concept_id)
+                if expected_source is None:
+                    add(
+                        "error",
+                        "english_concept_id_out_of_range",
+                        "English concept ID is not in the canonical clean source selection.",
+                        False,
+                    )
+                else:
+                    if normalized(word) != normalized(str(expected_source["lemma"])):
+                        add(
+                            "error",
+                            "english_source_mismatch",
+                            f"Expected canonical word {expected_source['lemma']!r}.",
+                            False,
+                        )
+                    for issue in english_usage_issues(word, sentence, sense):
+                        add("error", "english_usage_quality", issue + ".", True)
             source = english_rows.get(concept_id)
             if source and code != "en-US" and normalized(sense) != normalized(source["sense"]):
                 add("error", "sense_drift", "English sense differs from the source concept.", True)
@@ -353,6 +419,26 @@ def verify(
                     )
 
             corpus_row = corpus.get(code, {}).get(corpus_normalized(word))
+            if (
+                code != "en-US"
+                and isinstance(row.get("source_rank"), int)
+                and row["source_rank"] > 1000
+            ):
+                add(
+                    "error",
+                    "source_rank_outside_implemented_top_1000",
+                    f"Stored source_rank={row['source_rank']} exceeds the implemented limit.",
+                    True,
+                )
+            if code != "en-US" and corpus_row and corpus_row["rank"] > 1000:
+                corpus_row = None
+            if code == "en-US" and concept_id in canonical_english:
+                canonical_row = canonical_english[concept_id]
+                corpus_row = (
+                    canonical_row
+                    if corpus_normalized(word) == corpus_normalized(canonical_row["lemma"])
+                    else None
+                )
             if corpus_row:
                 frequency_matches += 1
                 stored_rank = row.get("source_rank")
@@ -366,8 +452,8 @@ def verify(
             else:
                 add(
                     "warning",
-                    "headword_not_in_top_5000",
-                    "Headword is not an exact match in the ranked 5,000-word corpus.",
+                    "headword_not_in_implemented_top_1000",
+                    "Headword is not an exact match in the implemented top-1,000 candidate set.",
                     True,
                 )
 
@@ -540,6 +626,7 @@ def verify(
             "headwords_not_verbatim": absent_headwords,
             "independent_reviews_present": independent_present,
             "independent_reviews_expected": independent_expected,
+            "source_replacements": len(expected_replacements),
         },
         "finding_counts": dict(sorted(by_code.items())),
         "findings": [asdict(finding) for finding in findings],
