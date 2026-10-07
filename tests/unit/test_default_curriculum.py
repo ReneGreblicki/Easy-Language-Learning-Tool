@@ -14,6 +14,15 @@ builder = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(builder)
 
 
+def alpha_word(index: int) -> str:
+    value = index
+    suffix = ""
+    while value:
+        value, remainder = divmod(value - 1, 26)
+        suffix = chr(97 + remainder) + suffix
+    return "term" + suffix
+
+
 def test_source_and_identity():
     source = builder.frequency_data()
     assert len(source["en-US"]) == 5000
@@ -169,10 +178,21 @@ def test_frequency_candidates_use_ranked_corpus_order():
     ]
 
 
+def test_generation_schedule_is_id_major_across_languages():
+    assert builder.generation_schedule(["es-ES", "de-DE"], 45, 20) == [
+        (0, "es-ES"),
+        (0, "de-DE"),
+        (20, "es-ES"),
+        (20, "de-DE"),
+        (40, "es-ES"),
+        (40, "de-DE"),
+    ]
+
+
 def test_hybrid_generation_writes_content_bound_evidence(tmp_path, monkeypatch):
     frequencies = {
         "en-US": [
-            {"rank": rank, "lemma": f"word{rank}", "source": "test"} for rank in range(1, 1001)
+            {"rank": rank, "lemma": alpha_word(rank), "source": "test"} for rank in range(1, 1001)
         ],
         "es-ES": [
             {"rank": rank, "lemma": f"palabra{rank}", "source": "test"} for rank in range(1, 1001)
@@ -184,7 +204,7 @@ def test_hybrid_generation_writes_content_bound_evidence(tmp_path, monkeypatch):
             {
                 "id": task["id"],
                 "word": task["word"],
-                "sentence": f"English example {task['id']}.",
+                "sentence": f"The {task['word']} appears in this example.",
                 "sense": f"sense {task['id']}",
             }
             for task in tasks
@@ -215,6 +235,11 @@ def test_hybrid_generation_writes_content_bound_evidence(tmp_path, monkeypatch):
     monkeypatch.setenv("GOOGLE_TRANSLATE_API_KEY", "secret")
     monkeypatch.setattr(builder, "frequency_data", lambda: frequencies)
     monkeypatch.setattr(builder, "request_rows", fake_request)
+    monkeypatch.setattr(
+        builder,
+        "review_english_rows",
+        lambda _tasks, drafts, _model, _reasoning=None: drafts,
+    )
     monkeypatch.setattr(builder, "google_draft_rows", fake_google)
     monkeypatch.setattr(builder, "review_rows", fake_review)
     result = builder.generate(
