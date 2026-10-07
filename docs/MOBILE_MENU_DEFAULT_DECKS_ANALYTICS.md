@@ -56,23 +56,37 @@ means first observed study after consent, not necessarily lifetime first study.
 
 ## Content workflow
 
-1. `tools/build_default_decks.py --pilot --model gpt-4.1 --output draft --languages en-US es-ES de-DE th-Thai-TH th-Latn-TH`.
-   Thirty concepts, ten from each level; GitHub pilot workflow uses the existing OpenAI secret.
-2. Review sense alignment, naturalness, target-word use, CEFR difficulty and Thai script/romanization.
-3. Generate full curriculum with `--output full` (all 24 supported options by default).
-   Checkpoints prevent regenerating completed batches. Source SHA and attribution are embedded.
-4. Resolve unmatched source ranks and duplicate/ambiguous translations. Automated checks do not
-   replace language review. Frequency determines ordering within levels, not CEFR certification.
-5. Record explicit review in JSON: `{"sha256":"<curriculum file SHA256>","reviewer":"<reviewer>","approved":true}`.
-6. Generate SQL using `--output full --review review.json --version 1`. It rejects pilots,
-   missing languages, duplicate concepts, wrong counts/ranks and a stale review hash.
-7. Apply the SQL in a transaction using the controlled database publication process. Published
-   versions are immutable; choose a new version for corrections. Stable card IDs preserve progress.
+The future production workflow is automated and fail-closed:
 
-English entries 1–400/401–700/701–1000 supply the initial level group allocation. This is a
-shared English-concept curriculum, not a claim to contain each language's top 1000 words.
-Adjust curriculum membership after review before first publication. Later updates must
-preserve level membership and identity, or use an explicit migration.
+1. Read the pinned ranked corpus and form exactly 1,000 stable English concept slots. Reject
+   fragments, isolated letters, abbreviations, codes and non-words (for example `de`). Keep every
+   valid raw top-1,000 slot and fill each rejected slot with the next valid ranked English word.
+   Write the complete decision trail to `concept_source` and `source_replacements.json`.
+2. Reuse the existing English draft sentence only when it still belongs to the selected concept.
+   A dedicated English editorial pass checks natural common usage, exact target-word inclusion,
+   sense quality, CEFR suitability and meta/code examples; it makes the smallest needed revision.
+3. Generate all 24 language/script options in ID-major blocks: IDs 1–20 across every language,
+   then 21–40, and so on. Every language therefore retains the same concept ID, proposition,
+   English sense and A1/A2/B1 membership. Thai script is completed before its Paiboon row.
+4. For each target language, only ranks 1–1,000 of its pinned frequency list may supply frequency
+   candidates or a `source_rank`. Frequency reorders cards within a level; it never changes the
+   shared concept ID. A translated inflection with no exact ranked match remains explicitly null.
+5. Google Cloud Translation supplies a first independent draft for supported target languages;
+   GPT performs constrained post-editing. Content-bound source and target hashes prevent reuse
+   after either side changes. Row-level checkpoints preserve valid completed work and purchase
+   only missing or invalid cells. The per-run Google purchase ceiling is 500,000 new characters.
+6. Automated adjudication repairs deterministic failures, then the network-free verifier checks
+   every row against the pinned corpus and source manifest, checks scripts, senses, numbers,
+   duplicates, rank limits and evidence hashes, and quarantines any failure. It alone creates the
+   content-bound approval manifest; no API result can approve itself.
+7. Generate SQL using `--output full --review review.json --version 1`. It rejects pilots,
+   missing languages, duplicate concepts, wrong counts/ranks and stale approval hashes. Apply SQL
+   in a controlled transaction. Published versions are immutable; corrections use a new version.
+
+Concept IDs 1–400/401–700/701–1000 supply A1/A2/B1 membership. The set is the first 1,000
+valid ranked English concepts after deterministic cleaning, not the first 1,000 raw tokens and
+not a claim that literal translations are each language's 1,000 most frequent words. Later
+updates preserve identity and level membership or require an explicit migration.
 
 ## Verification and rollout
 
@@ -101,7 +115,9 @@ headwords and Paiboon output mixed scripts. It must not be published. The correc
 pipeline uses explicit target-language fields, copied-headword detection, native-script
 validation and Thai-to-Paiboon transliteration. The latest successful pilot workflow
 uses GPT-4.1 for one-time editorial content after GPT-4o-mini pilot defects, and
-provides a readable review table in its run summary and the downloadable artifact.
+provides a readable review table in its run summary and the downloadable artifact. The production
+pipeline now also performs clean-source selection, selective English revision, ID-major generation,
+content-bound checkpoint reuse and a final network-free publication gate as described above.
 
 Android 0.6.0+12 is the development candidate. The README continues to link to the
 previous published release until this candidate passes content and device review.
