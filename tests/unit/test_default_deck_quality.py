@@ -13,11 +13,39 @@ sys.modules[spec.name] = quality
 spec.loader.exec_module(quality)
 
 
+def alpha_word(index: int) -> str:
+    value = index
+    suffix = ""
+    while value:
+        value, remainder = divmod(value - 1, 26)
+        suffix = chr(97 + remainder) + suffix
+    return "term" + suffix
+
+
+def concept_manifest(count: int = 30) -> dict:
+    return {
+        "policy": "first-1000-valid-ranked-english-v1",
+        "implemented_frequency_limit": 1000,
+        "raw_frequency_slots": 1000,
+        "replacement_count": 0,
+        "replacements": [],
+        "concepts": [
+            {
+                "id": rank,
+                "word": alpha_word(rank),
+                "source_rank": rank,
+                "raw_slot_rank": rank,
+            }
+            for rank in range(1, count + 1)
+        ],
+    }
+
+
 def write_corpus(path: Path, languages: list[str]) -> str:
     with gzip.open(path, "wt", encoding="utf-8") as stream:
         for code in languages:
             for rank in range(1, 31):
-                lemma = f"word{rank}" if code == "en-US" else f"단어{rank}"
+                lemma = alpha_word(rank) if code == "en-US" else f"단어{chr(0xAC00 + rank)}"
                 stream.write(
                     json.dumps(
                         {
@@ -36,13 +64,18 @@ def rows(code: str) -> list[dict]:
     result = []
     for concept_id in range(1, 31):
         level = "A1" if concept_id <= 10 else "A2" if concept_id <= 20 else "B1"
-        word = f"word{concept_id}" if code == "en-US" else f"단어{concept_id}"
+        word = alpha_word(concept_id) if code == "en-US" else f"단어{chr(0xAC00 + concept_id)}"
+        sentence = (
+            f"This {word} appears in a useful sentence."
+            if code == "en-US"
+            else f"{word} 문장입니다."
+        )
         result.append(
             {
                 "id": concept_id,
                 "level": level,
                 "word": word,
-                "sentence": f"{word} sentence {concept_id}.",
+                "sentence": sentence,
                 "sense": f"sense {concept_id}",
                 "source_rank": concept_id,
             }
@@ -59,12 +92,13 @@ def test_clean_english_pilot_is_approved_without_network(tmp_path):
             {
                 "pilot": True,
                 "source_sha256": source_sha,
+                "concept_source": concept_manifest(),
                 "languages": {"en-US": rows("en-US")},
             }
         )
     )
     report = quality.verify(curriculum, corpus)
-    assert report["approved"] is True
+    assert report["approved"] is True, report["findings"]
     assert report["summary"]["accepted_rows"] == 30
     assert report["network_access"] is False
 
@@ -80,6 +114,7 @@ def test_placeholder_and_missing_script_are_quarantined(tmp_path):
             {
                 "pilot": True,
                 "source_sha256": source_sha,
+                "concept_source": concept_manifest(),
                 "languages": {"en-US": rows("en-US"), "ko-KR": korean},
             }
         )
@@ -89,6 +124,27 @@ def test_placeholder_and_missing_script_are_quarantined(tmp_path):
     assert report["row_status"]["ko-KR"]["5"] == "quarantined"
     assert report["finding_counts"]["placeholder"] == 1
     assert report["finding_counts"]["missing_script"] == 1
+
+
+def test_target_source_rank_above_implemented_limit_is_quarantined(tmp_path):
+    corpus = tmp_path / "corpus.jsonl.gz"
+    source_sha = write_corpus(corpus, ["en-US", "ko-KR"])
+    korean = rows("ko-KR")
+    korean[0]["source_rank"] = 1001
+    curriculum = tmp_path / "curriculum.json"
+    curriculum.write_text(
+        json.dumps(
+            {
+                "pilot": True,
+                "source_sha256": source_sha,
+                "concept_source": concept_manifest(),
+                "languages": {"en-US": rows("en-US"), "ko-KR": korean},
+            }
+        )
+    )
+    report = quality.verify(curriculum, corpus, require_independent=False)
+    assert report["approved"] is False
+    assert report["finding_counts"]["source_rank_outside_implemented_top_1000"] == 1
 
 
 def test_backtranslation_checks_word_sense_and_sentence():
@@ -110,6 +166,7 @@ def test_content_bound_hybrid_evidence_is_accepted(tmp_path):
             {
                 "pilot": True,
                 "source_sha256": source_sha,
+                "concept_source": concept_manifest(),
                 "languages": {"en-US": english, "ko-KR": korean},
             }
         )
@@ -141,7 +198,7 @@ def test_content_bound_hybrid_evidence_is_accepted(tmp_path):
         )
     )
     report = quality.verify(curriculum, corpus, hybrid_evidence_path=evidence)
-    assert report["approved"] is True
+    assert report["approved"] is True, report["findings"]
     assert report["summary"]["independent_reviews_present"] == 30
 
     payload = json.loads(evidence.read_text())
