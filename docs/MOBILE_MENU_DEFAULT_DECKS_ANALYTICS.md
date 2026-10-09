@@ -74,7 +74,11 @@ The future production workflow is automated and fail-closed:
 5. Google Cloud Translation supplies a first independent draft for supported target languages;
    GPT performs constrained post-editing. Content-bound source and target hashes prevent reuse
    after either side changes. Row-level checkpoints preserve valid completed work and purchase
-   only missing or invalid cells. The per-run Google purchase ceiling is 500,000 new characters.
+   only missing or invalid cells. Before any paid request, production restores the current cache,
+   merges the two durable generation artifacts (newest first), and enforces a 10,520-row raw
+   checkpoint floor. A cache miss or missing artifact therefore stops the run instead of silently
+   restarting. Only content-hash-compatible rows are reused. The per-run Google purchase ceiling
+   is 500,000 new characters, and Google 429/500/502/503/504 failures use bounded backoff retries.
 6. Automated adjudication repairs deterministic failures, then the network-free verifier checks
    every row against the pinned corpus and source manifest, checks scripts, senses, numbers,
    duplicates, rank limits and evidence hashes, and quarantines any failure. It alone creates the
