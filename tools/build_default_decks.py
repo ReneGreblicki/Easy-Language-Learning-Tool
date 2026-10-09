@@ -54,6 +54,7 @@ MAX_GOOGLE_NEW_CHARACTERS: int | None = None
 MAX_COMPLETION_TOKENS = 4096
 LAST_OPENAI_REQUEST_AT = 0.0
 MAX_API_ATTEMPTS = 7
+MAX_GOOGLE_API_ATTEMPTS = 6
 NON_RETRYABLE_429_CODES = {
     "billing_hard_limit_reached",
     "credit_balance_exhausted",
@@ -164,15 +165,31 @@ def request_timeout(reasoning_effort: str | None) -> int:
 
 
 def translate_google_sentences(values: list[str], target: str, api_key: str) -> list[str]:
-    """Translate one paid batch without automatic retries or putting the key in the URL."""
+    """Translate one paid batch with bounded transient retries and no key in the URL."""
     body = json.dumps({"q": values, "source": "en", "target": target, "format": "text"}).encode()
     request = urllib.request.Request(
         "https://translation.googleapis.com/language/translate/v2",
         data=body,
         headers={"Content-Type": "application/json", "X-goog-api-key": api_key},
     )
-    with urllib.request.urlopen(request, timeout=180) as response:
-        payload = json.load(response)
+    for attempt in range(MAX_GOOGLE_API_ATTEMPTS):
+        try:
+            with urllib.request.urlopen(request, timeout=180) as response:
+                payload = json.load(response)
+            break
+        except urllib.error.HTTPError as error:
+            if (
+                error.code not in {429, 500, 502, 503, 504}
+                or attempt == MAX_GOOGLE_API_ATTEMPTS - 1
+            ):
+                raise
+            time.sleep(retry_delay(error, attempt))
+        except (TimeoutError, urllib.error.URLError):
+            if attempt == MAX_GOOGLE_API_ATTEMPTS - 1:
+                raise
+            time.sleep(min(60.0, float(2**attempt)))
+    else:
+        raise AssertionError("unreachable")
     translations = payload["data"]["translations"]
     if len(translations) != len(values):
         raise ValueError("Google Translation returned an incomplete sentence batch")
