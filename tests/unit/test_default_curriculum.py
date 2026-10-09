@@ -166,6 +166,42 @@ def test_google_sentence_request_keeps_key_out_of_url(monkeypatch):
     assert captured["timeout"] == 180
 
 
+def test_google_sentence_request_retries_transient_503(monkeypatch):
+    calls = 0
+    sleeps = []
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def read(self):
+            return json.dumps(
+                {"data": {"translations": [{"translatedText": "El gato duerme."}]}}
+            ).encode()
+
+    def fake_urlopen(_request, timeout):
+        nonlocal calls
+        calls += 1
+        assert timeout == 180
+        if calls == 1:
+            raise urllib.error.HTTPError(
+                "https://translation.googleapis.com", 503, "unavailable", {}, None
+            )
+        return Response()
+
+    monkeypatch.setattr(builder.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(builder.time, "sleep", sleeps.append)
+
+    assert builder.translate_google_sentences(["The cat sleeps."], "es", "secret") == [
+        "El gato duerme."
+    ]
+    assert calls == 2
+    assert sleeps == [1.0]
+
+
 def test_frequency_candidates_use_ranked_corpus_order():
     corpus = [
         {"lemma": "gato", "rank": 10},
