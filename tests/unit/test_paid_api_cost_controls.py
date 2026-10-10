@@ -134,7 +134,7 @@ def test_paid_workflows_are_manual_only_and_budgeted():
     assert "--pipeline direct" in evaluation
     assert "--judge-model gpt-6-luna" in evaluation
     assert "gpt-6-astra" not in evaluation
-    assert "--max-google-new-characters 100000" in production
+    assert "--max-google-new-characters 500000" in production
     assert "--max-google-characters 1200000" in production
     assert "--max-cost-usd 4.50" in production
     assert "--max-openai-cost-usd 1.00" in production

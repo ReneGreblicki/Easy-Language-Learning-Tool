@@ -1,14 +1,14 @@
 # Project handover
 
-Updated: 2026-10-09
+Updated: 2026-10-10
 
 ## Repository state
 
 - Repository: `ReneGreblicki/Easy-Language-Learning-Tool`
 - Working branch: `feature/mobile-menu-privacy-analytics`
 - Draft PR: https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/pull/19
-- Current remote head when this file was written: `ca3d2f7c104574aeb265c721187aa6030fe710af`
-- PR currently reports `mergeable: false`; inspect conflicts/checks before merging.
+- Main was merged at `3a1bc93bab34e26a021febc45af5dfa26270f081`; PR reports `mergeable: true`.
+- The only conflict was the production workflow. Preserve the feature branch's recovery safeguards.
 - Android development candidate: `0.6.0+12`
 - Nothing in this branch has been deployed or published as default content.
 
@@ -48,13 +48,18 @@ Updated: 2026-10-09
 | Run 1 artifact | `10880027418` | Expires 2026-12-24 |
 | Run 2 | https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/37699458069 | Failed on transient Google HTTP 503 |
 | Run 2 artifact | `11518959920` | 4,780 rows; expires 2027-01-05 |
+| Run 3 | https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/38060714209 | Started once on 2026-10-10; generation in progress at this update |
 
 - The two artifacts were merged locally with run 2/newer files taking precedence.
 - Raw union: **10,520/24,000 rows (43.8%)**.
 - Rows compatible with the revised English source hashes: **5,278/24,000 (22.0%)**.
 - The merge recovered 498 usable rows beyond run 2. Most older translations reference English
   sentences changed by the new review and must not be reused.
-- Run 3 has **not** been started. Do not describe raw coverage as usable coverage.
+- Run 3 job `114238239134` restored cache and merged the exact artifacts successfully.
+  Live merge report: 1,020 files copied, 685 collisions preserved, **10,520 raw rows**.
+  Source-corpus and provider-credential gates passed before generation began.
+- Run 3 has not yet produced a final artifact or a newly verified usable-row count.
+  Do not dispatch another run while it is active or describe raw coverage as usable coverage.
 
 ## Resume and spending safeguards
 
@@ -90,6 +95,12 @@ Updated: 2026-10-09
 - Real-artifact merge produced 1,679 checkpoint files, 10,520 raw rows and preserved newer files
   on all 26 filename collisions.
 - The project plan records cache-miss protection, artifact merging and Google backoff behavior.
+- Main-merge checks found one stale cost-control assertion (100,000 instead of the approved
+  500,000-character cap). Corrected it; all eight cost-control tests pass locally.
+- Dependency audit flagged multidict 6.7.1, urllib3 2.7.0 and virtualenv 21.7.4.
+  Updated the lock to 6.9.1, 2.8.0 and 21.14.6 respectively, with python-discovery 1.6.2.
+  Check CI on the latest commit before release; previous CI recorded 116 passing tests,
+  88.04% coverage and successful learning-analytics integration checks.
 
 Focused verification command:
 
@@ -107,10 +118,10 @@ uv run --no-project --with 'pytest>=9,<10' python -m pytest -q \
 
 ## Exact next actions
 
-1. Inspect why PR #19 currently reports non-mergeable and resolve only genuine branch conflicts.
-2. Dispatch `default-deck-production.yml` from the feature branch once.
-3. Before accepting paid generation, verify `checkpoint_merge_report.json` reports at least
-   10,520 raw rows. If not, stop; do not start another empty run.
+1. Inspect the existing Run 3 and latest PR checks; do not start a duplicate paid run.
+2. Download its final artifact when available and recompute compatible coverage from its hashes.
+3. Recovery floor was verified at 10,520 raw rows for Run 3. Enforce this gate on every resume;
+   if recovery fails, stop instead of starting an empty run.
 4. Confirm logs show compatible checkpoint reuse and bounded Google retry handling.
 5. If generation exits with code 75, retain the saved artifact/cache and resume only after quota
    reset. Do not regenerate completed compatible rows.
@@ -129,5 +140,4 @@ uv run --no-project --with 'pytest>=9,<10' python -m pytest -q \
 - Do not change stable concept IDs or level membership without an explicit migration.
 - Do not count default-deck publication/download as a user deck-generation analytics event.
 - Do not delete or assign the legacy unscoped mobile cache to an account.
-- The PR description still refers to human pilot review and should be updated to the newer
-  automated fail-closed workflow before final review.
+- The PR description now reflects automated adjudication and the fail-closed publication gates.

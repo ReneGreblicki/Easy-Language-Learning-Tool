@@ -129,3 +129,18 @@ previous published release until this candidate passes content and device review
 The mobile generation model remains GPT-4o-mini. The editorial pilot uses GPT-4.1
 to improve alignment after observed headword and Thai transliteration failures.
 This is a content-production experiment, not a claim that model output is publication-ready.
+
+### Resume checkpoint — 2026-10-10
+
+- Merged main into the feature branch, retaining artifact recovery and spending safeguards;
+  PR #19 is conflict-free and remains a draft. Its description now reflects automated review.
+- Dispatched production once: https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/38060714209
+  at commit `3a1bc93bab34e26a021febc45af5dfa26270f081`. Cache restoration and both exact artifact
+  downloads succeeded. The live merge report contains 10,520 raw rows, 1,020 copied files and
+  685 preserved collisions. Source and credential gates passed; generation is in progress.
+- Last verified compatible coverage remains 5,278/24,000 (22.0%) until the new artifact is checked.
+  Do not start another paid run while this one is active.
+- Twenty-five focused curriculum tests and eight cost-control tests pass locally. Updated the
+  stale cost-control assertion to the approved 500,000-character limit. Updated the dependency
+  lock for audit findings in multidict, urllib3 and virtualenv; the exported dependency audit
+  reports no known vulnerabilities. Latest Windows CI must still verify the changed lock.
