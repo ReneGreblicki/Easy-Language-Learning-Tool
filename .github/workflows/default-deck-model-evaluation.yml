@@ -1,0 +1,129 @@
+name: Default deck model evaluation
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: paid-default-deck-workflows
+  cancel-in-progress: false
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - model: gpt-5.6-luna
+            slug: gpt-5-6-luna
+            reasoning: none
+          - model: gpt-5.6-terra
+            slug: gpt-5-6-terra
+            reasoning: none
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - uses: actions/cache/restore@v5
+        with:
+          path: model-${{ matrix.slug }}/checkpoints
+          key: default-deck-eval-${{ runner.os }}-${{ matrix.slug }}-${{ hashFiles('tools/build_default_decks.py', 'resources/frequency_data/production/words.jsonl.gz') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            default-deck-eval-${{ runner.os }}-${{ matrix.slug }}-${{ hashFiles('tools/build_default_decks.py', 'resources/frequency_data/production/words.jsonl.gz') }}-
+      - name: Generate ${{ matrix.model }} pilot
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        shell: bash
+        run: |
+          args=(--pilot --pipeline direct --model '${{ matrix.model }}' --max-cost-usd 0.15 --languages es-ES de-DE th-Latn-TH ja-JP --output 'model-${{ matrix.slug }}')
+          if [[ -n '${{ matrix.reasoning }}' ]]; then
+            args+=(--reasoning-effort '${{ matrix.reasoning }}')
+          fi
+          python tools/build_default_decks.py "${args[@]}"
+      - name: Audit ${{ matrix.model }} pilot
+        continue-on-error: true
+        shell: bash
+        run: |
+          python tools/audit_default_deck_curriculum.py \
+            model-${{ matrix.slug }}/curriculum.json \
+            --language-codes model-${{ matrix.slug }}/language_codes.json \
+            | tee model-${{ matrix.slug }}/audit.json
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: default-deck-model-${{ matrix.slug }}
+          path: model-${{ matrix.slug }}
+          if-no-files-found: warn
+      - uses: actions/cache/save@v5
+        if: always()
+        with:
+          path: model-${{ matrix.slug }}/checkpoints
+          key: default-deck-eval-${{ runner.os }}-${{ matrix.slug }}-${{ hashFiles('tools/build_default_decks.py', 'resources/frequency_data/production/words.jsonl.gz') }}-${{ github.run_id }}-${{ github.run_attempt }}
+
+  evaluate:
+    needs: generate
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - uses: actions/cache/restore@v5
+        with:
+          path: model-evaluation/checkpoints
+          key: default-deck-judge-${{ runner.os }}-${{ hashFiles('tools/evaluate_default_deck_models.py') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            default-deck-judge-${{ runner.os }}-${{ hashFiles('tools/evaluate_default_deck_models.py') }}-
+      - uses: actions/download-artifact@v6
+        with:
+          pattern: default-deck-model-*
+          path: model-artifacts
+      - name: Download the completed GPT-4.1 baseline
+        uses: actions/download-artifact@v6
+        with:
+          name: default-deck-model-gpt-4-1
+          path: model-artifacts/default-deck-model-gpt-4-1
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: 35861003973
+      - name: Re-audit GPT-4.1 baseline
+        continue-on-error: true
+        shell: bash
+        run: |
+          python tools/audit_default_deck_curriculum.py \
+            model-artifacts/default-deck-model-gpt-4-1/curriculum.json \
+            --language-codes model-artifacts/default-deck-model-gpt-4-1/language_codes.json \
+            | tee model-artifacts/default-deck-model-gpt-4-1/audit.json
+      - name: Run anonymized independent evaluation
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: >-
+          python tools/evaluate_default_deck_models.py
+          --input gpt-4.1=model-artifacts/default-deck-model-gpt-4-1/curriculum.json
+          --input gpt-5.6-luna=model-artifacts/default-deck-model-gpt-5-6-luna/curriculum.json
+          --input gpt-5.6-terra=model-artifacts/default-deck-model-gpt-5-6-terra/curriculum.json
+          --judge-model gpt-6-luna
+          --reasoning-effort none
+          --languages en-US es-ES de-DE th-Latn-TH ja-JP
+          --max-cost-usd 0.20
+          --output model-evaluation
+      - name: Add evaluation summary
+        run: cat model-evaluation/report.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: default-deck-model-evaluation
+          path: model-evaluation
+          if-no-files-found: warn
+      - uses: actions/cache/save@v5
+        if: always()
+        with:
+          path: model-evaluation/checkpoints
+          key: default-deck-judge-${{ runner.os }}-${{ hashFiles('tools/evaluate_default_deck_models.py') }}-${{ github.run_id }}-${{ github.run_attempt }}

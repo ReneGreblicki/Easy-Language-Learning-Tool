@@ -76,8 +76,16 @@ class Deck {
     required this.cards,
     this.isDownloaded = false,
     this.deletedAt,
+    this.defaultLevel,
+    this.catalogCardCount,
+    this.contentVersion,
   });
 
+  final String? defaultLevel;
+  final int? catalogCardCount;
+  final int? contentVersion;
+  bool get isDefault => defaultLevel != null;
+  int get cardCount => catalogCardCount ?? cards.length;
   final String id;
   final String title;
   final String sourceLanguage;
@@ -87,6 +95,9 @@ class Deck {
   final DateTime? deletedAt;
 
   factory Deck.fromJson(Map<String, dynamic> json) => Deck(
+        defaultLevel: json['default_level'] as String?,
+        catalogCardCount: json['card_count'] as int?,
+        contentVersion: json['content_version'] as int?,
         id: json['id'] as String,
         title: json['title'] as String,
         sourceLanguage: json['source_language'] as String,
@@ -100,6 +111,9 @@ class Deck {
       );
 
   Map<String, Object?> toJson() => {
+        'default_level': defaultLevel,
+        'card_count': catalogCardCount,
+        'content_version': contentVersion,
         'id': id,
         'title': title,
         'source_language': sourceLanguage,
@@ -110,6 +124,9 @@ class Deck {
       };
 
   Deck copyWith({bool? isDownloaded, DateTime? deletedAt}) => Deck(
+        defaultLevel: defaultLevel,
+        catalogCardCount: catalogCardCount,
+        contentVersion: contentVersion,
         id: id,
         title: title,
         sourceLanguage: sourceLanguage,
@@ -120,6 +137,9 @@ class Deck {
       );
 
   Deck copyWithCards(List<Flashcard> selectedCards) => Deck(
+        defaultLevel: defaultLevel,
+        catalogCardCount: catalogCardCount,
+        contentVersion: contentVersion,
         id: id,
         title: title,
         sourceLanguage: sourceLanguage,

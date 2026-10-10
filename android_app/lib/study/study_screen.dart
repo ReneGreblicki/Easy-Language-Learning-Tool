@@ -1,4 +1,6 @@
 import 'dart:math';
+import 'dart:async';
+import '../analytics/learning_analytics.dart';
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
@@ -25,9 +27,11 @@ class StudyScreen extends StatefulWidget {
     this.mode = StudyContentMode.both,
     this.voiceGender = SpeechVoiceGender.female,
     this.onToggleTheme,
+    this.analytics,
     super.key,
   });
 
+  final LearningAnalytics? analytics;
   final Deck deck;
   final DeckRepository repository;
   final StudyContentMode mode;
@@ -65,7 +69,13 @@ class _StudyScreenState extends State<StudyScreen> {
   String get _sentence =>
       _showingBack ? _card.sentenceTranslation : _card.foreignSentence;
 
-  void _flip() => setState(() => _showingBack = !_showingBack);
+  void _flip() {
+    if (!_showingBack) {
+      unawaited(widget.analytics?.record('card_opened', widget.deck.sourceLanguage,
+        cardId: _card.id).catchError((Object _) {}) ?? Future.value());
+    }
+    setState(() => _showingBack = !_showingBack);
+  }
 
   void _move(int offset) {
     final next = (_cardIndex + offset).clamp(0, _cards.length - 1);

@@ -5,6 +5,7 @@ concurrency:
   group: paid-default-deck-workflows
   cancel-in-progress: false
 permissions:
+  actions: read
   contents: read
 jobs:
   generate:
@@ -16,13 +17,34 @@ jobs:
         with:
           python-version: '3.12'
       - uses: actions/cache/restore@v5
+        id: checkpoint-cache
         with:
           path: |
             default-deck-full/checkpoints
             default-deck-reviewed/checkpoints
-          key: default-deck-full-${{ runner.os }}-${{ hashFiles('tools/build_default_decks.py', 'tools/review_default_deck_curriculum.py', 'tools/default_deck_quality.py', 'resources/frequency_data/production/words.jsonl.gz') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: default-deck-full-v2-${{ runner.os }}-${{ hashFiles('resources/frequency_data/production/words.jsonl.gz') }}-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
-            default-deck-full-${{ runner.os }}-${{ hashFiles('tools/build_default_decks.py', 'tools/review_default_deck_curriculum.py', 'tools/default_deck_quality.py', 'resources/frequency_data/production/words.jsonl.gz') }}-
+            default-deck-full-v2-${{ runner.os }}-${{ hashFiles('resources/frequency_data/production/words.jsonl.gz') }}-
+            default-deck-full-${{ runner.os }}-
+      - name: Merge durable checkpoint artifacts before paid generation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p checkpoint-seeds/run-1 checkpoint-seeds/run-2
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10880027418/zip" \
+            > checkpoint-seeds/run-1.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11518959920/zip" \
+            > checkpoint-seeds/run-2.zip
+          unzip -q checkpoint-seeds/run-1.zip -d checkpoint-seeds/run-1
+          unzip -q checkpoint-seeds/run-2.zip -d checkpoint-seeds/run-2
+          python tools/merge_default_deck_checkpoints.py \
+            --destination default-deck-full/checkpoints \
+            --source checkpoint-seeds/run-2/default-deck-full/checkpoints \
+            --source checkpoint-seeds/run-1/default-deck-full/checkpoints \
+            --minimum-raw-rows 10520 \
+            --report default-deck-full/checkpoint_merge_report.json
       - name: Validate the pinned source corpus
         run: >-
           python tools/default_deck_quality.py
@@ -52,7 +74,7 @@ jobs:
             --editorial-mode selective \
             --max-cost-usd 4.50 \
             --max-google-characters 1200000 \
-            --max-google-new-characters 100000 \
+            --max-google-new-characters 500000 \
             --max-google-requests 1100 \
             --output default-deck-full
           status=$?
@@ -100,4 +122,4 @@ jobs:
           path: |
             default-deck-full/checkpoints
             default-deck-reviewed/checkpoints
-          key: default-deck-full-${{ runner.os }}-${{ hashFiles('tools/build_default_decks.py', 'tools/review_default_deck_curriculum.py', 'tools/default_deck_quality.py', 'resources/frequency_data/production/words.jsonl.gz') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          key: default-deck-full-v2-${{ runner.os }}-${{ hashFiles('resources/frequency_data/production/words.jsonl.gz') }}-${{ github.run_id }}-${{ github.run_attempt }}
