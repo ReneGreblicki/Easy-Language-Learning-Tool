@@ -32,18 +32,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p checkpoint-seeds/run-1 checkpoint-seeds/run-2
+          mkdir -p checkpoint-seeds/run-1 checkpoint-seeds/run-2 checkpoint-seeds/run-3
           gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/10880027418/zip" \
             > checkpoint-seeds/run-1.zip
           gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11518959920/zip" \
             > checkpoint-seeds/run-2.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11677910093/zip" \
+            > checkpoint-seeds/run-3.zip
           unzip -q checkpoint-seeds/run-1.zip -d checkpoint-seeds/run-1
           unzip -q checkpoint-seeds/run-2.zip -d checkpoint-seeds/run-2
+          unzip -q checkpoint-seeds/run-3.zip -d checkpoint-seeds/run-3
           python tools/merge_default_deck_checkpoints.py \
             --destination default-deck-full/checkpoints \
+            --source checkpoint-seeds/run-3/default-deck-full/checkpoints \
             --source checkpoint-seeds/run-2/default-deck-full/checkpoints \
             --source checkpoint-seeds/run-1/default-deck-full/checkpoints \
-            --minimum-raw-rows 10520 \
+            --minimum-raw-rows 19360 \
             --report default-deck-full/checkpoint_merge_report.json
       - name: Validate the pinned source corpus
         run: >-

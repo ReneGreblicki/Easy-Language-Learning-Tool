@@ -48,24 +48,25 @@ Updated: 2026-10-10
 | Run 1 artifact | `10880027418` | Expires 2026-12-24 |
 | Run 2 | https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/37699458069 | Failed on transient Google HTTP 503 |
 | Run 2 artifact | `11518959920` | 4,780 rows; expires 2027-01-05 |
-| Run 3 | https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/38060714209 | Started once on 2026-10-10; generation in progress at this update |
+| Run 3 artifact | `11677910093` | Expires 2027-01-08 |
+| Run 3 | https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/38060714209 | Started once on 2026-10-10; Paused safely at the per-run character cap; saved artifact/cache |
 
-- The two artifacts were merged locally with run 2/newer files taking precedence.
-- Raw union: **10,520/24,000 rows (43.8%)**.
-- Rows compatible with the revised English source hashes: **5,278/24,000 (22.0%)**.
-- The merge recovered 498 usable rows beyond run 2. Most older translations reference English
-  sentences changed by the new review and must not be reused.
-- Run 3 job `114238239134` restored cache and merged the exact artifacts successfully.
-  Live merge report: 1,020 files copied, 685 collisions preserved, **10,520 raw rows**.
-  Source-corpus and provider-credential gates passed before generation began.
-- Run 3 has not yet produced a final artifact or a newly verified usable-row count.
-  Do not dispatch another run while it is active or describe raw coverage as usable coverage.
+- Run 3 artifact verified locally: **19,360 raw rows**, **17,486/24,000 compatible rows (72.9%)**.
+- Compatibility was recomputed using the exact English batch digests and generator validators;
+  Thai romanization was checked against compatible native Thai rows. These are reusable rows,
+  not final publication approval. **6,514 rows remain**.
+- Run 3 stopped with code 75 at 499,298/500,000 new Google characters (next batch: 1,554).
+  OpenAI estimated generation cost: $1.7985232. Adjudication and final verification were skipped.
+  Artifact and cache saves succeeded. Do not interpret the green workflow result as completion.
+- Next-run recovery downloads all three exact artifacts newest first and enforces a
+  **19,360-raw-row floor**, protecting Run 3 progress even after a cache miss.
+- Run 4 has not been started. Resume paid generation only after the provider quota resets.
 
 ## Resume and spending safeguards
 
-- Production restores the newest Actions cache, downloads both exact artifact IDs, merges run 2
-  before run 1, and preserves existing files on collisions.
-- `tools/merge_default_deck_checkpoints.py` enforces a 10,520-raw-row floor before any paid API
+- Production restores the newest Actions cache, downloads all three exact artifact IDs, merges run 3
+  before run 2 before run 1, and preserves existing files on collisions.
+- `tools/merge_default_deck_checkpoints.py` enforces a 19,360-raw-row floor before any paid API
   request. Missing artifacts, failed downloads or lower coverage must stop the run.
 - Generator reuse remains row-level and content-hash-bound; the raw merge floor is not approval.
 - Google retries HTTP 429/500/502/503/504 up to six bounded attempts.
@@ -99,7 +100,7 @@ Updated: 2026-10-10
   500,000-character cap). Corrected it; all eight cost-control tests pass locally.
 - Dependency audit flagged multidict 6.7.1, urllib3 2.7.0 and virtualenv 21.7.4.
   Updated the lock to 6.9.1, 2.8.0 and 21.14.6 respectively, with python-discovery 1.6.2.
-  Check CI on the latest commit before release; previous CI recorded 116 passing tests,
+  All five CI workflows passed at commit c9eca3d; previous CI recorded 116 passing tests,
   88.04% coverage and successful learning-analytics integration checks.
 
 Focused verification command:
@@ -118,9 +119,9 @@ uv run --no-project --with 'pytest>=9,<10' python -m pytest -q \
 
 ## Exact next actions
 
-1. Inspect the existing Run 3 and latest PR checks; do not start a duplicate paid run.
-2. Download its final artifact when available and recompute compatible coverage from its hashes.
-3. Recovery floor was verified at 10,520 raw rows for Run 3. Enforce this gate on every resume;
+1. After quota reset, dispatch production once from the feature branch with Run 3 recovery.
+2. Verify the merge report has at least 19,360 raw rows before accepting paid generation.
+3. Download the new artifact and recompute compatible coverage from exact source/target hashes;
    if recovery fails, stop instead of starting an empty run.
 4. Confirm logs show compatible checkpoint reuse and bounded Google retry handling.
 5. If generation exits with code 75, retain the saved artifact/cache and resume only after quota

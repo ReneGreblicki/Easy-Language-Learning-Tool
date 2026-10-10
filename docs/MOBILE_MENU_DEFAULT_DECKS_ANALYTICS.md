@@ -75,7 +75,7 @@ The future production workflow is automated and fail-closed:
    GPT performs constrained post-editing. Content-bound source and target hashes prevent reuse
    after either side changes. Row-level checkpoints preserve valid completed work and purchase
    only missing or invalid cells. Before any paid request, production restores the current cache,
-   merges the two durable generation artifacts (newest first), and enforces a 10,520-row raw
+   merges the three durable generation artifacts (newest first), and enforces a 19,360-row raw
    checkpoint floor. A cache miss or missing artifact therefore stops the run instead of silently
    restarting. Only content-hash-compatible rows are reused. The per-run Google purchase ceiling
    is 500,000 new characters, and Google 429/500/502/503/504 failures use bounded backoff retries.
@@ -144,3 +144,15 @@ This is a content-production experiment, not a claim that model output is public
   stale cost-control assertion to the approved 500,000-character limit. Updated the dependency
   lock for audit findings in multidict, urllib3 and virtualenv; the exported dependency audit
   reports no known vulnerabilities. Latest Windows CI must still verify the changed lock.
+
+### Run 3 result and next recovery gate
+
+- Run 3 saved artifact `11677910093` and cache, then paused at 499,298/500,000 new Google
+  characters. Estimated OpenAI cost: $1.80. The green workflow result means checkpoints were
+  saved; adjudication and final verification did not run.
+- Offline recomputation found 19,360 raw rows and 17,486 compatible rows (72.9%), leaving 6,514.
+  Compatible rows have passed the generator's reuse checks; final approval is still pending.
+- Next production restore downloads Run 3, Run 2 and Run 1 artifacts newest first and refuses
+  paid generation below 19,360 raw recovered rows. Keep the existing spending caps.
+- All five CI workflows passed at commit `c9eca3dc9b054efe95c6c81c5738b5cd298edd1d`.
+- Run 4 awaits provider quota reset; do not restart from empty checkpoints.
