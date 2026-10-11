@@ -155,4 +155,7 @@ This is a content-production experiment, not a claim that model output is public
 - Next production restore downloads Run 3, Run 2 and Run 1 artifacts newest first and refuses
   paid generation below 19,360 raw recovered rows. Keep the existing spending caps.
 - All five CI workflows passed at commit `c9eca3dc9b054efe95c6c81c5738b5cd298edd1d`.
-- Run 4 awaits provider quota reset; do not restart from empty checkpoints.
+- Run 4 started once after quota reset on 2026-10-11:
+  https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/38132226594
+  at commit `98c7df7`. Recovery and pre-generation gates passed. Generation is in progress;
+  last verified compatible coverage remains 72.9%. Do not dispatch a duplicate paid run.

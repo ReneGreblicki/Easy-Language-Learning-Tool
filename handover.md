@@ -1,6 +1,6 @@
 # Project handover
 
-Updated: 2026-10-10
+Updated: 2026-10-11
 
 ## Repository state
 
@@ -60,7 +60,11 @@ Updated: 2026-10-10
   Artifact and cache saves succeeded. Do not interpret the green workflow result as completion.
 - Next-run recovery downloads all three exact artifacts newest first and enforces a
   **19,360-raw-row floor**, protecting Run 3 progress even after a cache miss.
-- Run 4 has not been started. Resume paid generation only after the provider quota resets.
+- Run 4 started once after quota reset on 2026-10-11 at commit `98c7df7`.
+  Run: https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/38132226594
+  Job: `114448738220`. Cache/artifact recovery, source-corpus and credential gates passed;
+  generation is in progress. Do not start a duplicate run. Coverage remains 72.9% until
+  the new artifact is checked. Adjudication and final verification run only after completion.
 
 ## Resume and spending safeguards
 
@@ -119,7 +123,7 @@ uv run --no-project --with 'pytest>=9,<10' python -m pytest -q \
 
 ## Exact next actions
 
-1. After quota reset, dispatch production once from the feature branch with Run 3 recovery.
+1. Inspect existing Run 4 and its final artifact; do not dispatch a duplicate paid run.
 2. Verify the merge report has at least 19,360 raw rows before accepting paid generation.
 3. Download the new artifact and recompute compatible coverage from exact source/target hashes;
    if recovery fails, stop instead of starting an empty run.
