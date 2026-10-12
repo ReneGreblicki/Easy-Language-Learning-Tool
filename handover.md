@@ -187,6 +187,10 @@ uv run --no-project --with 'pytest>=9,<10' python -m pytest -q \
   Google characters. Changed source/target rows receive refreshed provider evidence.
 - Final network-free verification remains a hard release gate; inspect its resulting artifact.
 
-- Coordinated run is prepared but NOT started. Automatic approval review rejected the dispatch,
-  citing missing explicit authorization to send generated curriculum text to Google/OpenAI.
-  Await user approval for 187 provider cells under $1 OpenAI/100,000 Google character caps.
+
+- User explicitly approved Google/OpenAI processing on 2026-10-12. Run 7 started once
+  in coordinated mode at commit `fa49285`:
+  https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/38303275512
+  Job `114991118512`. Run 6 artifact restoration, corpus and credential gates passed;
+  full generation is skipped and coordinated correction is in progress. Caps unchanged.
+  Do not dispatch a duplicate. Final approval/publication remain pending.
