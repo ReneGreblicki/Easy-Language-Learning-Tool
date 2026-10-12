@@ -167,3 +167,7 @@ uv run --no-project --with 'pytest>=9,<10' python -m pytest -q \
   checkpoint hashes include the prompt to avoid reusing failed earlier repair instructions.
 - Duplicate English source sentences require coordinated edits across all affected languages;
   duplicate gates remain active. Inspect the next artifact before taking further action.
+
+- Targeted repair Run 6 started once in `repair` mode at commit `1b114ad`:
+  https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/38286977134
+  Generation is skipped; reviewed Run 5 artifact is the source. Do not dispatch a duplicate.
