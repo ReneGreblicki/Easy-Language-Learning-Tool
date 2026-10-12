@@ -486,6 +486,8 @@ def request_rows(
             "châi, mâi, kráp, nîi, kɔ̀ɔp-kun, dtɛ̀ɛ, à-rai. Use diacritics for tones, "
             "not unmarked ASCII approximations like thi, chan or tongkan. NO Thai characters "
             "anywhere in target_word or target_sentence. Do not translate them into English. "
+            "Keep literal digit strings from the supplied Thai sentence unchanged; "
+            "do not replace those digits with spelled-out numbers. "
         )
     else:
         instruction += (

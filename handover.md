@@ -171,3 +171,18 @@ uv run --no-project --with 'pytest>=9,<10' python -m pytest -q \
 - Targeted repair Run 6 started once in `repair` mode at commit `1b114ad`:
   https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/38286977134
   Generation is skipped; reviewed Run 5 artifact is the source. Do not dispatch a duplicate.
+
+## Run 6 result and coordinated correction
+
+- Run 6 artifact `11764306322` is saved; expires 2027-01-10. Review accepts 23,977 rows,
+  quarantines 23 rows, and reports 45 errors including 22 language-level duplicate errors.
+  No approval/publication. Estimated OpenAI repair cost $0.0256364.
+- Coordinated mode restores reviewed Run 6, skips full generation, revises English sentences
+  for IDs 42,82,156,385,392,522,553,699 and refreshes exactly those IDs across all languages.
+  Native Thai precedes Paiboon; Paiboon IDs 2,446,672 are also retransliterated with new hashes.
+- Focused contextual headwords and written Korean month forms preserve the existing
+  propositions. Provenance records prior/current hashes for every focused correction.
+- Plan-only execution validates the saved artifact before paid work. Planned provider scope:
+  187 translation/script cells; 22 focused local corrections. Caps: $1 OpenAI, 100,000 new
+  Google characters. Changed source/target rows receive refreshed provider evidence.
+- Final network-free verification remains a hard release gate; inspect its resulting artifact.

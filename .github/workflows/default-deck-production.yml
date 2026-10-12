@@ -9,6 +9,7 @@ on:
         options:
           - generate
           - repair
+          - coordinated
 concurrency:
   group: paid-default-deck-workflows
   cancel-in-progress: false
@@ -35,7 +36,7 @@ jobs:
             default-deck-full-v2-${{ runner.os }}-${{ hashFiles('resources/frequency_data/production/words.jsonl.gz') }}-
             default-deck-full-${{ runner.os }}-
       - name: Merge durable checkpoint artifacts before paid generation
-        if: inputs.mode != 'repair'
+        if: inputs.mode != 'repair' && inputs.mode != 'coordinated'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -62,14 +63,14 @@ jobs:
             --source checkpoint-seeds/run-1/default-deck-full/checkpoints \
             --minimum-raw-rows 23980 \
             --report default-deck-full/checkpoint_merge_report.json
-      - name: Restore complete reviewed Run 5 artifact
-        if: inputs.mode == 'repair'
+      - name: Restore complete reviewed curriculum artifact
+        if: inputs.mode == 'repair' || inputs.mode == 'coordinated'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11758347195/zip" > saved-run-5.zip
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${{ inputs.mode == 'coordinated' && '11764306322' || '11758347195' }}/zip" > saved-run-5.zip
           unzip -q -o saved-run-5.zip
           python - <<'PY_GATE'
           import json
@@ -100,7 +101,7 @@ jobs:
             exit 1
           fi
       - name: Generate or resume the full curriculum
-        if: inputs.mode != 'repair'
+        if: inputs.mode != 'repair' && inputs.mode != 'coordinated'
         id: generation
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -127,6 +128,18 @@ jobs:
           else
             echo "complete=true" >> "$GITHUB_OUTPUT"
           fi
+      - name: Coordinate duplicate concepts and remaining corrections
+        if: inputs.mode == 'coordinated'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLE_TRANSLATE_API_KEY: ${{ secrets.GOOGLE_TRANSLATE_API_KEY }}
+        run: >-
+          python tools/repair_coordinated_default_decks.py
+          default-deck-repair-input/curriculum.json
+          --hybrid-evidence default-deck-repair-input/hybrid_evidence.json
+          --max-openai-cost-usd 1.00
+          --max-google-new-characters 100000
+          --output default-deck-reviewed
       - name: Adjudicate deterministic failures
         if: inputs.mode == 'repair' || steps.generation.outputs.complete == 'true'
         env:
@@ -141,7 +154,7 @@ jobs:
           --skip-google
           --output default-deck-reviewed
       - name: Final network-free verification
-        if: inputs.mode == 'repair' || steps.generation.outputs.complete == 'true'
+        if: inputs.mode == 'coordinated' || inputs.mode == 'repair' || steps.generation.outputs.complete == 'true'
         run: >-
           python tools/default_deck_quality.py
           default-deck-reviewed/reviewed_curriculum.json
