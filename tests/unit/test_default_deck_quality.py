@@ -126,6 +126,34 @@ def test_placeholder_and_missing_script_are_quarantined(tmp_path):
     assert report["finding_counts"]["missing_script"] == 1
 
 
+def test_corpus_attested_na_is_a_word_not_a_placeholder(tmp_path):
+    corpus = tmp_path / "corpus.jsonl.gz"
+    write_corpus(corpus, ["en-US", "pl-PL"])
+    with gzip.open(corpus, "at", encoding="utf-8") as stream:
+        stream.write(json.dumps({"language": "pl-PL", "rank": 31, "lemma": "na"}) + "\n")
+    polish = rows("pl-PL")
+    polish[0].update(word="na", sentence="Książka leży na stole.", source_rank=31)
+    curriculum = tmp_path / "curriculum.json"
+    curriculum.write_text(
+        json.dumps(
+            {
+                "pilot": True,
+                "source_sha256": hashlib.sha256(corpus.read_bytes()).hexdigest(),
+                "concept_source": concept_manifest(),
+                "languages": {"en-US": rows("en-US"), "pl-PL": polish},
+            }
+        )
+    )
+    report = quality.verify(curriculum, corpus, require_independent=False)
+    assert "placeholder" not in report["finding_counts"]
+    polish[0]["word"] = "—"
+    payload = json.loads(curriculum.read_text())
+    payload["languages"]["pl-PL"] = polish
+    curriculum.write_text(json.dumps(payload))
+    report = quality.verify(curriculum, corpus, require_independent=False)
+    assert report["finding_counts"]["placeholder"] == 1
+
+
 def test_target_source_rank_above_implemented_limit_is_quarantined(tmp_path):
     corpus = tmp_path / "corpus.jsonl.gz"
     source_sha = write_corpus(corpus, ["en-US", "ko-KR"])

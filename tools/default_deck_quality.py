@@ -365,7 +365,10 @@ def verify(
 
             if not word or not sentence or not sense:
                 add("error", "missing_content", "Word, sentence, or sense is empty.", True)
-            if normalized(word) in PLACEHOLDERS:
+            # "na" is a real preposition in several target languages, not an
+            # empty-value marker when the pinned corpus recognizes it.
+            valid_na = normalized(word) == "na" and corpus_normalized(word) in corpus.get(code, {})
+            if normalized(word) in PLACEHOLDERS and not valid_na:
                 add("error", "placeholder", f"Unusable headword placeholder: {word!r}.", True)
             if code == "en-US":
                 expected_source = canonical_english.get(concept_id)

@@ -153,3 +153,17 @@ uv run --no-project --with 'pytest>=9,<10' python -m pytest -q \
 - Run 5 started once on 2026-10-12 at commit `d2ca7f5`:
   https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/38272661819
   Job `114890469187`. Recovery gate passed; generation is resuming. Do not dispatch a duplicate.
+
+## Run 5 quality review and targeted repair
+
+- Generation completed all 24,000 rows. Run 5 artifact `11758347195` contains full and
+  reviewed curriculum plus 23,000 provenance records; expires 2027-01-10.
+- Adjudication quarantined 159 rows (181 errors), preventing final verification/publication.
+- Fixed source-rank reconciliation for replacement English words and corpus-attested `na`
+  false placeholders. Offline recheck accepts 23,882 rows; 118 remain quarantined (140 errors).
+- Repair mode restores the exact reviewed Run 5 artifact and skips generation. It keeps
+  the $1 adjudication limit, hash-bound evidence and offline publication gate. Repair prompts
+  now specify the exact literal number format and reject em-dash function-word placeholders;
+  checkpoint hashes include the prompt to avoid reusing failed earlier repair instructions.
+- Duplicate English source sentences require coordinated edits across all affected languages;
+  duplicate gates remain active. Inspect the next artifact before taking further action.

@@ -1,6 +1,14 @@
 name: Default deck full generation
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: Resume generation or repair the complete saved Run 5 curriculum
+        type: choice
+        default: generate
+        options:
+          - generate
+          - repair
 concurrency:
   group: paid-default-deck-workflows
   cancel-in-progress: false
@@ -27,6 +35,7 @@ jobs:
             default-deck-full-v2-${{ runner.os }}-${{ hashFiles('resources/frequency_data/production/words.jsonl.gz') }}-
             default-deck-full-${{ runner.os }}-
       - name: Merge durable checkpoint artifacts before paid generation
+        if: inputs.mode != 'repair'
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -53,6 +62,28 @@ jobs:
             --source checkpoint-seeds/run-1/default-deck-full/checkpoints \
             --minimum-raw-rows 23980 \
             --report default-deck-full/checkpoint_merge_report.json
+      - name: Restore complete reviewed Run 5 artifact
+        if: inputs.mode == 'repair'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11758347195/zip" > saved-run-5.zip
+          unzip -q -o saved-run-5.zip
+          python - <<'PY_GATE'
+          import json
+          from pathlib import Path
+          curriculum = json.loads(Path('default-deck-reviewed/reviewed_curriculum.json').read_text())
+          languages = curriculum['languages']
+          assert len(languages) == 24
+          assert all(len(rows) == 1000 and {row['id'] for row in rows} == set(range(1, 1001)) for rows in languages.values())
+          evidence = json.loads(Path('default-deck-reviewed/hybrid_evidence.json').read_text())
+          assert len(evidence['rows']) == 23000
+          PY_GATE
+          mkdir -p default-deck-repair-input
+          cp default-deck-reviewed/reviewed_curriculum.json default-deck-repair-input/curriculum.json
+          cp default-deck-reviewed/hybrid_evidence.json default-deck-repair-input/hybrid_evidence.json
       - name: Validate the pinned source corpus
         run: >-
           python tools/default_deck_quality.py
@@ -69,6 +100,7 @@ jobs:
             exit 1
           fi
       - name: Generate or resume the full curriculum
+        if: inputs.mode != 'repair'
         id: generation
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -96,20 +128,20 @@ jobs:
             echo "complete=true" >> "$GITHUB_OUTPUT"
           fi
       - name: Adjudicate deterministic failures
-        if: steps.generation.outputs.complete == 'true'
+        if: inputs.mode == 'repair' || steps.generation.outputs.complete == 'true'
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: >-
           python tools/review_default_deck_curriculum.py
-          default-deck-full/curriculum.json
-          --hybrid-evidence default-deck-full/hybrid_evidence.json
+          ${{ inputs.mode == 'repair' && 'default-deck-repair-input/curriculum.json' || 'default-deck-full/curriculum.json' }}
+          --hybrid-evidence ${{ inputs.mode == 'repair' && 'default-deck-repair-input/hybrid_evidence.json' || 'default-deck-full/hybrid_evidence.json' }}
           --repair-model gpt-4.1-mini
           --escalation-model gpt-4.1-mini
           --max-openai-cost-usd 1.00
           --skip-google
           --output default-deck-reviewed
       - name: Final network-free verification
-        if: steps.generation.outputs.complete == 'true'
+        if: inputs.mode == 'repair' || steps.generation.outputs.complete == 'true'
         run: >-
           python tools/default_deck_quality.py
           default-deck-reviewed/reviewed_curriculum.json

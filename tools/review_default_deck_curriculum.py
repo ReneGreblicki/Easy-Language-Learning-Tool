@@ -219,6 +219,9 @@ def repair_rows(
                 "draft_target_word": draft["word"],
                 "draft_target_sentence": draft["sentence"],
                 "detected_problems": sorted(codes),
+                "required_literal_numbers": sorted(
+                    set(quality.re.findall(r"\d+(?:[.,]\d+)?", original["sentence"]))
+                ),
             }
         )
     if not candidates:
@@ -231,6 +234,14 @@ def repair_rows(
         "that is demonstrated in the sentence. Never return '-', 'no equivalent', an untranslated "
         "English label, or a word unrelated to the source sense. For Thai romanization use tone-marked "
         "Paiboon and no Thai script. Make the smallest correction that resolves all detected problems."
+        " The output sentence must contain exactly the supplied required_literal_numbers, "
+        "using those same digit strings. If the list is empty, spell quantities, dates and times "
+        "in words in the target language instead of introducing digits. "
+        "For possible_untranslated_word, use a natural target-language inflected form or short "
+        "construction demonstrated in the sentence, while preserving the proper noun or sense. "
+        "For missing_script, a short native-script construction may accompany a Roman numeral. "
+        "For placeholders translating English function words, use the shortest meaningful "
+        "target-language construction from the sentence; never use an em dash."
     )
     repaired: list[dict] = []
     usage = defaultdict(int)
@@ -257,7 +268,7 @@ def repair_rows(
         }
         encoded_body = json.dumps(body, ensure_ascii=False).encode()
         digest = hashlib.sha256(
-            json.dumps([model, batch], ensure_ascii=False, sort_keys=True).encode()
+            json.dumps([model, instruction, batch], ensure_ascii=False, sort_keys=True).encode()
         ).hexdigest()[:24]
         checkpoint = checkpoint_dir / f"repair-{model}-{digest}.json" if checkpoint_dir else None
         if checkpoint and checkpoint.exists():
@@ -314,7 +325,13 @@ def reconcile_source_ranks(curriculum: dict, corpus_path: Path) -> int:
     for code, rows in curriculum["languages"].items():
         for row in rows:
             corpus_row = indexes.get(code, {}).get(quality.corpus_normalized(row["word"]))
-            expected = corpus_row["rank"] if corpus_row and corpus_row["rank"] <= 1000 else None
+            # Replacement English concepts retain their original source ranks;
+            # the top-1,000 candidate restriction applies to target languages.
+            expected = (
+                corpus_row["rank"]
+                if corpus_row and (code == "en-US" or corpus_row["rank"] <= 1000)
+                else None
+            )
             if row.get("source_rank") != expected:
                 row["source_rank"] = expected
                 changes += 1
