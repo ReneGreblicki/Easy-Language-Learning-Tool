@@ -186,3 +186,7 @@ uv run --no-project --with 'pytest>=9,<10' python -m pytest -q \
   187 translation/script cells; 22 focused local corrections. Caps: $1 OpenAI, 100,000 new
   Google characters. Changed source/target rows receive refreshed provider evidence.
 - Final network-free verification remains a hard release gate; inspect its resulting artifact.
+
+- Coordinated run is prepared but NOT started. Automatic approval review rejected the dispatch,
+  citing missing explicit authorization to send generated curriculum text to Google/OpenAI.
+  Await user approval for 187 provider cells under $1 OpenAI/100,000 Google character caps.
