@@ -149,3 +149,7 @@ uv run --no-project --with 'pytest>=9,<10' python -m pytest -q \
 - Do not count default-deck publication/download as a user deck-generation analytics event.
 - Do not delete or assign the legacy unscoped mobile cache to an account.
 - The PR description now reflects automated adjudication and the fail-closed publication gates.
+
+- Run 5 started once on 2026-10-12 at commit `d2ca7f5`:
+  https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/38272661819
+  Job `114890469187`. Recovery gate passed; generation is resuming. Do not dispatch a duplicate.

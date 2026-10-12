@@ -163,3 +163,7 @@ This is a content-production experiment, not a claim that model output is public
   3,271 rows remain. Estimated OpenAI cost $1.255149. Final approval remains pending.
 - Next resume merges Run 4 before Run 3/2/1 and enforces a 23,980-raw-row floor.
   Keep spending limits and content-hash reuse intact. Reset passed on 2026-10-12.
+
+- Run 5 started once on 2026-10-12 at commit `d2ca7f5`:
+  https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/38272661819
+  Job `114890469187`. Recovery gate passed; generation is resuming. Do not dispatch a duplicate.
