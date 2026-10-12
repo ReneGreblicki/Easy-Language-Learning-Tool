@@ -75,7 +75,7 @@ The future production workflow is automated and fail-closed:
    GPT performs constrained post-editing. Content-bound source and target hashes prevent reuse
    after either side changes. Row-level checkpoints preserve valid completed work and purchase
    only missing or invalid cells. Before any paid request, production restores the current cache,
-   merges the three durable generation artifacts (newest first), and enforces a 19,360-row raw
+   merges the four durable generation artifacts (newest first), and enforces a 23,980-row raw
    checkpoint floor. A cache miss or missing artifact therefore stops the run instead of silently
    restarting. Only content-hash-compatible rows are reused. The per-run Google purchase ceiling
    is 500,000 new characters, and Google 429/500/502/503/504 failures use bounded backoff retries.
@@ -155,7 +155,11 @@ This is a content-production experiment, not a claim that model output is public
 - Next production restore downloads Run 3, Run 2 and Run 1 artifacts newest first and refuses
   paid generation below 19,360 raw recovered rows. Keep the existing spending caps.
 - All five CI workflows passed at commit `c9eca3dc9b054efe95c6c81c5738b5cd298edd1d`.
-- Run 4 started once after quota reset on 2026-10-11:
-  https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/38132226594
-  at commit `98c7df7`. Recovery and pre-generation gates passed. Generation is in progress;
-  last verified compatible coverage remains 72.9%. Do not dispatch a duplicate paid run.
+
+### Run 4 result and Run 5 recovery
+
+- Run 4 saved artifact `11703091684` and cache at the 499,350-character cap.
+- Verified artifact coverage: 23,980 raw rows; 20,729 compatible rows (86.4%);
+  3,271 rows remain. Estimated OpenAI cost $1.255149. Final approval remains pending.
+- Next resume merges Run 4 before Run 3/2/1 and enforces a 23,980-raw-row floor.
+  Keep spending limits and content-hash reuse intact. Reset passed on 2026-10-12.

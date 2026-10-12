@@ -1,6 +1,6 @@
 # Project handover
 
-Updated: 2026-10-11
+Updated: 2026-10-12
 
 ## Repository state
 
@@ -60,17 +60,20 @@ Updated: 2026-10-11
   Artifact and cache saves succeeded. Do not interpret the green workflow result as completion.
 - Next-run recovery downloads all three exact artifacts newest first and enforces a
   **19,360-raw-row floor**, protecting Run 3 progress even after a cache miss.
-- Run 4 started once after quota reset on 2026-10-11 at commit `98c7df7`.
+- Run 4 paused safely at 499,350/500,000 new Google characters on 2026-10-11.
   Run: https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/38132226594
-  Job: `114448738220`. Cache/artifact recovery, source-corpus and credential gates passed;
-  generation is in progress. Do not start a duplicate run. Coverage remains 72.9% until
-  the new artifact is checked. Adjudication and final verification run only after completion.
+  Artifact: `11703091684`, expires 2027-01-09; cache/artifact saves succeeded.
+- Run 4 artifact: **23,980 raw rows**, **20,729 compatible rows (86.4%)**,
+  **3,271 incompatible/missing rows remain**. Estimated OpenAI cost: $1.255149.
+  Adjudication and final verification were skipped; this is not publication approval.
+- Next resume restores Run 4 before older artifacts and requires **23,980 raw rows**.
+  Reset passed on 2026-10-12. Dispatch exactly once after confirming no active run.
 
 ## Resume and spending safeguards
 
-- Production restores the newest Actions cache, downloads all three exact artifact IDs, merges run 3
-  before run 2 before run 1, and preserves existing files on collisions.
-- `tools/merge_default_deck_checkpoints.py` enforces a 19,360-raw-row floor before any paid API
+- Production restores the newest Actions cache, downloads all four exact artifact IDs, merges run 4
+  before run 3 before run 2 before run 1, and preserves existing files on collisions.
+- `tools/merge_default_deck_checkpoints.py` enforces a 23,980-raw-row floor before any paid API
   request. Missing artifacts, failed downloads or lower coverage must stop the run.
 - Generator reuse remains row-level and content-hash-bound; the raw merge floor is not approval.
 - Google retries HTTP 429/500/502/503/504 up to six bounded attempts.
@@ -123,8 +126,8 @@ uv run --no-project --with 'pytest>=9,<10' python -m pytest -q \
 
 ## Exact next actions
 
-1. Inspect existing Run 4 and its final artifact; do not dispatch a duplicate paid run.
-2. Verify the merge report has at least 19,360 raw rows before accepting paid generation.
+1. Restore verified Run 4 checkpoints; dispatch one Run 5 after checking no paid run is active.
+2. Verify the merge report has at least 23,980 raw rows before accepting paid generation.
 3. Download the new artifact and recompute compatible coverage from exact source/target hashes;
    if recovery fails, stop instead of starting an empty run.
 4. Confirm logs show compatible checkpoint reuse and bounded Google retry handling.
