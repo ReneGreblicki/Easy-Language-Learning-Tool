@@ -32,7 +32,7 @@ Android defines -4 as ERROR_SERVICE. This identifies a speech-service failure;
 it does not establish missing voice data as the cause. Spanish voice assets,
 the selected locale/voice, or a network-dependent voice remain hypotheses.
 
-The current DeviceSpeech selection ranks offline voices but only applies an
+The 0.6.3 DeviceSpeech selection ranks offline voices but only applies an
 explicit voice when its gender is identifiable. For opaque Android voice names,
 it keeps the engine default selected by setLanguage. That default may require a
 network connection. This is a confirmed selection weakness, not a confirmed
@@ -71,3 +71,22 @@ language, pronunciation and distribution requirements before selection.
 
 No audio-pack pipeline, paid audio generation, model bundling or deployment is
 authorized by this note. Retain the option until the user chooses implementation.
+
+
+## Interim TTS correction — 0.6.4
+
+Android explicitly selects an installed offline voice, including opaque voice
+names without gender metadata. Network-only and notInstalled voices are excluded.
+Up to three matching voices are attempted after selection or synthesis failures.
+Regional fallbacks and Norwegian, Mandarin and Indonesian engine aliases are
+recognized; a missing language never silently falls back to English. Stopping
+playback invalidates pending retries. Android setVoice selects the locale directly
+without temporarily selecting the engine's potentially network-dependent default.
+
+Regression tests cover all 24 configured language variants, regional/alias
+matching, engine selection and synthesis failures, missing offline data and
+cancellation. These are automated selection tests, not physical-phone
+pronunciation checks. Installed offline voices remain a phone prerequisite; an
+app patch cannot supply missing engine assets. Audio-pack implementation remains
+deferred. Re-test Spanish with Google speech services and airplane mode on the
+affected phone before treating its native service error as resolved.

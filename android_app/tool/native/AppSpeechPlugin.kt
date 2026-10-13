@@ -130,14 +130,25 @@ class AppSpeechPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                 ) } ?: emptyList<Map<String, Any>>())
                 "setLanguage" -> {
                     val locale = Locale.forLanguageTag((call.arguments as String).replace('_', '-'))
-                    val status = engine.setLanguage(locale)
-                    if (status < 0) result.error("TTS_LANGUAGE_UNAVAILABLE", "${locale.toLanguageTag()} voice data is missing or unsupported by ${engine.defaultEngine} (status $status). Install voice data in Android text-to-speech settings.", null)
-                    else result.success(1)
+                    val voices = engine.voices.orEmpty().filter {
+                        languageCode(it.locale) == languageCode(locale) &&
+                        !it.isNetworkConnectionRequired &&
+                        !it.features.orEmpty().contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED)
+                    }.sortedWith(compareByDescending<android.speech.tts.Voice> { it.locale == locale }
+                        .thenByDescending { it.quality }.thenBy { it.name })
+                    val voice = voices.firstOrNull()
+                    if (voice == null) {
+                        result.error("TTS_OFFLINE_VOICE_UNAVAILABLE", "No installed offline ${locale.toLanguageTag()} voice is available in ${selectedEngine ?: engine.defaultEngine}. Install voice data or choose another engine in Test voice.", null)
+                    } else if (engine.setVoice(voice) != TextToSpeech.SUCCESS) {
+                        result.error("TTS_VOICE_REJECTED", "The engine rejected installed voice ${voice.name}.", null)
+                    } else result.success(1)
                 }
                 "setVoice" -> {
                     val name = call.argument<String>("name")
                     val voice = engine.voices?.firstOrNull { it.name == name }
-                    result.success(if (voice != null && engine.setVoice(voice) == TextToSpeech.SUCCESS) 1 else 0)
+                    result.success(if (voice != null && !voice.isNetworkConnectionRequired &&
+                        !voice.features.orEmpty().contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED) &&
+                        engine.setVoice(voice) == TextToSpeech.SUCCESS) 1 else 0)
                 }
                 "setVolume" -> { volume = (call.arguments as Number).toFloat().coerceIn(0f, 1f); result.success(1) }
                 "setSpeechRate" -> result.success(if (engine.setSpeechRate((call.arguments as Number).toFloat() * 2f) == TextToSpeech.SUCCESS) 1 else 0)
@@ -148,6 +159,13 @@ class AppSpeechPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         } catch (error: Exception) {
             result.error("TTS_PLATFORM_ERROR", error.message ?: error.javaClass.simpleName, null)
         }
+    }
+
+    private fun languageCode(locale: Locale): String = when (locale.language) {
+        "no", "nn" -> "nb"
+        "cmn" -> "zh"
+        "in" -> "id"
+        else -> locale.language
     }
 
     private fun speak(call: MethodCall, result: MethodChannel.Result) {

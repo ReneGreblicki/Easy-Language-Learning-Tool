@@ -69,7 +69,7 @@ void main() {
 
   for (final knownGender in [false, true]) {
     test(
-      'keeps system locale voice or retries it after specific voice failure: $knownGender',
+      'selects opaque voices and retries the system voice after failure: $knownGender',
       () async {
         const channel = MethodChannel('flutter_tts');
         final calls = <MethodCall>[];
@@ -98,7 +98,7 @@ void main() {
             .speak('hola', 'Spanish', awaitCompletion: true);
         expect(
           calls.where((c) => c.method == 'setVoice').length,
-          knownGender ? 1 : 0,
+          1,
         );
         expect(
           calls.where((c) => c.method == 'setLanguage').map((c) => c.arguments),
