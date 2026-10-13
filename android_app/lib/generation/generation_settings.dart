@@ -127,14 +127,16 @@ class MobileGenerationSettings {
     }
     if (cefrMode == GenerationCefrMode.gradual) {
       final selected = selectedLevels;
-      if (selected.isEmpty)
+      if (selected.isEmpty) {
         return 'The gradual CEFR range must run from a lower to a higher level.';
+      }
       final total = selected.fold<int>(
         0,
         (sum, level) => sum + (levelPercentages[level] ?? 0),
       );
-      if (total != 100)
+      if (total != 100) {
         return 'Gradual CEFR percentages must total exactly 100%.';
+      }
     }
     return null;
   }

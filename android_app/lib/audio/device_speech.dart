@@ -82,11 +82,13 @@ Map<String, String>? chooseBestSpeechVoice(
     if (rawVoice is! Map) continue;
     final name = rawVoice['name']?.toString() ?? '';
     final locale = (rawVoice['locale']?.toString() ?? '').replaceAll('_', '-');
-    if (name.isEmpty || locale.toLowerCase().split('-').first != languageCode)
+    if (name.isEmpty || locale.toLowerCase().split('-').first != languageCode) {
       continue;
+    }
     // Android lists voices whose data has not been installed yet.
-    if ((rawVoice['features']?.toString() ?? '').contains('notInstalled'))
+    if ((rawVoice['features']?.toString() ?? '').contains('notInstalled')) {
       continue;
+    }
     candidates.add({
       'name': name,
       'locale': locale,
