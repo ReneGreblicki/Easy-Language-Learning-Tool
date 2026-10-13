@@ -2,6 +2,15 @@ name: Deploy mobile deck generation
 
 on:
   workflow_dispatch:
+    inputs:
+      task:
+        description: Database verification, approved default content, or mobile service deployment
+        type: choice
+        default: verify-defaults
+        options:
+          - verify-defaults
+          - publish-defaults
+          - deploy-mobile
   push:
     branches:
       - main
@@ -15,6 +24,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: mobile-generation-production
@@ -34,7 +44,11 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: latest
+      - name: Verify default-content database
+        if: inputs.task == 'verify-defaults' || inputs.task == 'publish-defaults'
+        run: python tools/deploy_default_decks.py --report database-before.json
       - name: Validate protected configuration
+        if: inputs.task == 'deploy-mobile' || github.event_name == 'push'
         run: |
           for name in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD OPENAI_API_KEY; do
             if [ -z "${!name}" ]; then
@@ -43,14 +57,18 @@ jobs:
             fi
           done
       - name: Link Supabase project
+        if: inputs.task == 'deploy-mobile' || github.event_name == 'push'
         run: supabase link --project-ref "$PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
       - name: Reconcile migrations installed before CLI deployment
+        if: inputs.task == 'deploy-mobile' || github.event_name == 'push'
         run: |
           supabase migration repair 0001 --status applied --linked
           supabase migration repair 0002 --status applied --linked
       - name: Apply pending database migrations
+        if: inputs.task == 'deploy-mobile' || github.event_name == 'push'
         run: supabase db push --linked --password "$SUPABASE_DB_PASSWORD"
       - name: Configure server-only provider
+        if: inputs.task == 'deploy-mobile' || github.event_name == 'push'
         run: |
           recommendation_model="${OPENAI_MODEL:-gpt-5-mini}"
           supabase secrets set \
@@ -60,8 +78,34 @@ jobs:
             OPENAI_GENERATION_FALLBACK_MODEL="gpt-5.6-terra" \
             --project-ref "$PROJECT_REF"
       - name: Deploy authenticated generation function
+        if: inputs.task == 'deploy-mobile' || github.event_name == 'push'
         run: supabase functions deploy generate-deck --project-ref "$PROJECT_REF"
       - name: Deploy authenticated recommendation function
+        if: inputs.task == 'deploy-mobile' || github.event_name == 'push'
         run: supabase functions deploy recommend-media --project-ref "$PROJECT_REF"
       - name: Deploy authenticated deck-maintenance function
+        if: inputs.task == 'deploy-mobile' || github.event_name == 'push'
         run: supabase functions deploy deck-maintenance --project-ref "$PROJECT_REF"
+      - name: Restore and reverify approved default content
+        if: inputs.task == 'publish-defaults'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/11770549348/zip" > approved-source.zip
+          unzip -q approved-source.zip
+          python tools/finalize_saved_default_decks.py \
+            default-deck-reviewed/reviewed_curriculum.json \
+            --hybrid-evidence default-deck-reviewed/hybrid_evidence.json \
+            --output approved-defaults
+      - name: Publish approved default curriculum
+        if: inputs.task == 'publish-defaults'
+        run: python tools/deploy_default_decks.py --deploy approved-defaults --report database-after.json
+      - uses: actions/upload-artifact@v6
+        if: always() && (inputs.task == 'verify-defaults' || inputs.task == 'publish-defaults')
+        with:
+          name: Default-content-database-${{ github.run_id }}
+          path: |
+            database-before.json
+            database-after.json
+          if-no-files-found: ignore
