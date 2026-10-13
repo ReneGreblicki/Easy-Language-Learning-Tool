@@ -1,5 +1,5 @@
-from pathlib import Path
 import re
+from pathlib import Path
 
 
 def configure_speech(android_main: Path, template: Path) -> None:
@@ -13,7 +13,9 @@ def configure_speech(android_main: Path, template: Path) -> None:
         raise RuntimeError("MainActivity package was missing.")
     if "AppSpeechPlugin" not in content:
         if not re.search(r"class MainActivity\s*:\s*FlutterActivity\(\)\s*$", content):
-            raise RuntimeError("MainActivity differs from the generated template; review registration.")
+            raise RuntimeError(
+                "MainActivity differs from the generated template; review registration."
+            )
         content = re.sub(
             r"class MainActivity\s*:\s*FlutterActivity\(\)\s*$",
             "class MainActivity : FlutterActivity() {\n"

@@ -17,15 +17,15 @@ class AndroidSpeechEngine extends FlutterTts {
   @override
   Future<dynamic> setEngine(String engine) => channel.invokeMethod('setEngine', engine);
   @override
-  Future<dynamic> setLanguage(String locale) => channel.invokeMethod('setLanguage', locale);
+  Future<dynamic> setLanguage(String language) => channel.invokeMethod('setLanguage', language);
   @override
   Future<dynamic> setVoice(Map<String, String> voice) => channel.invokeMethod('setVoice', voice);
   @override
-  Future<dynamic> setVolume(double value) => channel.invokeMethod('setVolume', value);
+  Future<dynamic> setVolume(double volume) => channel.invokeMethod('setVolume', volume);
   @override
-  Future<dynamic> setSpeechRate(double value) => channel.invokeMethod('setSpeechRate', value);
+  Future<dynamic> setSpeechRate(double rate) => channel.invokeMethod('setSpeechRate', rate);
   @override
-  Future<dynamic> awaitSpeakCompletion(bool value) => channel.invokeMethod('awaitSpeakCompletion', value);
+  Future<dynamic> awaitSpeakCompletion(bool awaitCompletion) => channel.invokeMethod('awaitSpeakCompletion', awaitCompletion);
   @override
   Future<dynamic> speak(String text, {bool focus = false}) =>
       channel.invokeMethod('speak', {'text': text, 'focus': focus});

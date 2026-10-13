@@ -10,7 +10,9 @@ class ConfigureSpeechTests(unittest.TestCase):
             root = Path(directory)
             activity = root / "kotlin" / "com" / "example" / "MainActivity.kt"
             activity.parent.mkdir(parents=True)
-            activity.write_text("package com.example\nimport io.flutter.embedding.android.FlutterActivity\nclass MainActivity : FlutterActivity()\n")
+            activity.write_text(
+                "package com.example\nimport io.flutter.embedding.android.FlutterActivity\nclass MainActivity : FlutterActivity()\n"
+            )
             template = Path(__file__).resolve().parents[1] / "native" / "AppSpeechPlugin.kt"
             configure_speech(root, template)
             configure_speech(root, template)
@@ -23,7 +25,9 @@ class ConfigureSpeechTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             activity = root / "MainActivity.kt"
-            original = "package com.example\nclass MainActivity : FlutterActivity() { fun custom() {} }\n"
+            original = (
+                "package com.example\nclass MainActivity : FlutterActivity() { fun custom() {} }\n"
+            )
             activity.write_text(original)
             with self.assertRaises(RuntimeError):
                 configure_speech(root, Path("unused"))
