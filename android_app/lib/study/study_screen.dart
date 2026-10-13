@@ -1,3 +1,4 @@
+import '../generation/generation_settings.dart';
 import 'dart:math';
 import 'dart:async';
 import '../analytics/learning_analytics.dart';
@@ -188,7 +189,7 @@ class _StudyScreenState extends State<StudyScreen> {
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Text(
-                '${widget.deck.sourceLanguage}  →  ${widget.deck.translationLanguage}',
+                '${displayLanguageName(widget.deck.sourceLanguage)}  →  ${displayLanguageName(widget.deck.translationLanguage)}',
                 style: TextStyle(
                   color: dark ? const Color(0xFF8BC7F5) : const Color(0xFF245E96),
                   fontWeight: FontWeight.bold,

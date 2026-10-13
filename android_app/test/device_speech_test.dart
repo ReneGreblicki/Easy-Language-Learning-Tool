@@ -1,7 +1,73 @@
 import 'package:easy_language_flashcards/audio/device_speech.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/services.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('prefers downloaded offline voices over network and missing voices', () {
+    expect(
+      chooseBestSpeechVoice('Spanish', SpeechVoiceGender.female, [
+        {
+          'name': 'female network',
+          'locale': 'es-ES',
+          'network_required': 'true',
+        },
+        {
+          'name': 'female missing',
+          'locale': 'es-ES',
+          'features': '[notInstalled]',
+        },
+        {'name': 'local', 'locale': 'es-MX', 'network_required': 'false'},
+      ])?['name'],
+      'local',
+    );
+  });
+
+  test('female metadata does not also count as male', () {
+    expect(
+      chooseBestSpeechVoice('Spanish', SpeechVoiceGender.female, [
+        {'name': 'A neutral', 'locale': 'es-ES'},
+        {'name': 'Z woman', 'locale': 'es-ES', 'gender': 'female'},
+      ])?['name'],
+      'Z woman',
+    );
+  });
+
+  for (final result in [1, 0]) {
+    test('speech requests focus and handles platform result $result', () async {
+      const channel = MethodChannel('flutter_tts');
+      final calls = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+            calls.add(call);
+            if (call.method == 'getLanguages') return ['es-ES'];
+            if (call.method == 'getVoices') return [];
+            if (call.method == 'speak') return result;
+            return 1;
+          });
+      addTearDown(
+        () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, null),
+      );
+      final speech = DeviceSpeech();
+      final playback = speech.speak('hola', 'Spanish', awaitCompletion: true);
+      if (result == 0) {
+        await expectLater(
+          playback,
+          throwsA(isA<SpeechVoiceUnavailableException>()),
+        );
+      } else {
+        await playback;
+      }
+      expect(
+        (calls.singleWhere((call) => call.method == 'speak').arguments
+            as Map)['focus'],
+        true,
+      );
+    });
+  }
+
   test('new language labels resolve to their regional speech locales', () {
     expect(preferredSpeechLocale('Polish'), 'pl-PL');
     expect(preferredSpeechLocale('Chinese (Simplified)'), 'zh-CN');

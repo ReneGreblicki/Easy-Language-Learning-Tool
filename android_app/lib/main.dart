@@ -645,7 +645,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
       for (final language in GenerationLanguage.values) language.label,
       for (final deck in _decks) deck.sourceLanguage,
     }.toList(growable: false)
-      ..sort();
+      ..sort(compareLanguageNames);
     return values;
   }
 
@@ -850,7 +850,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
                     final deck = _decks[index];
                     return ListTile(
                       title: Text(deck.title),
-                      subtitle: Text('${deck.sourceLanguage} · ${deck.cards.length} cards'),
+                      subtitle: Text('${displayLanguageName(deck.sourceLanguage)} · ${deck.cards.length} cards'),
                       onTap: () async {
                         await widget.repository.savePreferredLanguage(deck.sourceLanguage);
                         await widget.repository.savePreferredDeck(deck.sourceLanguage, deck.id);

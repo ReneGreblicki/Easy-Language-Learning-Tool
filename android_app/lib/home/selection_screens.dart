@@ -26,11 +26,12 @@ class LanguageSelectionScreen extends StatelessWidget {
             itemCount: languages.length,
             separatorBuilder: (_, __) => const Divider(height: 1),
             itemBuilder: (context, index) {
-              final language = languages[index];
+              final orderedLanguages = [...languages]..sort(compareLanguageNames);
+              final language = orderedLanguages[index];
               return RadioListTile<String>(
                 key: Key('language-$language'),
                 value: language,
-                title: Text(language),
+                title: Text(displayLanguageName(language)),
               );
             },
           ),
@@ -72,7 +73,7 @@ class _DeckSelectionScreenState extends State<DeckSelectionScreen> {
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Text(
-                  'No $language decks are available. Generate a new deck or synchronize one '
+                  'No ${displayLanguageName(language)} decks are available. Generate a new deck or synchronize one '
                   'from desktop.',
                   textAlign: TextAlign.center,
                 ),
@@ -92,8 +93,8 @@ class _DeckSelectionScreenState extends State<DeckSelectionScreen> {
                       initialValue: _translation,
                       isExpanded: true,
                       decoration: const InputDecoration(labelText: 'Default deck translations'),
-                      items: [for (final item in GenerationLanguage.values.where((l) => l.label != language))
-                        DropdownMenuItem(value: item.label, child: Text(item.label))],
+                      items: [for (final item in GenerationLanguage.alphabetical.where((l) => l.label != language))
+                        DropdownMenuItem(value: item.label, child: Text(item.displayLabel))],
                       onChanged: (value) async {
                         if (value == null) return;
                         await widget.onTranslationChanged?.call(value);

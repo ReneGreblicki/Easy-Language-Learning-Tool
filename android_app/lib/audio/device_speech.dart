@@ -7,9 +7,9 @@ enum SpeechVoiceGender { female, male }
 
 extension SpeechVoiceGenderLabel on SpeechVoiceGender {
   String get label => switch (this) {
-        SpeechVoiceGender.female => 'Female',
-        SpeechVoiceGender.male => 'Male',
-      };
+    SpeechVoiceGender.female => 'Female',
+    SpeechVoiceGender.male => 'Male',
+  };
 }
 
 class SpeechVoiceUnavailableException implements Exception {
@@ -50,7 +50,10 @@ String preferredSpeechLocale(String language) {
   return 'en-US';
 }
 
-String? chooseBestSpeechLocale(String language, Iterable<Object?> installedLocales) {
+String? chooseBestSpeechLocale(
+  String language,
+  Iterable<Object?> installedLocales,
+) {
   final preferred = preferredSpeechLocale(language);
   final available = installedLocales
       .whereType<String>()
@@ -79,14 +82,21 @@ Map<String, String>? chooseBestSpeechVoice(
     if (rawVoice is! Map) continue;
     final name = rawVoice['name']?.toString() ?? '';
     final locale = (rawVoice['locale']?.toString() ?? '').replaceAll('_', '-');
-    if (name.isEmpty || locale.toLowerCase().split('-').first != languageCode) continue;
+    if (name.isEmpty || locale.toLowerCase().split('-').first != languageCode)
+      continue;
+    // Android lists voices whose data has not been installed yet.
+    if ((rawVoice['features']?.toString() ?? '').contains('notInstalled'))
+      continue;
     candidates.add({
       'name': name,
       'locale': locale,
+      if (rawVoice['network_required'] != null)
+        'network_required': rawVoice['network_required'].toString(),
       if (rawVoice['gender'] != null) 'gender': rawVoice['gender'].toString(),
       if (rawVoice['identifier'] != null)
         'identifier': rawVoice['identifier'].toString(),
-      if (rawVoice['quality'] != null) 'quality': rawVoice['quality'].toString(),
+      if (rawVoice['quality'] != null)
+        'quality': rawVoice['quality'].toString(),
     });
   }
   if (candidates.isEmpty) return null;
@@ -96,10 +106,20 @@ Map<String, String>? chooseBestSpeechVoice(
       final locale = voice['locale']!.toLowerCase();
       final declaredGender = (voice['gender'] ?? '').toLowerCase();
       final markedFemale =
-          declaredGender.contains('female') || name.contains('female') || name.contains('woman');
-      final markedMale = declaredGender.contains('male') ||
-          (!markedFemale && (name.contains('male') || name.contains('man')));
+          declaredGender.contains('female') ||
+          name.contains('female') ||
+          name.contains('woman');
+      final markedMale =
+          !markedFemale &&
+          (declaredGender.contains('male') ||
+              name.contains('male') ||
+              name.contains('man'));
       var value = locale == preferredLocale.toLowerCase() ? 20 : 0;
+      // Prefer a usable offline voice over a gender or regional match.
+      if (voice['network_required'] == 'true' ||
+          voice['network_required'] == '1') {
+        value -= 1000;
+      }
       if (gender == SpeechVoiceGender.female) {
         if (markedFemale) value += 100;
         if (markedMale) value -= 100;
@@ -135,7 +155,9 @@ class DeviceSpeech {
   Future<String> _resolveLocale(String language) async {
     List<Object?> installed = const [];
     try {
-      final result = await _engine.getLanguages.timeout(const Duration(seconds: 4));
+      final result = await _engine.getLanguages.timeout(
+        const Duration(seconds: 4),
+      );
       if (result is List) installed = result.cast<Object?>();
     } catch (_) {
       return preferredSpeechLocale(language);
@@ -158,20 +180,34 @@ class DeviceSpeech {
     await _configurePlatformAudio();
     await _engine.stop().timeout(const Duration(seconds: 3));
     final locale = await _resolveLocale(language);
-    final languageResult =
-        await _engine.setLanguage(locale).timeout(const Duration(seconds: 4));
+    final languageResult = await _engine
+        .setLanguage(locale)
+        .timeout(const Duration(seconds: 4));
     if (languageResult == false || languageResult == 0) {
       throw SpeechVoiceUnavailableException(language);
     }
     try {
-      final voices = await _engine.getVoices.timeout(const Duration(seconds: 4));
+      final voices = await _engine.getVoices.timeout(
+        const Duration(seconds: 4),
+      );
       if (voices is List) {
-        final voice = chooseBestSpeechVoice(language, gender, voices.cast<Object?>());
+        final voice = chooseBestSpeechVoice(
+          language,
+          gender,
+          voices.cast<Object?>(),
+        );
         if (voice != null) {
           final selection = Platform.isIOS && voice['identifier'] != null
               ? {'identifier': voice['identifier']!}
               : {'name': voice['name']!, 'locale': voice['locale']!};
-          await _engine.setVoice(selection).timeout(const Duration(seconds: 4));
+          final result = await _engine
+              .setVoice(selection)
+              .timeout(const Duration(seconds: 4));
+          if (result == false || result == 0) {
+            await _engine
+                .setLanguage(locale)
+                .timeout(const Duration(seconds: 4));
+          }
         }
       }
     } catch (_) {
@@ -183,11 +219,16 @@ class DeviceSpeech {
     await _engine
         .awaitSpeakCompletion(awaitCompletion)
         .timeout(const Duration(seconds: 3));
-    await _engine.speak(content).timeout(
+    final result = await _engine
+        .speak(content, focus: true)
+        .timeout(
           awaitCompletion
               ? Duration(seconds: (content.length ~/ 8).clamp(15, 120).toInt())
               : const Duration(seconds: 4),
         );
+    if (result == false || result == 0) {
+      throw SpeechVoiceUnavailableException(language);
+    }
   }
 
   Future<void> stop() async {
