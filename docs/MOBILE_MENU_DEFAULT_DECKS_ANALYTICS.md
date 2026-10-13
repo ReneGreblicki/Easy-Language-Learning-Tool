@@ -225,3 +225,16 @@ This is a content-production experiment, not a claim that model output is public
 - 27 focused tests and Ruff pass. Next: verify the target database/migrations, ensure
   content version 1 is unused (otherwise regenerate with a new version), then controlled
   deployment, database checks/pg_cron and physical-device checks before release.
+
+## Database verification and deployment — 2026-10-13
+
+- User explicitly authorized database verification and content deployment.
+- Read-only run `38395856295` succeeded on configured project `jmnsrikmqopdhmnkjmah`.
+  Migrations 0001–0005 installed; default/analytics tables missing; pg_cron absent.
+- Deployment run `38396430905` started once at commit `9347168`, task `publish-defaults`:
+  https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/38396430905
+  It applies only pending migrations via CLI, restores Run 7, reruns final offline corrections,
+  asserts the approved curriculum hash and empty content version, and publishes in a single
+  advisory-locked transaction. Final counts and authenticated RPC/cron checks follow.
+  Do not dispatch another deployment while this is active or retry writes after uncertain output.
+- Deploy safeguards pass six focused tests; Ruff and YAML checks pass.
