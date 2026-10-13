@@ -73,6 +73,36 @@ def publish_transaction(sql):
         raise RuntimeError(f"PostgreSQL publication failed; SQLSTATE={error.sqlstate}") from None
 
 
+def verify_authenticated_rpc():
+    import psycopg
+
+    assert os.environ["PROJECT_REF"] == PROJECT
+    url = Path("supabase/.temp/pooler-url").read_text().strip()
+    parsed = urlparse(url)
+    assert (
+        PROJECT in url
+        and parsed.hostname
+        and parsed.hostname.endswith((".supabase.com", ".supabase.co"))
+    )
+    with psycopg.connect(
+        url,
+        password=os.environ["SUPABASE_DB_PASSWORD"],
+        sslmode="require",
+        connect_timeout=30,
+        autocommit=True,
+    ) as connection:
+        connection.execute("begin read only")
+        connection.execute(
+            "select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111119',true)"
+        )
+        connection.execute("set local role authenticated")
+        row = connection.execute("""select count(*)::int,
+            bool_and(jsonb_array_length(public.read_default_deck(id,'US English')->'cards')=card_count),
+            current_user='authenticated' from public.default_decks""").fetchone()
+        connection.execute("rollback")
+    return [{"checked_decks": row[0], "complete": row[1], "permitted": row[2]}]
+
+
 def inspect_database():
     tables = query(
         "select relname as name, relrowsecurity as rls from pg_class c "
@@ -116,6 +146,7 @@ def inspect_database():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--deploy", type=Path, help="Directory with approved curriculum and review")
+    parser.add_argument("--verify-published", action="store_true")
     parser.add_argument("--report", type=Path, default=Path("database-verification.json"))
     args = parser.parse_args()
     before = inspect_database()
@@ -158,6 +189,7 @@ def main():
         """
         guarded = sql.replace("begin;", guard, 1).removesuffix("commit;\n") + checks
         publish_transaction(guarded)
+    if args.deploy or args.verify_published:
         after = inspect_database()
         counts = query("select count(*)::int as concepts from public.default_concepts")
         assert after["catalog"][0]["published_decks"] == 72
@@ -170,13 +202,7 @@ def main():
         ), "Analytics retention job is missing"
         # An unpersisted test subject verifies the authenticated RPC; it creates
         # neither an auth user nor personal study data and returns only counts.
-        rpc = query("""with identity as materialized (
-          select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111119',true) as uid
-          )
-          select count(*)::int as checked_decks,
-            bool_and(jsonb_array_length(public.read_default_deck(id,'US English')->'cards')=card_count) as complete,
-            has_function_privilege('authenticated','public.read_default_deck(uuid,text)','execute') as permitted
-          from identity cross join public.default_decks where identity.uid is not null;""")
+        rpc = verify_authenticated_rpc()
         rpc_counts = [r for r in rpc if "checked_decks" in r]
         assert rpc_counts and rpc_counts[0]["checked_decks"] == 72 and rpc_counts[0]["complete"]
         assert rpc_counts[0]["permitted"]
