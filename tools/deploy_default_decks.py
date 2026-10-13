@@ -133,6 +133,23 @@ def main():
         assert after["catalog"][0]["published_decks"] == 72
         assert after["versions"] == [{"content_version": 1, "rows": 24000}]
         assert counts[0]["concepts"] == 1000
+        assert after["pg_cron"], "Analytics retention extension is missing"
+        assert any(
+            job["jobname"] == "purge-learning-analytics" and job["active"]
+            for job in after["cron_jobs"]
+        ), "Analytics retention job is missing"
+        # An unpersisted test subject verifies the authenticated RPC; it creates
+        # neither an auth user nor personal study data and returns only counts.
+        rpc = query("""with identity as materialized (
+          select set_config('request.jwt.claim.sub','11111111-1111-4111-8111-111111111119',true) as uid
+          )
+          select count(*)::int as checked_decks,
+            bool_and(jsonb_array_length(public.read_default_deck(id,'US English')->'cards')=card_count) as complete,
+            has_function_privilege('authenticated','public.read_default_deck(uuid,text)','execute') as permitted
+          from identity cross join public.default_decks where identity.uid is not null;""")
+        rpc_counts = [r for r in rpc if "checked_decks" in r]
+        assert rpc_counts and rpc_counts[0]["checked_decks"] == 72 and rpc_counts[0]["complete"]
+        assert rpc_counts[0]["permitted"]
         args.report.write_text(
             json.dumps(
                 {
@@ -140,6 +157,7 @@ def main():
                     "after": after,
                     "approved_sha256": APPROVED_SHA,
                     "deployed_version": 1,
+                    "authenticated_rpc": rpc_counts[0],
                 },
                 indent=2,
             )
