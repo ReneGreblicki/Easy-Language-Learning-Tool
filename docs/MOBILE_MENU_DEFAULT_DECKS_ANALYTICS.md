@@ -208,3 +208,20 @@ This is a content-production experiment, not a claim that model output is public
   Job `114991118512`. Run 6 artifact restoration, corpus and credential gates passed;
   full generation is skipped and coordinated correction is in progress. Caps unchanged.
   Do not dispatch a duplicate. Final approval/publication remain pending.
+
+## Final offline approval — 2026-10-13
+
+- Run 7 artifact `11770549348` reduced failures to five errors (two numeric notation
+  rows and duplicate sentences in Russian/Korean/Hungarian).
+- `tools/finalize_saved_default_decks.py` applies exactly five auditable sentence-only
+  corrections. No new API requests; IDs, headwords, senses, levels, source hashes stay intact.
+- Offline verifier approves all 24,000 rows; zero errors/quarantine; 23,000 evidence
+  records present. There are 16,002 advisory frequency/inflection findings; retain report.
+- Approved curriculum SHA256:
+  `7c181ef149bd6bc3b89a38e5552bbf34ef13f2e738b7832b47624482560f612b`.
+- Prepared `default-decks-approved-v1.zip`: curriculum, hash-bound approval, provenance,
+  full offline findings, five-row audit, README and transactional `publish-v1.sql`.
+  SQL contains 1,000 concepts and 24,000 translations. Nothing deployed/published.
+- 27 focused tests and Ruff pass. Next: verify the target database/migrations, ensure
+  content version 1 is unused (otherwise regenerate with a new version), then controlled
+  deployment, database checks/pg_cron and physical-device checks before release.
