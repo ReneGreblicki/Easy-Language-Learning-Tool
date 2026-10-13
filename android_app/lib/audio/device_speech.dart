@@ -259,7 +259,7 @@ class DeviceSpeech {
                 ? Duration(
                     seconds: (content.length ~/ 8).clamp(15, 120).toInt(),
                   )
-                : const Duration(seconds: 4),
+                : Duration(seconds: _engine is AndroidSpeechEngine ? 9 : 4),
           );
       if (result == false || result == 0) {
         throw SpeechVoiceUnavailableException(language);

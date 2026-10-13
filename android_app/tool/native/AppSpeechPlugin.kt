@@ -28,7 +28,7 @@ class AppSpeechPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
     private var initGeneration = 0
     private var initFailure: String? = null
     private val waiting = mutableListOf<Pair<MethodCall, MethodChannel.Result>>()
-    private data class Speech(val result: MethodChannel.Result, val completion: Boolean)
+    private data class Speech(val result: MethodChannel.Result, val completion: Boolean, var started: Boolean = false)
     private val requests = mutableMapOf<String, Speech>()
     private var awaitCompletion = false
     private var volume = 1.0f
@@ -158,26 +158,39 @@ class AppSpeechPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
         if (call.argument<Boolean>("focus") == true) requestFocus()
         val id = UUID.randomUUID().toString()
         activeId = id
-        requests[id] = Speech(result, awaitCompletion)
+        val request = Speech(result, awaitCompletion)
+        requests[id] = request
         val params = Bundle().apply { putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, volume) }
         val status = tts!!.speak(text, TextToSpeech.QUEUE_FLUSH, params, id)
         if (status != TextToSpeech.SUCCESS) {
             finish(id, "TTS_SPEAK_REJECTED", "${selectedEngine ?: tts?.defaultEngine} rejected speech (status $status). Try another engine in Test voice.")
             return
         }
-        val waitMs = if (awaitCompletion) (text.length / 8).coerceIn(15, 120) * 1000L else 8000L
         main.postDelayed({
-            if (requests.containsKey(id)) {
+            val pending = requests[id]
+            if (pending != null && !pending.started) {
                 tts?.stop()
-                finish(id, "TTS_PLAYBACK_TIMEOUT", "${selectedEngine ?: tts?.defaultEngine} did not ${if (awaitCompletion) "finish" else "start"} speech. Try another engine in Test voice.")
+                finish(id, "TTS_START_TIMEOUT", "${selectedEngine ?: tts?.defaultEngine} did not start speech within 8 seconds. Try another engine in Test voice.")
             }
-        }, waitMs)
+        }, 8000)
+        if (request.completion) {
+            val waitMs = (text.length / 8).coerceIn(15, 120) * 1000L
+            main.postDelayed({
+                if (requests.containsKey(id)) {
+                    tts?.stop()
+                    finish(id, "TTS_PLAYBACK_TIMEOUT", "${selectedEngine ?: tts?.defaultEngine} did not finish speech. Try another engine in Test voice.")
+                }
+            }, waitMs)
+        }
     }
 
     private val progress = object : UtteranceProgressListener() {
         override fun onStart(id: String) { main.post {
             val request = requests[id]
-            if (request != null && !request.completion) finish(id)
+            if (request != null) {
+                request.started = true
+                if (!request.completion) finish(id)
+            }
         } }
         override fun onDone(id: String) { main.post { finish(id); releaseFocus(id) } }
         @Deprecated("Android callback")
