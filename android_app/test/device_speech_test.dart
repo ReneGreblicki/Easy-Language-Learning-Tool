@@ -77,13 +77,14 @@ void main() {
             .setMockMethodCallHandler(channel, (call) async {
               calls.add(call);
               if (call.method == 'getLanguages') return ['es-MX'];
-              if (call.method == 'getVoices')
+              if (call.method == 'getVoices') {
                 return [
                   {
                     'name': knownGender ? 'Spanish female' : 'es-mx-x-local',
                     'locale': 'es-MX',
                   },
                 ];
+              }
               return 1;
             });
         addTearDown(
