@@ -142,6 +142,19 @@ Map<String, String>? chooseBestSpeechVoice(
   return candidates.first;
 }
 
+// Android voice names often encode no gender. In that case keep the engine's
+// working regional default instead of choosing an arbitrary voice by name.
+bool speechVoiceMatchesGender(
+  Map<String, String> voice,
+  SpeechVoiceGender gender,
+) {
+  final declared = (voice['gender'] ?? '').toLowerCase().split('.').last;
+  final name = voice['name']!.toLowerCase();
+  return gender == SpeechVoiceGender.female
+      ? declared == 'female' || RegExp(r'\b(female|woman)\b').hasMatch(name)
+      : declared == 'male' || RegExp(r'\b(male|man)\b').hasMatch(name);
+}
+
 class DeviceSpeech {
   DeviceSpeech({FlutterTts? engine}) : _engine = engine ?? FlutterTts();
 
@@ -188,6 +201,7 @@ class DeviceSpeech {
     if (languageResult == false || languageResult == 0) {
       throw SpeechVoiceUnavailableException(language);
     }
+    var selectedSpecificVoice = false;
     try {
       final voices = await _engine.getVoices.timeout(
         const Duration(seconds: 4),
@@ -198,14 +212,15 @@ class DeviceSpeech {
           gender,
           voices.cast<Object?>(),
         );
-        if (voice != null) {
+        if (voice != null && speechVoiceMatchesGender(voice, gender)) {
           final selection = Platform.isIOS && voice['identifier'] != null
               ? {'identifier': voice['identifier']!}
               : {'name': voice['name']!, 'locale': voice['locale']!};
           final result = await _engine
               .setVoice(selection)
               .timeout(const Duration(seconds: 4));
-          if (result == false || result == 0) {
+          selectedSpecificVoice = result != false && result != 0;
+          if (!selectedSpecificVoice) {
             await _engine
                 .setLanguage(locale)
                 .timeout(const Duration(seconds: 4));
@@ -213,7 +228,9 @@ class DeviceSpeech {
         }
       }
     } catch (_) {
-      // Keep the closest system voice selected by the resolved locale.
+      // Restore the September 2026 fallback: the engine chooses the installed
+      // regional voice even if individual voice selection fails.
+      await _engine.setLanguage(locale).timeout(const Duration(seconds: 4));
     }
     await _engine.setVolume(1).timeout(const Duration(seconds: 3));
     final speechRate = (0.42 * speedFactor).clamp(0.2, 0.84).toDouble();
@@ -221,15 +238,34 @@ class DeviceSpeech {
     await _engine
         .awaitSpeakCompletion(awaitCompletion)
         .timeout(const Duration(seconds: 3));
-    final result = await _engine
-        .speak(content, focus: true)
-        .timeout(
-          awaitCompletion
-              ? Duration(seconds: (content.length ~/ 8).clamp(15, 120).toInt())
-              : const Duration(seconds: 4),
-        );
-    if (result == false || result == 0) {
-      throw SpeechVoiceUnavailableException(language);
+    Future<void> play() async {
+      final result = await _engine
+          .speak(content, focus: true)
+          .timeout(
+            awaitCompletion
+                ? Duration(
+                    seconds: (content.length ~/ 8).clamp(15, 120).toInt(),
+                  )
+                : const Duration(seconds: 4),
+          );
+      if (result == false || result == 0) {
+        throw SpeechVoiceUnavailableException(language);
+      }
+    }
+
+    try {
+      await play();
+    } catch (_) {
+      if (!selectedSpecificVoice) rethrow;
+      // Some engines accept setVoice but cannot synthesize with that voice.
+      await _engine.stop().timeout(const Duration(seconds: 3));
+      final result = await _engine
+          .setLanguage(locale)
+          .timeout(const Duration(seconds: 4));
+      if (result == false || result == 0) {
+        throw SpeechVoiceUnavailableException(language);
+      }
+      await play();
     }
   }
 

@@ -67,6 +67,47 @@ void main() {
     });
   }
 
+  for (final knownGender in [false, true]) {
+    test(
+      'keeps system locale voice or retries it after specific voice failure: $knownGender',
+      () async {
+        const channel = MethodChannel('flutter_tts');
+        final calls = <MethodCall>[];
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (call) async {
+              calls.add(call);
+              if (call.method == 'getLanguages') return ['es-MX'];
+              if (call.method == 'getVoices')
+                return [
+                  {
+                    'name': knownGender ? 'Spanish female' : 'es-mx-x-local',
+                    'locale': 'es-MX',
+                  },
+                ];
+              return 1;
+            });
+        addTearDown(
+          () => TestDefaultBinaryMessengerBinding
+              .instance
+              .defaultBinaryMessenger
+              .setMockMethodCallHandler(channel, null),
+        );
+        final engine = FailingSelectedVoiceEngine(knownGender);
+        await DeviceSpeech(engine: engine)
+            .speak('hola', 'Spanish', awaitCompletion: true);
+        expect(
+          calls.where((c) => c.method == 'setVoice').length,
+          knownGender ? 1 : 0,
+        );
+        expect(
+          calls.where((c) => c.method == 'setLanguage').map((c) => c.arguments),
+          knownGender ? ['es-MX', 'es-MX'] : ['es-MX'],
+        );
+        expect(engine.attempts, knownGender ? 2 : 1);
+      },
+    );
+  }
+
   test('new language labels resolve to their regional speech locales', () {
     expect(preferredSpeechLocale('Polish'), 'pl-PL');
     expect(preferredSpeechLocale('Chinese (Simplified)'), 'zh-CN');
@@ -165,5 +206,18 @@ class RecordingSpeechEngine extends FlutterTts {
     requestedFocus = focus;
     spokenText = text;
     return result;
+  }
+}
+
+class FailingSelectedVoiceEngine extends RecordingSpeechEngine {
+  FailingSelectedVoiceEngine(this.failFirst) : super(1);
+  final bool failFirst;
+  int attempts = 0;
+
+  @override
+  Future<dynamic> speak(String text, {bool focus = false}) async {
+    attempts++;
+    if (failFirst && attempts == 1) return 0;
+    return super.speak(text, focus: focus);
   }
 }

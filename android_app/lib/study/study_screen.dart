@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../audio/device_speech.dart';
+import '../audio/card_playback.dart';
 import '../data/deck_repository.dart';
 import '../errors/app_error.dart';
 import '../models/deck.dart';
@@ -29,9 +30,11 @@ class StudyScreen extends StatefulWidget {
     this.voiceGender = SpeechVoiceGender.female,
     this.onToggleTheme,
     this.analytics,
+    this.speech,
     super.key,
   });
 
+  final DeviceSpeech? speech;
   final LearningAnalytics? analytics;
   final Deck deck;
   final DeckRepository repository;
@@ -44,8 +47,8 @@ class StudyScreen extends StatefulWidget {
 }
 
 class _StudyScreenState extends State<StudyScreen> {
-  final AudioPlayer _audio = AudioPlayer();
-  final DeviceSpeech _speech = DeviceSpeech();
+  AudioPlayer? _audio;
+  late final DeviceSpeech _speech = widget.speech ?? DeviceSpeech();
   late List<Flashcard> _cards;
   var _cardIndex = 0;
   var _showingBack = false;
@@ -61,7 +64,7 @@ class _StudyScreenState extends State<StudyScreen> {
 
   @override
   void dispose() {
-    _audio.dispose();
+    _audio?.dispose();
     _speech.stop().catchError((_) {});
     super.dispose();
   }
@@ -103,7 +106,6 @@ class _StudyScreenState extends State<StudyScreen> {
     if (_playing) return;
     setState(() => _playing = true);
     try {
-      await _audio.stop();
       final language = _showingBack
           ? widget.deck.translationLanguage
           : widget.deck.sourceLanguage;
@@ -118,27 +120,32 @@ class _StudyScreenState extends State<StudyScreen> {
           ],
       };
       for (final (text, source) in entries) {
-        try {
-          await _speech.speak(
-            text,
-            language,
-            awaitCompletion: true,
-            gender: widget.voiceGender,
-          );
-        } catch (speechError) {
-          if (source == null || source.isEmpty) rethrow;
-          try {
-            if (source.startsWith('http://') || source.startsWith('https://')) {
-              await _audio.setUrl(source).timeout(const Duration(seconds: 8));
-            } else {
-              await _audio.setFilePath(source).timeout(const Duration(seconds: 8));
+        await playCardEntry(
+          text: text,
+          source: source,
+          playTransferred: (source) async {
+            // Do not initialize or stop just_audio for speech-only default decks.
+            final audio = _audio ??= AudioPlayer();
+            try {
+              await audio.stop().timeout(const Duration(seconds: 3));
+              if (source.startsWith('http://') || source.startsWith('https://')) {
+                await audio.setUrl(source).timeout(const Duration(seconds: 8));
+              } else {
+                await audio.setFilePath(source).timeout(const Duration(seconds: 8));
+              }
+              await audio.seek(Duration.zero);
+              await audio.play().timeout(const Duration(seconds: 30));
+            } catch (_) {
+              try {
+                await audio.stop().timeout(const Duration(seconds: 3));
+              } catch (_) {}
+              rethrow;
             }
-            await _audio.seek(Duration.zero);
-            await _audio.play().timeout(const Duration(seconds: 30));
-          } catch (_) {
-            throw speechError;
-          }
-        }
+          },
+          speak: (text) => _speech.speak(
+            text, language, awaitCompletion: true, gender: widget.voiceGender,
+          ),
+        );
       }
     } catch (error) {
       if (mounted) {

@@ -125,3 +125,19 @@ availability separately from corpus and generation results.
 | Notes | |
 
 Do not promote the Android artifact to a signed production release until every row passes.
+
+## Card speech regression (0.6.2)
+
+Restores the per-item transferred-clip → closest installed system language voice
+fallback from `bdb212b` / `db49b5e` (September 8, 2026). Speech-only cards no longer
+initialize or stop the file player before speaking. A gender preference selects
+an individual voice only when its name or metadata identifies that gender;
+failed individual-voice synthesis retries the engine's regional default.
+
+Verify on Android: press Sound twice on a default card with no audio files; flip
+and replay its translation; repeat in words, sentences, and combined modes.
+Also test a transferred clip that exists and one whose file is missing. Device
+speech must work independently of transferred-file player initialization.
+Automated tests exercise actual button taps, replay, both languages, per-item
+fallback, unknown-gender voices, and failed specific-voice synthesis. Physical
+phone playback remains the final audible check.

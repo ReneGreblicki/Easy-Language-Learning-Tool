@@ -1,3 +1,4 @@
+import 'package:easy_language_flashcards/audio/device_speech.dart';
 import 'package:easy_language_flashcards/data/deck_repository.dart';
 import 'package:easy_language_flashcards/models/deck.dart';
 import 'package:easy_language_flashcards/study/study_screen.dart';
@@ -25,7 +26,9 @@ void main() {
   testWidgets('card flips between matching front and back', (tester) async {
     final repository = MemoryDeckRepository([deck]);
     await tester.pumpWidget(
-      MaterialApp(home: StudyScreen(deck: deck, repository: repository)),
+      MaterialApp(
+        home: StudyScreen(deck: deck, repository: repository),
+      ),
     );
 
     expect(find.text('lernen'), findsOneWidget);
@@ -39,7 +42,9 @@ void main() {
   testWidgets('offers the desktop navigation controls', (tester) async {
     final repository = MemoryDeckRepository([deck]);
     await tester.pumpWidget(
-      MaterialApp(home: StudyScreen(deck: deck, repository: repository)),
+      MaterialApp(
+        home: StudyScreen(deck: deck, repository: repository),
+      ),
     );
 
     expect(find.text('← Previous'), findsOneWidget);
@@ -47,10 +52,46 @@ void main() {
     expect(find.text('Next →'), findsOneWidget);
     expect(find.text('↻  Reshuffle'), findsOneWidget);
     expect(find.byKey(const Key('sound-button')), findsOneWidget);
-    final sound = tester.widget<IconButton>(find.byKey(const Key('sound-button')));
+    final sound = tester.widget<IconButton>(
+      find.byKey(const Key('sound-button')),
+    );
     expect(sound.onPressed, isNotNull);
     expect(find.byType(Divider), findsNothing);
   });
+
+  testWidgets(
+    'sound button speaks both sides and replays without file-player setup',
+    (tester) async {
+      final speech = RecordingCardSpeech();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: StudyScreen(
+            deck: deck,
+            repository: MemoryDeckRepository([deck]),
+            speech: speech,
+          ),
+        ),
+      );
+      await tester.tap(find.byKey(const Key('sound-button')));
+      await tester.pumpAndSettle();
+      expect(speech.entries, [
+        ('lernen', 'German'),
+        ('Ich lerne jeden Tag.', 'German'),
+      ]);
+      await tester.tap(find.byKey(const Key('sound-button')));
+      await tester.pumpAndSettle();
+      expect(speech.entries.length, 4);
+      await tester.tap(find.byKey(const Key('flashcard-surface')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('sound-button')));
+      await tester.pumpAndSettle();
+      expect(speech.entries.skip(4), [
+        ('to learn', 'US English'),
+        ('I learn every day.', 'US English'),
+      ]);
+      expect(find.byType(SnackBar), findsNothing);
+    },
+  );
 
   testWidgets('words mode hides sentence content', (tester) async {
     final repository = MemoryDeckRepository([deck]);
@@ -67,4 +108,22 @@ void main() {
     expect(find.text('lernen'), findsOneWidget);
     expect(find.text('Ich lerne jeden Tag.'), findsNothing);
   });
+}
+
+class RecordingCardSpeech extends DeviceSpeech {
+  final entries = <(String, String)>[];
+
+  @override
+  Future<void> speak(
+    String text,
+    String language, {
+    bool awaitCompletion = false,
+    SpeechVoiceGender gender = SpeechVoiceGender.female,
+    double speedFactor = 1,
+  }) async {
+    entries.add((text, language));
+  }
+
+  @override
+  Future<void> stop() async {}
 }
