@@ -8,8 +8,8 @@ import 'package:just_audio/just_audio.dart';
 
 import '../audio/device_speech.dart';
 import '../audio/card_playback.dart';
+import '../audio/speech_diagnostics_screen.dart';
 import '../data/deck_repository.dart';
-import '../errors/app_error.dart';
 import '../models/deck.dart';
 
 enum StudyContentMode { words, sentences, both }
@@ -119,6 +119,15 @@ class _StudyScreenState extends State<StudyScreen> {
             (_sentence, _showingBack ? null : _card.sentenceAudioUrl),
           ],
       };
+      if (entries.every((entry) => entry.$2 == null || entry.$2!.isEmpty)) {
+        // One utterance preserves word + sentence order without waiting for a
+        // native completion callback or stopping the word to start the sentence.
+        await _speech.speak(
+          entries.map((entry) => entry.$1).where((text) => text.trim().isNotEmpty).join('. '),
+          language, gender: widget.voiceGender, awaitCompletion: false,
+        ).timeout(const Duration(seconds: 12));
+        return;
+      }
       for (final (text, source) in entries) {
         await playCardEntry(
           text: text,
@@ -148,14 +157,12 @@ class _StudyScreenState extends State<StudyScreen> {
         );
       }
     } catch (error) {
+      try { await _speech.stop().timeout(const Duration(seconds: 1)); } catch (_) {}
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              describeAppError(
-                error,
-                fallback: 'Sound could not be played. Check the phone volume and try again.',
-              ),
+              speechErrorText(error),
             ),
           ),
         );
@@ -177,6 +184,14 @@ class _StudyScreenState extends State<StudyScreen> {
       appBar: AppBar(
         title: Text(widget.deck.title),
         actions: [
+          IconButton(
+            tooltip: 'Test voice', icon: const Icon(Icons.hearing),
+            onPressed: () => Navigator.push<void>(context, MaterialPageRoute(
+              builder: (_) => SpeechDiagnosticsScreen(speech: _speech,
+                language: _showingBack ? widget.deck.translationLanguage : widget.deck.sourceLanguage,
+                sampleText: widget.mode == StudyContentMode.words ? _word : _sentence),
+            )),
+          ),
           if (widget.onToggleTheme != null)
             IconButton(
               tooltip: 'Switch light/dark theme',

@@ -141,3 +141,21 @@ speech must work independently of transferred-file player initialization.
 Automated tests exercise actual button taps, replay, both languages, per-item
 fallback, unknown-gender voices, and failed specific-voice synthesis. Physical
 phone playback remains the final audible check.
+
+## Native speech and stalled-start regression (0.6.3)
+
+A physical-device report that Sound remains loading supersedes the earlier
+assumption that arbitrary voice choice caused the silence. Android now uses
+`AppSpeechPlugin` through `AndroidSpeechEngine`: public TextToSpeech APIs,
+callbacks installed before pending calls resume, an 8-second initialization
+limit, explicit synthesis rejection/errors, media audio attributes, and an
+8-second start limit. Cards with no transferred files speak the visible word
+and sentence in one utterance and return on start rather than waiting for done.
+The card's entire speech-start attempt has a 12-second deadline; its Sound
+button recovers and presents the actual voice error if the bridge stalls.
+
+Use the hearing icon on the card to open **Test voice**. Test English first,
+then the card language; record the displayed engine and exact error. Switch
+to another installed engine if needed. A successful engine choice is saved
+in app-private Android preferences and applies to cards and audio study.
+Do not call the audible test passed based only on CI or a native onStart event.

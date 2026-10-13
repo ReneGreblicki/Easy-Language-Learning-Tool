@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:flutter/services.dart';
+import 'android_speech_engine.dart';
 
 enum SpeechVoiceGender { female, male }
 
@@ -21,6 +23,17 @@ class SpeechVoiceUnavailableException implements Exception {
   String toString() =>
       'No $language text-to-speech voice is available. Open your device '
       'accessibility or spoken-content settings and enable a $language voice.';
+}
+
+String speechErrorText(Object error) {
+  if (error is PlatformException) {
+    return 'Voice error (${error.code}): ${error.message ?? 'The phone could not start speech.'}';
+  }
+  if (error is TimeoutException) {
+    return 'Voice playback timed out. Open Test voice and try another installed speech engine.';
+  }
+  if (error is SpeechVoiceUnavailableException) return error.toString();
+  return 'Voice playback failed: $error';
 }
 
 String preferredSpeechLocale(String language) {
@@ -156,7 +169,7 @@ bool speechVoiceMatchesGender(
 }
 
 class DeviceSpeech {
-  DeviceSpeech({FlutterTts? engine}) : _engine = engine ?? FlutterTts();
+  DeviceSpeech({FlutterTts? engine}) : _engine = engine ?? (Platform.isAndroid ? AndroidSpeechEngine() : FlutterTts());
 
   final FlutterTts _engine;
   bool _appleAudioConfigured = false;
@@ -267,6 +280,18 @@ class DeviceSpeech {
       }
       await play();
     }
+  }
+
+  Future<Map<String, Object?>> diagnostics() async {
+    if (!Platform.isAndroid) return {'engine': 'System voice', 'engines': <String>[]};
+    final engine = await _engine.getDefaultEngine.timeout(const Duration(seconds: 3));
+    final engines = await _engine.getEngines.timeout(const Duration(seconds: 3));
+    return {'engine': engine?.toString() ?? 'Unknown',
+      'engines': engines is List ? engines.whereType<String>().toList() : <String>[]};
+  }
+
+  Future<void> selectEngine(String engine) async {
+    await _engine.setEngine(engine).timeout(const Duration(seconds: 10));
   }
 
   Future<void> stop() async {
