@@ -10,8 +10,8 @@ import json
 import os
 import urllib.error
 import urllib.request
-from urllib.parse import urlparse
 from pathlib import Path
+from urllib.parse import urlparse
 
 import build_default_decks as builder
 
