@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+
 from tool.configure_android_speech import configure_speech
 
 
