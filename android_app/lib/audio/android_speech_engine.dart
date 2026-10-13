@@ -6,6 +6,9 @@ import 'package:flutter_tts/flutter_tts.dart';
 class AndroidSpeechEngine extends FlutterTts {
   static const channel = MethodChannel('easy_language_learning_tool/native_speech');
 
+  Future<void> installVoiceData() => channel.invokeMethod<void>('installVoiceData');
+  Future<void> refreshVoiceData() => channel.invokeMethod<void>('refreshVoiceData');
+
   @override
   Future<dynamic> get getLanguages => channel.invokeMethod('getLanguages');
   @override

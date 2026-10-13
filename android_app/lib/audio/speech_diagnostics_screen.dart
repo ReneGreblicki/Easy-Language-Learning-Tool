@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'device_speech.dart';
+import 'voice_setup.dart';
 
 String speechEngineLabel(String value) => switch (value) {
   'com.google.android.tts' => 'Google speech services',
@@ -85,6 +86,11 @@ class _SpeechDiagnosticsScreenState extends State<SpeechDiagnosticsScreen> {
       const Text('If the current engine cannot speak, try another installed engine. '
         'Your choice is saved for card and audio playback. Voice audio uses media volume.'),
       const SizedBox(height: 16),
+      if (widget.speech.supportsVoiceInstallation) OutlinedButton.icon(
+        onPressed: _busy ? null : () => showVoiceSetup(context,
+          widget.speech, [widget.language]),
+        icon: const Icon(Icons.download),
+        label: const Text('Download or manage voices')),
       FilledButton(onPressed: _busy ? null : () => _test('This is a voice playback test.', 'US English'),
         child: const Text('Test English')),
       FilledButton(onPressed: _busy ? null : () => _test(widget.sampleText, widget.language),

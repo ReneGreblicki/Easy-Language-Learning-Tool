@@ -58,6 +58,6 @@ jobs:
         run: flutter build apk --release
       - uses: actions/upload-artifact@v6
         with:
-          name: Easy-Language-Learning-Tool-Android-0.6.4
+          name: Easy-Language-Learning-Tool-Android-0.6.5
           path: android_app/build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error

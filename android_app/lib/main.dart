@@ -9,6 +9,7 @@ import 'analytics/learning_analytics.dart';
 import 'settings/app_preferences.dart';
 import 'settings/settings_screens.dart';
 import 'audio/device_speech.dart';
+import 'audio/voice_setup.dart';
 import 'config/app_config.dart';
 import 'data/deck_repository.dart';
 import 'data/local_deck_store.dart';
@@ -753,8 +754,11 @@ class _DeckLibraryState extends State<DeckLibrary> {
           .toList(growable: false),
     );
     unawaited(widget.analytics?.record('deck_opened', selectedDeck.sourceLanguage).catchError((Object _) {}) ?? Future.value());
-    final Widget screen = switch (activity) {
+    final Widget screen = DeckVoiceSetup(
+      languages: [selectedDeck.sourceLanguage, selectedDeck.translationLanguage],
+      builder: (speech) => switch (activity) {
       _DeckActivity.flashcards => StudyScreen(
+          speech: speech,
           analytics: widget.analytics,
           deck: selectedDeck,
           repository: widget.repository,
@@ -763,6 +767,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
           onToggleTheme: widget.onToggleTheme,
         ),
       _DeckActivity.audio => AudioStudyScreen(
+          speech: speech,
           deck: selectedDeck,
           repository: widget.repository,
           mode: configuration.mode,
@@ -774,7 +779,8 @@ class _DeckLibraryState extends State<DeckLibrary> {
           mode: configuration.mode,
           onToggleTheme: widget.onToggleTheme,
         ),
-    };
+      },
+    );
     await Navigator.push<void>(context, MaterialPageRoute(builder: (_) => screen));
   }
 

@@ -278,6 +278,38 @@ class DeviceSpeech {
     throw lastError ?? SpeechVoiceUnavailableException(language);
   }
 
+  bool get supportsVoiceInstallation => _engine is AndroidSpeechEngine;
+
+  Future<List<String>> missingOfflineLanguages(Iterable<String> languages) async {
+    if (!supportsVoiceInstallation) return [];
+    final raw = await _engine.getVoices.timeout(const Duration(seconds: 10));
+    if (raw is! List) {
+      throw PlatformException(code: 'TTS_VOICE_LIST_INVALID',
+        message: 'The speech engine did not provide its voice list.');
+    }
+    final seen = <String>{};
+    return [for (final language in languages)
+      if (seen.add(speechLanguageCode(preferredSpeechLocale(language))) &&
+          rankSpeechVoices(language, SpeechVoiceGender.female, raw,
+            offlineOnly: true).isEmpty) language];
+  }
+
+  Future<void> installVoiceData() async {
+    final engine = _engine;
+    if (engine is! AndroidSpeechEngine) {
+      throw UnsupportedError('Voice downloads are managed in system settings.');
+    }
+    await stop();
+    await engine.installVoiceData().timeout(const Duration(seconds: 10));
+  }
+
+  Future<void> refreshVoiceData() async {
+    final engine = _engine;
+    if (engine is AndroidSpeechEngine) {
+      await engine.refreshVoiceData().timeout(const Duration(seconds: 10));
+    }
+  }
+
   Future<Map<String, Object?>> diagnostics() async {
     if (!Platform.isAndroid) return {'engine': 'System voice', 'engines': <String>[]};
     final engine = await _engine.getDefaultEngine.timeout(const Duration(seconds: 3));

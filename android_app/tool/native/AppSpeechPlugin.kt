@@ -1,6 +1,9 @@
 package __APP_PACKAGE__
 
 import android.content.Context
+import android.content.Intent
+import android.content.ActivityNotFoundException
+import android.provider.Settings
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -102,6 +105,12 @@ class AppSpeechPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
             initialize(engine)
             return
         }
+        if (call.method == "refreshVoiceData") {
+            cancelSpeech()
+            waiting.add(Pair(MethodCall("voicesReady", null), result))
+            initialize(selectedEngine)
+            return
+        }
         if (call.method == "stop") {
             cancelSpeech()
             tts?.stop()
@@ -121,6 +130,26 @@ class AppSpeechPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                     context.getSharedPreferences("speech", Context.MODE_PRIVATE).edit()
                         .putString("engine", call.arguments as String).apply()
                     result.success(1)
+                }
+                "voicesReady" -> result.success(null)
+                "installVoiceData" -> {
+                    val intent = Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA)
+                        .setPackage(selectedEngine ?: engine.defaultEngine)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    try {
+                        context.startActivity(intent)
+                    } catch (_: ActivityNotFoundException) {
+                        // Some engines have no public installer activity. Their
+                        // settings are the supported fallback, never a fake download.
+                        try {
+                            context.startActivity(Intent("com.android.settings.TTS_SETTINGS")
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                        } catch (_: ActivityNotFoundException) {
+                            context.startActivity(Intent(Settings.ACTION_SETTINGS)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                        }
+                    }
+                    result.success(null)
                 }
                 "getLanguages" -> result.success(engine.availableLanguages?.map { it.toLanguageTag() } ?: emptyList<String>())
                 "getVoices" -> result.success(engine.voices?.map { voice -> mapOf(

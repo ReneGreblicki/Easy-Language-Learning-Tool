@@ -90,3 +90,24 @@ pronunciation checks. Installed offline voices remain a phone prerequisite; an
 app patch cannot supply missing engine assets. Audio-pack implementation remains
 deferred. Re-test Spanish with Google speech services and airplane mode on the
 affected phone before treating its native service error as resolved.
+
+## On-demand system voice setup — 0.6.5
+
+When opening a deck in any practice mode, check both languages against the
+selected Android engine's installed offline voices. Missing data opens an
+offline-voice setup sheet. Its Download voices action opens that engine's
+ACTION_INSTALL_TTS_DATA activity; engines without an installer fall back to
+Android TTS settings. Users choose the listed languages and finish the engine's
+download. The public Android installer API does not support silently fetching
+Google/Samsung voice packages or guarantee a language-targeted download.
+
+Voice data is kept locally by the engine and reused across decks, including
+generated decks. On return from installation, reinitialize the TTS connection
+and query voice availability again. Never mark a voice installed merely because
+the installer opened or returned. Cancelled/incomplete installs remain missing;
+Check again supports long-running downloads. Test voice also offers download
+and management. Deck reading stays available while voices are missing.
+
+This implements on-demand system voice setup, not the deferred hosted audio
+packs. Voice assets are not copied into the app's private directory. Installation
+and removal remain engine-controlled. No new audio generation costs are incurred.
