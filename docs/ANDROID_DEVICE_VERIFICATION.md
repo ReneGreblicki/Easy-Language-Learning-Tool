@@ -159,3 +159,22 @@ then the card language; record the displayed engine and exact error. Switch
 to another installed engine if needed. A successful engine choice is saved
 in app-private Android preferences and applies to cards and audio study.
 Do not call the audible test passed based only on CI or a native onStart event.
+
+### Development APK installation and signing blocker
+
+Certificate comparison of the downloaded 0.6.0, 0.6.1, 0.6.2, and 0.6.3 APKs
+confirmed that every build has a different signing certificate. The generated
+Flutter release currently uses the CI runner's temporary debug signing key.
+These APKs cannot update an existing installation with a different certificate.
+An attempted update may leave an earlier version installed; do not interpret
+that as a successful on-device test of the newly downloaded build.
+
+For 0.6.3 device acceptance, preserve unsynced local data, reinstall, and verify
+that the card has the hearing icon for **Test voice**. Uninstalling removes local
+downloads and unsynced app data. Record the displayed engine, Test English and
+card-language results, and exact native error text if audio is still silent.
+
+Normal upgrade distribution remains blocked until a stable signing keystore is
+supplied through protected CI configuration. Keep its private key out of the
+repository and public build artifacts. Confirm equal signing certificates
+between successive release APKs before marking in-place updates supported.
