@@ -1,6 +1,7 @@
 import 'package:easy_language_flashcards/audio/device_speech.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -50,7 +51,8 @@ void main() {
         () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(channel, null),
       );
-      final speech = DeviceSpeech();
+      final engine = RecordingSpeechEngine(result);
+      final speech = DeviceSpeech(engine: engine);
       final playback = speech.speak('hola', 'Spanish', awaitCompletion: true);
       if (result == 0) {
         await expectLater(
@@ -60,11 +62,8 @@ void main() {
       } else {
         await playback;
       }
-      expect(
-        (calls.singleWhere((call) => call.method == 'speak').arguments
-            as Map)['focus'],
-        true,
-      );
+      expect(engine.requestedFocus, true);
+      expect(engine.spokenText, 'hola');
     });
   }
 
@@ -153,4 +152,18 @@ void main() {
       'Spanish male 1',
     );
   });
+}
+
+class RecordingSpeechEngine extends FlutterTts {
+  RecordingSpeechEngine(this.result);
+  final int result;
+  bool? requestedFocus;
+  String? spokenText;
+
+  @override
+  Future<dynamic> speak(String text, {bool focus = false}) async {
+    requestedFocus = focus;
+    spokenText = text;
+    return result;
+  }
 }
