@@ -1,6 +1,6 @@
 # Project handover
 
-Updated: 2026-10-12
+Updated: 2026-10-13
 
 ## Repository state
 
@@ -10,7 +10,7 @@ Updated: 2026-10-12
 - Main was merged at `3a1bc93bab34e26a021febc45af5dfa26270f081`; PR reports `mergeable: true`.
 - The only conflict was the production workflow. Preserve the feature branch's recovery safeguards.
 - Android development candidate: `0.6.0+12`
-- Nothing in this branch has been deployed or published as default content.
+- Default content version 1 is deployed and verified; the mobile app remains a development candidate.
 
 ## Approved product behavior
 
@@ -224,3 +224,21 @@ uv run --no-project --with 'pytest>=9,<10' python -m pytest -q \
   advisory-locked transaction. Final counts and authenticated RPC/cron checks follow.
   Do not dispatch another deployment while this is active or retry writes after uncertain output.
 - Deploy safeguards pass six focused tests; Ruff and YAML checks pass.
+
+## Content deployed and verified — 2026-10-13
+
+- Pending migrations 0006/0007/0008 applied successfully. RLS is enabled on default/analytics tables.
+- Version 1 committed in PostgreSQL during deployment run `38396957124` at commit `3d53130`.
+  The initial HTTP upload was rejected by the size limit; the linked PostgreSQL transaction succeeded.
+  Its post-commit management-API RPC check lacked the read-only role's execution permission;
+  no publication writes were repeated after that verification failure.
+- Verification-only run `38397627111` PASSED under the actual `authenticated` role:
+  https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/38397627111
+  Confirmed 72 published decks, 24 languages/scripts, 1,000 concepts and 24,000 version-1 translations.
+  All 72 default-deck reads return full card counts. pg_cron and active daily
+  `purge-learning-analytics` job (`17 3 * * *`) verified.
+- Approved content hash remains `7c181ef149bd6bc3b89a38e5552bbf34ef13f2e738b7832b47624482560f612b`.
+- Do not republish version 1 or rerun its insert SQL. Use verify-published for subsequent checks.
+  Personal tables were untouched by publication SQL; no test accounts or personal data were created.
+- Remaining release gates: physical-device account/offline/default-deck/analytics-consent checks,
+  complete current CI review and app distribution. PR remains draft.
