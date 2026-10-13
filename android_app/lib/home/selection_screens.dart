@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/deck.dart';
+import '../generation/generation_settings.dart';
 
 class LanguageSelectionScreen extends StatelessWidget {
   const LanguageSelectionScreen({
@@ -25,11 +26,12 @@ class LanguageSelectionScreen extends StatelessWidget {
             itemCount: languages.length,
             separatorBuilder: (_, __) => const Divider(height: 1),
             itemBuilder: (context, index) {
-              final language = languages[index];
+              final orderedLanguages = [...languages]..sort(compareLanguageNames);
+              final language = orderedLanguages[index];
               return RadioListTile<String>(
                 key: Key('language-$language'),
                 value: language,
-                title: Text(language),
+                title: Text(displayLanguageName(language)),
               );
             },
           ),
@@ -37,11 +39,13 @@ class LanguageSelectionScreen extends StatelessWidget {
       );
 }
 
-class DeckSelectionScreen extends StatelessWidget {
+class DeckSelectionScreen extends StatefulWidget {
   const DeckSelectionScreen({
     required this.language,
     required this.decks,
     required this.selectedDeckId,
+    this.translationLanguage,
+    this.onTranslationChanged,
     super.key,
   });
 
@@ -49,6 +53,16 @@ class DeckSelectionScreen extends StatelessWidget {
   final List<Deck> decks;
   final String? selectedDeckId;
 
+  final String? translationLanguage;
+  final Future<void> Function(String)? onTranslationChanged;
+  @override
+  State<DeckSelectionScreen> createState() => _DeckSelectionScreenState();
+}
+class _DeckSelectionScreenState extends State<DeckSelectionScreen> {
+  late String? _translation = widget.translationLanguage;
+  String get language => widget.language;
+  List<Deck> get decks => widget.decks;
+  String? get selectedDeckId => widget.selectedDeckId;
   @override
   Widget build(BuildContext context) {
     final filtered = decks.where((deck) => deck.sourceLanguage == language).toList(growable: false);
@@ -59,7 +73,7 @@ class DeckSelectionScreen extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Text(
-                  'No $language decks are available. Generate a new deck or synchronize one '
+                  'No ${displayLanguageName(language)} decks are available. Generate a new deck or synchronize one '
                   'from desktop.',
                   textAlign: TextAlign.center,
                 ),
@@ -71,22 +85,35 @@ class DeckSelectionScreen extends StatelessWidget {
                 final deck = filtered.where((item) => item.id == value).firstOrNull;
                 if (deck != null) Navigator.pop(context, deck);
               },
-              child: ListView.separated(
+              child: ListView(
                 padding: const EdgeInsets.symmetric(vertical: 10),
-                itemCount: filtered.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  final deck = filtered[index];
-                  return RadioListTile<String>(
-                    key: Key('deck-${deck.id}'),
-                    value: deck.id,
-                    title: Text(deck.title),
-                    subtitle: Text(
-                      '${deck.cards.length} cards · '
-                      '${deck.isDownloaded ? 'Downloaded' : 'Cloud'}',
-                    ),
-                  );
-                },
+                children: [
+                  if (_translation != null) Padding(padding: const EdgeInsets.all(16),
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _translation,
+                      isExpanded: true,
+                      decoration: const InputDecoration(labelText: 'Default deck translations'),
+                      items: [for (final item in GenerationLanguage.alphabetical.where((l) => l.label != language))
+                        DropdownMenuItem(value: item.label, child: Text(item.displayLabel))],
+                      onChanged: (value) async {
+                        if (value == null) return;
+                        await widget.onTranslationChanged?.call(value);
+                        if (mounted) setState(() => _translation = value);
+                      })),
+                  for (final isDefault in [true, false]) ...[
+                    Padding(padding: const EdgeInsets.fromLTRB(16, 14, 16, 8), child: Text(
+                      isDefault ? 'Default decks' : 'My decks', style: Theme.of(context).textTheme.titleMedium)),
+                    if (!isDefault) Padding(padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text('${filtered.where((d) => !d.isDefault).length} / 5 personal decks')),
+                    if (isDefault) const Padding(padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: Text('Included · do not count toward your 5 personal decks')),
+                    for (final deck in filtered.where((d) => d.isDefault == isDefault))
+                      RadioListTile<String>(
+                        key: Key('deck-${deck.id}'), value: deck.id, title: Text(deck.title),
+                        subtitle: Text('${deck.cardCount} cards · ${deck.isDownloaded ? 'Downloaded' : deck.isDefault && deck.contentVersion == null ? 'Content being prepared' : 'Download on first use'}'),
+                      ),
+                  ],
+                ],
               ),
             ),
     );

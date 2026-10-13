@@ -1,0 +1,258 @@
+# Mobile menu, default decks and learning milestones
+
+Status: implementation PR; default content and physical-device release verification pending.
+
+## Accepted behavior
+
+- Drawer at left, 58% of screen width, dimmed remainder. Home, Account settings,
+  Privacy settings, Display settings; Log out anchored at bottom.
+- Default decks appear inside **Select deck**, above My decks, not on the landing page.
+- Select the remembered deck for each learning language; otherwise select its A1 default.
+- Three shared decks per language/script option: A1 400, A2 300, B1 300.
+  Separate catalog tables mean they never consume the five personal-deck slots.
+- Default translations can be changed in Select deck. US English is the initial translation;
+  English learning defaults to European Spanish. Card IDs do not depend on translation or rank.
+- Downloads can be removed without deleting default content or progress.
+- Accounts require sign-in when switching and use separate SQLite/audio directories.
+  Previously unscoped local data is preserved, but deliberately not assigned to any account.
+  Existing users must re-download their cloud decks. Unsynced legacy progress is not migrated.
+
+## Analytics contract
+
+Optional and off by default. A unique card is counted when the answer is revealed in
+flashcard mode. Merely opening a list, playing audio, flipping back to the front,
+or repeating the same card does not add a unique card. Different card IDs in different
+personal decks remain different cards, even if their text matches. Counts combine
+sessions and devices for an account and learning language.
+
+Milestones: **10, 100, 500, 1000**. First deck opened: once per account per consent period,
+after successful loading and practice setup. Generation: successful mobile job completion,
+recorded on the server even when the app is closed. Default content publication/download
+is not a user generation event.
+
+Store account ID, learning language, timestamp, event kind/milestone, and card IDs needed
+for deduplication. No card text, deck title, email, password, location or advertising ID
+in analytics. Account-linked, not anonymous. Unique card IDs are retained up to 1000 per
+language while consent remains enabled. Events and retry receipts expire after 90 days
+through a daily pg_cron job. Opt-out deletes events, identifiers and first-use markers;
+a minimal consent preference remains. Offline revocation stops local collection immediately
+and retries deletion on reconnect. Re-enabling starts a new measurement period.
+
+Operational data is separate. No 90-day inactivity deck purge. Existing 14-day mobile
+removal behavior remains for personal decks. Generation operational records currently
+have no automatic expiry. Privacy wording must remain aligned with actual configuration.
+
+Operator reporting example (privileged database access only):
+
+```sql
+select date_trunc('day', occurred_at) as day, kind, language, milestone,
+       count(*) as events, count(distinct user_id) as accounts
+from public.learning_events
+group by 1,2,3,4 order by 1 desc,2,3,4;
+```
+
+These are consenting-account counts, not estimates for all users. The first-deck event
+means first observed study after consent, not necessarily lifetime first study.
+
+## Content workflow
+
+The future production workflow is automated and fail-closed:
+
+1. Read the pinned ranked corpus and form exactly 1,000 stable English concept slots. Reject
+   fragments, isolated letters, abbreviations, codes and non-words (for example `de`). Keep every
+   valid raw top-1,000 slot and fill each rejected slot with the next valid ranked English word.
+   Write the complete decision trail to `concept_source` and `source_replacements.json`.
+2. Reuse the existing English draft sentence only when it still belongs to the selected concept.
+   A dedicated English editorial pass checks natural common usage, exact target-word inclusion,
+   sense quality, CEFR suitability and meta/code examples; it makes the smallest needed revision.
+3. Generate all 24 language/script options in ID-major blocks: IDs 1–20 across every language,
+   then 21–40, and so on. Every language therefore retains the same concept ID, proposition,
+   English sense and A1/A2/B1 membership. Thai script is completed before its Paiboon row.
+4. For each target language, only ranks 1–1,000 of its pinned frequency list may supply frequency
+   candidates or a `source_rank`. Frequency reorders cards within a level; it never changes the
+   shared concept ID. A translated inflection with no exact ranked match remains explicitly null.
+5. Google Cloud Translation supplies a first independent draft for supported target languages;
+   GPT performs constrained post-editing. Content-bound source and target hashes prevent reuse
+   after either side changes. Row-level checkpoints preserve valid completed work and purchase
+   only missing or invalid cells. Before any paid request, production restores the current cache,
+   merges the four durable generation artifacts (newest first), and enforces a 23,980-row raw
+   checkpoint floor. A cache miss or missing artifact therefore stops the run instead of silently
+   restarting. Only content-hash-compatible rows are reused. The per-run Google purchase ceiling
+   is 500,000 new characters, and Google 429/500/502/503/504 failures use bounded backoff retries.
+6. Automated adjudication repairs deterministic failures, then the network-free verifier checks
+   every row against the pinned corpus and source manifest, checks scripts, senses, numbers,
+   duplicates, rank limits and evidence hashes, and quarantines any failure. It alone creates the
+   content-bound approval manifest; no API result can approve itself.
+7. Generate SQL using `--output full --review review.json --version 1`. It rejects pilots,
+   missing languages, duplicate concepts, wrong counts/ranks and stale approval hashes. Apply SQL
+   in a controlled transaction. Published versions are immutable; corrections use a new version.
+
+Concept IDs 1–400/401–700/701–1000 supply A1/A2/B1 membership. The set is the first 1,000
+valid ranked English concepts after deterministic cleaning, not the first 1,000 raw tokens and
+not a claim that literal translations are each language's 1,000 most frequent words. Later
+updates preserve identity and level membership or require an explicit migration.
+
+## Verification and rollout
+
+- SQL integration tests: `npm install --no-save @electric-sql/pglite@0.5.8` then
+  `node supabase/tests/learning_analytics.mjs`. Exercises thresholds, deduplication,
+  opt-out/stale requests, expiry, generation and access restrictions using PostgreSQL WASM.
+- Android CI: analyze, widget/unit tests and APK build. Local Flutter initialization was
+  blocked by automatic approval review due to a metadata-endpoint request; do not bypass it.
+- Before rollout: review pilot, validate full content, apply migrations and content, then
+  check real-device account switching, offline downloads, consent, theme and drawer accessibility.
+- pg_cron scheduling must be verified in Supabase after migration. WASM tests cover the cleanup
+  function but do not provide pg_cron.
+- Keep PR draft until complete content and physical-device checks are ready. iOS release paused.
+
+Google Play provides install/activity/retention/conversion/crash reporting, not card-level
+learning events: https://support.google.com/googleplay/android-developer/answer/139628?hl=en
+Apple reporting: https://developer.apple.com/app-store-connect/analytics/
+Update the store data declarations and public privacy policy before distributing this version.
+
+## Verification checkpoint
+
+Implementation PR: https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/pull/19
+
+The first generated pilot failed content review: translated sentences retained English
+headwords and Paiboon output mixed scripts. It must not be published. The corrected
+pipeline uses explicit target-language fields, copied-headword detection, native-script
+validation and Thai-to-Paiboon transliteration. The latest successful pilot workflow
+uses GPT-4.1 for one-time editorial content after GPT-4o-mini pilot defects, and
+provides a readable review table in its run summary and the downloadable artifact. The production
+pipeline now also performs clean-source selection, selective English revision, ID-major generation,
+content-bound checkpoint reuse and a final network-free publication gate as described above.
+
+Android 0.6.0+12 is the development candidate. The README continues to link to the
+previous published release until this candidate passes content and device review.
+
+The mobile generation model remains GPT-4o-mini. The editorial pilot uses GPT-4.1
+to improve alignment after observed headword and Thai transliteration failures.
+This is a content-production experiment, not a claim that model output is publication-ready.
+
+### Resume checkpoint — 2026-10-10
+
+- Merged main into the feature branch, retaining artifact recovery and spending safeguards;
+  PR #19 is conflict-free and remains a draft. Its description now reflects automated review.
+- Dispatched production once: https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/38060714209
+  at commit `3a1bc93bab34e26a021febc45af5dfa26270f081`. Cache restoration and both exact artifact
+  downloads succeeded. The live merge report contains 10,520 raw rows, 1,020 copied files and
+  685 preserved collisions. Source and credential gates passed; generation is in progress.
+- Last verified compatible coverage remains 5,278/24,000 (22.0%) until the new artifact is checked.
+  Do not start another paid run while this one is active.
+- Twenty-five focused curriculum tests and eight cost-control tests pass locally. Updated the
+  stale cost-control assertion to the approved 500,000-character limit. Updated the dependency
+  lock for audit findings in multidict, urllib3 and virtualenv; the exported dependency audit
+  reports no known vulnerabilities. Latest Windows CI must still verify the changed lock.
+
+### Run 3 result and next recovery gate
+
+- Run 3 saved artifact `11677910093` and cache, then paused at 499,298/500,000 new Google
+  characters. Estimated OpenAI cost: $1.80. The green workflow result means checkpoints were
+  saved; adjudication and final verification did not run.
+- Offline recomputation found 19,360 raw rows and 17,486 compatible rows (72.9%), leaving 6,514.
+  Compatible rows have passed the generator's reuse checks; final approval is still pending.
+- Next production restore downloads Run 3, Run 2 and Run 1 artifacts newest first and refuses
+  paid generation below 19,360 raw recovered rows. Keep the existing spending caps.
+- All five CI workflows passed at commit `c9eca3dc9b054efe95c6c81c5738b5cd298edd1d`.
+
+### Run 4 result and Run 5 recovery
+
+- Run 4 saved artifact `11703091684` and cache at the 499,350-character cap.
+- Verified artifact coverage: 23,980 raw rows; 20,729 compatible rows (86.4%);
+  3,271 rows remain. Estimated OpenAI cost $1.255149. Final approval remains pending.
+- Next resume merges Run 4 before Run 3/2/1 and enforces a 23,980-raw-row floor.
+  Keep spending limits and content-hash reuse intact. Reset passed on 2026-10-12.
+
+- Run 5 started once on 2026-10-12 at commit `d2ca7f5`:
+  https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/38272661819
+  Job `114890469187`. Recovery gate passed; generation is resuming. Do not dispatch a duplicate.
+
+## Run 5 quality review and targeted repair
+
+- Generation completed all 24,000 rows. Run 5 artifact `11758347195` contains full and
+  reviewed curriculum plus 23,000 provenance records; expires 2027-01-10.
+- Adjudication quarantined 159 rows (181 errors), preventing final verification/publication.
+- Fixed source-rank reconciliation for replacement English words and corpus-attested `na`
+  false placeholders. Offline recheck accepts 23,882 rows; 118 remain quarantined (140 errors).
+- Repair mode restores the exact reviewed Run 5 artifact and skips generation. It keeps
+  the $1 adjudication limit, hash-bound evidence and offline publication gate. Repair prompts
+  now specify the exact literal number format and reject em-dash function-word placeholders;
+  checkpoint hashes include the prompt to avoid reusing failed earlier repair instructions.
+- Duplicate English source sentences require coordinated edits across all affected languages;
+  duplicate gates remain active. Inspect the next artifact before taking further action.
+
+- Targeted repair Run 6 started once in `repair` mode at commit `1b114ad`:
+  https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/38286977134
+  Generation is skipped; reviewed Run 5 artifact is the source. Do not dispatch a duplicate.
+
+## Run 6 result and coordinated correction
+
+- Run 6 artifact `11764306322` is saved; expires 2027-01-10. Review accepts 23,977 rows,
+  quarantines 23 rows, and reports 45 errors including 22 language-level duplicate errors.
+  No approval/publication. Estimated OpenAI repair cost $0.0256364.
+- Coordinated mode restores reviewed Run 6, skips full generation, revises English sentences
+  for IDs 42,82,156,385,392,522,553,699 and refreshes exactly those IDs across all languages.
+  Native Thai precedes Paiboon; Paiboon IDs 2,446,672 are also retransliterated with new hashes.
+- Focused contextual headwords and written Korean month forms preserve the existing
+  propositions. Provenance records prior/current hashes for every focused correction.
+- Plan-only execution validates the saved artifact before paid work. Planned provider scope:
+  187 translation/script cells; 22 focused local corrections. Caps: $1 OpenAI, 100,000 new
+  Google characters. Changed source/target rows receive refreshed provider evidence.
+- Final network-free verification remains a hard release gate; inspect its resulting artifact.
+
+
+- User explicitly approved Google/OpenAI processing on 2026-10-12. Run 7 started once
+  in coordinated mode at commit `fa49285`:
+  https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/38303275512
+  Job `114991118512`. Run 6 artifact restoration, corpus and credential gates passed;
+  full generation is skipped and coordinated correction is in progress. Caps unchanged.
+  Do not dispatch a duplicate. Final approval/publication remain pending.
+
+## Final offline approval — 2026-10-13
+
+- Run 7 artifact `11770549348` reduced failures to five errors (two numeric notation
+  rows and duplicate sentences in Russian/Korean/Hungarian).
+- `tools/finalize_saved_default_decks.py` applies exactly five auditable sentence-only
+  corrections. No new API requests; IDs, headwords, senses, levels, source hashes stay intact.
+- Offline verifier approves all 24,000 rows; zero errors/quarantine; 23,000 evidence
+  records present. There are 16,002 advisory frequency/inflection findings; retain report.
+- Approved curriculum SHA256:
+  `7c181ef149bd6bc3b89a38e5552bbf34ef13f2e738b7832b47624482560f612b`.
+- Prepared `default-decks-approved-v1.zip`: curriculum, hash-bound approval, provenance,
+  full offline findings, five-row audit, README and transactional `publish-v1.sql`.
+  SQL contains 1,000 concepts and 24,000 translations. Nothing deployed/published.
+- 27 focused tests and Ruff pass. Next: verify the target database/migrations, ensure
+  content version 1 is unused (otherwise regenerate with a new version), then controlled
+  deployment, database checks/pg_cron and physical-device checks before release.
+
+## Database verification and deployment — 2026-10-13
+
+- User explicitly authorized database verification and content deployment.
+- Read-only run `38395856295` succeeded on configured project `jmnsrikmqopdhmnkjmah`.
+  Migrations 0001–0005 installed; default/analytics tables missing; pg_cron absent.
+- Deployment run `38396430905` started once at commit `9347168`, task `publish-defaults`:
+  https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/38396430905
+  It applies only pending migrations via CLI, restores Run 7, reruns final offline corrections,
+  asserts the approved curriculum hash and empty content version, and publishes in a single
+  advisory-locked transaction. Final counts and authenticated RPC/cron checks follow.
+  Do not dispatch another deployment while this is active or retry writes after uncertain output.
+- Deploy safeguards pass six focused tests; Ruff and YAML checks pass.
+
+## Content deployed and verified — 2026-10-13
+
+- Pending migrations 0006/0007/0008 applied successfully. RLS is enabled on default/analytics tables.
+- Version 1 committed in PostgreSQL during deployment run `38396957124` at commit `3d53130`.
+  The initial HTTP upload was rejected by the size limit; the linked PostgreSQL transaction succeeded.
+  Its post-commit management-API RPC check lacked the read-only role's execution permission;
+  no publication writes were repeated after that verification failure.
+- Verification-only run `38397627111` PASSED under the actual `authenticated` role:
+  https://github.com/ReneGreblicki/Easy-Language-Learning-Tool/actions/runs/38397627111
+  Confirmed 72 published decks, 24 languages/scripts, 1,000 concepts and 24,000 version-1 translations.
+  All 72 default-deck reads return full card counts. pg_cron and active daily
+  `purge-learning-analytics` job (`17 3 * * *`) verified.
+- Approved content hash remains `7c181ef149bd6bc3b89a38e5552bbf34ef13f2e738b7832b47624482560f612b`.
+- Do not republish version 1 or rerun its insert SQL. Use verify-published for subsequent checks.
+  Personal tables were untouched by publication SQL; no test accounts or personal data were created.
+- Remaining release gates: physical-device account/offline/default-deck/analytics-consent checks,
+  complete current CI review and app distribution. PR remains draft.

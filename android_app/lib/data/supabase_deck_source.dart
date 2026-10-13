@@ -3,9 +3,23 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/deck.dart';
 
 class SupabaseDeckSource {
-  SupabaseDeckSource(this.client);
+  SupabaseDeckSource(this.client, {this.ownerId});
+
+  final String? ownerId;
 
   final SupabaseClient client;
+
+  Future<List<Deck>> fetchDefaults() async {
+    final rows = await client.from('default_decks').select().order('default_level');
+    return rows.map((row) => Deck.fromJson({...row, 'translation_language': 'US English'})).toList();
+  }
+
+  Future<Deck> fetchDefault(String deckId, {String translation = 'US English'}) async {
+    final row = await client.rpc('read_default_deck', params: {
+      'p_deck_id': deckId, 'p_translation_language': translation,
+    });
+    return Deck.fromJson(Map<String, dynamic>.from(row as Map));
+  }
 
   Future<List<Deck>> fetchLibrary({bool includeAudio = false}) async {
     final response = await client
@@ -109,7 +123,7 @@ class SupabaseDeckSource {
     Deck deck, {
     required Map<String, Object?> settings,
   }) async {
-    final userId = client.auth.currentUser?.id;
+    final userId = ownerId ?? client.auth.currentUser?.id;
     if (userId == null) throw const AuthException('Sign in is required.');
     await client.from('decks').insert({
       'id': deck.id,
@@ -208,9 +222,10 @@ class SupabaseDeckSource {
     required int reviewCount,
     required DateTime updatedAt,
   }) async {
-    final userId = client.auth.currentUser?.id;
+    final userId = ownerId ?? client.auth.currentUser?.id;
     if (userId == null) throw const AuthException('Sign in is required.');
-    await client.from('study_progress').upsert(
+    final defaultCard = await client.from('default_card_identity').select('id').eq('id', cardId).maybeSingle();
+    await client.from(defaultCard == null ? 'study_progress' : 'default_study_progress').upsert(
       {
         'user_id': userId,
         'card_id': cardId,

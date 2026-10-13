@@ -1,7 +1,114 @@
 import 'package:easy_language_flashcards/audio/device_speech.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('prefers downloaded offline voices over network and missing voices', () {
+    expect(
+      chooseBestSpeechVoice('Spanish', SpeechVoiceGender.female, [
+        {
+          'name': 'female network',
+          'locale': 'es-ES',
+          'network_required': 'true',
+        },
+        {
+          'name': 'female missing',
+          'locale': 'es-ES',
+          'features': '[notInstalled]',
+        },
+        {'name': 'local', 'locale': 'es-MX', 'network_required': 'false'},
+      ])?['name'],
+      'local',
+    );
+  });
+
+  test('female metadata does not also count as male', () {
+    expect(
+      chooseBestSpeechVoice('Spanish', SpeechVoiceGender.female, [
+        {'name': 'A neutral', 'locale': 'es-ES'},
+        {'name': 'Z woman', 'locale': 'es-ES', 'gender': 'female'},
+      ])?['name'],
+      'Z woman',
+    );
+  });
+
+  for (final result in [1, 0]) {
+    test('speech requests focus and handles platform result $result', () async {
+      const channel = MethodChannel('flutter_tts');
+      final calls = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+            calls.add(call);
+            if (call.method == 'getLanguages') return ['es-ES'];
+            if (call.method == 'getVoices') return [];
+            if (call.method == 'speak') return result;
+            return 1;
+          });
+      addTearDown(
+        () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, null),
+      );
+      final engine = RecordingSpeechEngine(result);
+      final speech = DeviceSpeech(engine: engine);
+      final playback = speech.speak('hola', 'Spanish', awaitCompletion: true);
+      if (result == 0) {
+        await expectLater(
+          playback,
+          throwsA(isA<SpeechVoiceUnavailableException>()),
+        );
+      } else {
+        await playback;
+      }
+      expect(engine.requestedFocus, true);
+      expect(engine.spokenText, 'hola');
+    });
+  }
+
+  for (final knownGender in [false, true]) {
+    test(
+      'selects opaque voices and retries the system voice after failure: $knownGender',
+      () async {
+        const channel = MethodChannel('flutter_tts');
+        final calls = <MethodCall>[];
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (call) async {
+              calls.add(call);
+              if (call.method == 'getLanguages') return ['es-MX'];
+              if (call.method == 'getVoices') {
+                return [
+                  {
+                    'name': knownGender ? 'Spanish female' : 'es-mx-x-local',
+                    'locale': 'es-MX',
+                  },
+                ];
+              }
+              return 1;
+            });
+        addTearDown(
+          () => TestDefaultBinaryMessengerBinding
+              .instance
+              .defaultBinaryMessenger
+              .setMockMethodCallHandler(channel, null),
+        );
+        final engine = FailingSelectedVoiceEngine(knownGender);
+        await DeviceSpeech(engine: engine)
+            .speak('hola', 'Spanish', awaitCompletion: true);
+        expect(
+          calls.where((c) => c.method == 'setVoice').length,
+          1,
+        );
+        expect(
+          calls.where((c) => c.method == 'setLanguage').map((c) => c.arguments),
+          knownGender ? ['es-MX', 'es-MX'] : ['es-MX'],
+        );
+        expect(engine.attempts, knownGender ? 2 : 1);
+      },
+    );
+  }
+
   test('new language labels resolve to their regional speech locales', () {
     expect(preferredSpeechLocale('Polish'), 'pl-PL');
     expect(preferredSpeechLocale('Chinese (Simplified)'), 'zh-CN');
@@ -87,4 +194,31 @@ void main() {
       'Spanish male 1',
     );
   });
+}
+
+class RecordingSpeechEngine extends FlutterTts {
+  RecordingSpeechEngine(this.result);
+  final int result;
+  bool? requestedFocus;
+  String? spokenText;
+
+  @override
+  Future<dynamic> speak(String text, {bool focus = false}) async {
+    requestedFocus = focus;
+    spokenText = text;
+    return result;
+  }
+}
+
+class FailingSelectedVoiceEngine extends RecordingSpeechEngine {
+  FailingSelectedVoiceEngine(this.failFirst) : super(1);
+  final bool failFirst;
+  int attempts = 0;
+
+  @override
+  Future<dynamic> speak(String text, {bool focus = false}) async {
+    attempts++;
+    if (failFirst && attempts == 1) return 0;
+    return super.speak(text, focus: focus);
+  }
 }

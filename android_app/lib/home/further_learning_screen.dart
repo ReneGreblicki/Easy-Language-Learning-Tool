@@ -1,3 +1,4 @@
+import '../generation/generation_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -104,7 +105,7 @@ class _FurtherLearningScreenState extends State<FurtherLearningScreen> {
               child: ListTile(
                 leading: const Icon(Icons.translate),
                 title: const Text('Learning language'),
-                subtitle: Text(widget.language),
+                subtitle: Text(displayLanguageName(widget.language)),
               ),
             ),
             const SizedBox(height: 18),

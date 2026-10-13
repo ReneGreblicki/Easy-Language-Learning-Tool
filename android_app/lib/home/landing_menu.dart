@@ -1,3 +1,4 @@
+import '../generation/generation_settings.dart';
 import 'package:flutter/material.dart';
 
 class LandingMenu extends StatelessWidget {
@@ -45,7 +46,7 @@ class LandingMenu extends StatelessWidget {
                   _ContextLine(
                     icon: Icons.translate,
                     label: 'Learning language',
-                    value: selectedLanguage ?? 'Not selected',
+                    value: selectedLanguage == null ? 'Not selected' : displayLanguageName(selectedLanguage!),
                   ),
                   const SizedBox(height: 10),
                   _ContextLine(

@@ -27,7 +27,24 @@ enum GenerationLanguage {
   const GenerationLanguage(this.code, this.label);
   final String code;
   final String label;
+
+  String get displayLabel => displayLanguageName(label);
+
+  static List<GenerationLanguage> get alphabetical =>
+      [...values]..sort((a, b) => compareLanguageNames(a.label, b.label));
 }
+
+// Keep persisted language identifiers compatible with existing decks and sync.
+String displayLanguageName(String language) => switch (language) {
+  'European Spanish' => 'Spanish',
+  'European Portuguese' => 'Portuguese',
+  _ => language,
+};
+
+int compareLanguageNames(String a, String b) =>
+    displayLanguageName(a)
+        .toLowerCase()
+        .compareTo(displayLanguageName(b).toLowerCase());
 
 enum GenerationCefrLevel { a1, a2, b1, b2, c1, c2 }
 
@@ -110,31 +127,39 @@ class MobileGenerationSettings {
     }
     if (cefrMode == GenerationCefrMode.gradual) {
       final selected = selectedLevels;
-      if (selected.isEmpty) return 'The gradual CEFR range must run from a lower to a higher level.';
-      final total = selected.fold<int>(0, (sum, level) => sum + (levelPercentages[level] ?? 0));
-      if (total != 100) return 'Gradual CEFR percentages must total exactly 100%.';
+      if (selected.isEmpty) {
+        return 'The gradual CEFR range must run from a lower to a higher level.';
+      }
+      final total = selected.fold<int>(
+        0,
+        (sum, level) => sum + (levelPercentages[level] ?? 0),
+      );
+      if (total != 100) {
+        return 'Gradual CEFR percentages must total exactly 100%.';
+      }
     }
     return null;
   }
 
   Map<String, Object?> toJson() => {
-        'learning_language': learningLanguage.code,
-        'translation_language': translationLanguage.code,
-        'starting_frequency_rank': startRank,
-        'base_sentences': baseWords,
-        'extra_forms': extraForms,
-        'question_percentage': questionPercentage,
-        'pronoun_change': pronounChange,
-        'cefr_mode': cefrMode.name,
-        'single_level': singleLevel.label,
-        'gradual_start': gradualStart.label,
-        'gradual_end': gradualEnd.label,
-        'level_percentages': {
-          for (final entry in levelPercentages.entries) entry.key.label: entry.value,
-        },
-        'seed': seed,
-        'generated_on': 'android',
-      };
+    'learning_language': learningLanguage.code,
+    'translation_language': translationLanguage.code,
+    'starting_frequency_rank': startRank,
+    'base_sentences': baseWords,
+    'extra_forms': extraForms,
+    'question_percentage': questionPercentage,
+    'pronoun_change': pronounChange,
+    'cefr_mode': cefrMode.name,
+    'single_level': singleLevel.label,
+    'gradual_start': gradualStart.label,
+    'gradual_end': gradualEnd.label,
+    'level_percentages': {
+      for (final entry in levelPercentages.entries)
+        entry.key.label: entry.value,
+    },
+    'seed': seed,
+    'generated_on': 'android',
+  };
 }
 
 class FrequencyWord {

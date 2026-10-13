@@ -1,0 +1,19 @@
+name: Learning analytics
+on:
+  pull_request:
+    paths: ['supabase/**', '.github/workflows/learning-analytics.yml']
+  push:
+    branches: [main]
+    paths: ['supabase/**', '.github/workflows/learning-analytics.yml']
+permissions:
+  contents: read
+jobs:
+  sql:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: npm install --no-save @electric-sql/pglite@0.5.8
+      - run: node supabase/tests/learning_analytics.mjs

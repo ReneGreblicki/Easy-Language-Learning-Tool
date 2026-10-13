@@ -1,11 +1,15 @@
+import '../generation/generation_settings.dart';
 import 'dart:math';
+import 'dart:async';
+import '../analytics/learning_analytics.dart';
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../audio/device_speech.dart';
+import '../audio/card_playback.dart';
+import '../audio/speech_diagnostics_screen.dart';
 import '../data/deck_repository.dart';
-import '../errors/app_error.dart';
 import '../models/deck.dart';
 
 enum StudyContentMode { words, sentences, both }
@@ -25,9 +29,13 @@ class StudyScreen extends StatefulWidget {
     this.mode = StudyContentMode.both,
     this.voiceGender = SpeechVoiceGender.female,
     this.onToggleTheme,
+    this.analytics,
+    this.speech,
     super.key,
   });
 
+  final DeviceSpeech? speech;
+  final LearningAnalytics? analytics;
   final Deck deck;
   final DeckRepository repository;
   final StudyContentMode mode;
@@ -39,8 +47,8 @@ class StudyScreen extends StatefulWidget {
 }
 
 class _StudyScreenState extends State<StudyScreen> {
-  final AudioPlayer _audio = AudioPlayer();
-  final DeviceSpeech _speech = DeviceSpeech();
+  AudioPlayer? _audio;
+  late final DeviceSpeech _speech = widget.speech ?? DeviceSpeech();
   late List<Flashcard> _cards;
   var _cardIndex = 0;
   var _showingBack = false;
@@ -56,7 +64,7 @@ class _StudyScreenState extends State<StudyScreen> {
 
   @override
   void dispose() {
-    _audio.dispose();
+    _audio?.dispose();
     _speech.stop().catchError((_) {});
     super.dispose();
   }
@@ -65,7 +73,13 @@ class _StudyScreenState extends State<StudyScreen> {
   String get _sentence =>
       _showingBack ? _card.sentenceTranslation : _card.foreignSentence;
 
-  void _flip() => setState(() => _showingBack = !_showingBack);
+  void _flip() {
+    if (!_showingBack) {
+      unawaited(widget.analytics?.record('card_opened', widget.deck.sourceLanguage,
+        cardId: _card.id).catchError((Object _) {}) ?? Future.value());
+    }
+    setState(() => _showingBack = !_showingBack);
+  }
 
   void _move(int offset) {
     final next = (_cardIndex + offset).clamp(0, _cards.length - 1);
@@ -92,7 +106,6 @@ class _StudyScreenState extends State<StudyScreen> {
     if (_playing) return;
     setState(() => _playing = true);
     try {
-      await _audio.stop();
       final language = _showingBack
           ? widget.deck.translationLanguage
           : widget.deck.sourceLanguage;
@@ -106,38 +119,50 @@ class _StudyScreenState extends State<StudyScreen> {
             (_sentence, _showingBack ? null : _card.sentenceAudioUrl),
           ],
       };
+      if (entries.every((entry) => entry.$2 == null || entry.$2!.isEmpty)) {
+        // One utterance preserves word + sentence order without waiting for a
+        // native completion callback or stopping the word to start the sentence.
+        await _speech.speak(
+          entries.map((entry) => entry.$1).where((text) => text.trim().isNotEmpty).join('. '),
+          language, gender: widget.voiceGender, awaitCompletion: false,
+        ).timeout(const Duration(seconds: 12));
+        return;
+      }
       for (final (text, source) in entries) {
-        try {
-          await _speech.speak(
-            text,
-            language,
-            awaitCompletion: true,
-            gender: widget.voiceGender,
-          );
-        } catch (speechError) {
-          if (source == null || source.isEmpty) rethrow;
-          try {
-            if (source.startsWith('http://') || source.startsWith('https://')) {
-              await _audio.setUrl(source).timeout(const Duration(seconds: 8));
-            } else {
-              await _audio.setFilePath(source).timeout(const Duration(seconds: 8));
+        await playCardEntry(
+          text: text,
+          source: source,
+          playTransferred: (source) async {
+            // Do not initialize or stop just_audio for speech-only default decks.
+            final audio = _audio ??= AudioPlayer();
+            try {
+              await audio.stop().timeout(const Duration(seconds: 3));
+              if (source.startsWith('http://') || source.startsWith('https://')) {
+                await audio.setUrl(source).timeout(const Duration(seconds: 8));
+              } else {
+                await audio.setFilePath(source).timeout(const Duration(seconds: 8));
+              }
+              await audio.seek(Duration.zero);
+              await audio.play().timeout(const Duration(seconds: 30));
+            } catch (_) {
+              try {
+                await audio.stop().timeout(const Duration(seconds: 3));
+              } catch (_) {}
+              rethrow;
             }
-            await _audio.seek(Duration.zero);
-            await _audio.play().timeout(const Duration(seconds: 30));
-          } catch (_) {
-            throw speechError;
-          }
-        }
+          },
+          speak: (text) => _speech.speak(
+            text, language, awaitCompletion: true, gender: widget.voiceGender,
+          ),
+        );
       }
     } catch (error) {
+      try { await _speech.stop().timeout(const Duration(seconds: 1)); } catch (_) {}
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              describeAppError(
-                error,
-                fallback: 'Sound could not be played. Check the phone volume and try again.',
-              ),
+              speechErrorText(error),
             ),
           ),
         );
@@ -159,6 +184,14 @@ class _StudyScreenState extends State<StudyScreen> {
       appBar: AppBar(
         title: Text(widget.deck.title),
         actions: [
+          IconButton(
+            tooltip: 'Test voice', icon: const Icon(Icons.hearing),
+            onPressed: () => Navigator.push<void>(context, MaterialPageRoute(
+              builder: (_) => SpeechDiagnosticsScreen(speech: _speech,
+                language: _showingBack ? widget.deck.translationLanguage : widget.deck.sourceLanguage,
+                sampleText: widget.mode == StudyContentMode.words ? _word : _sentence),
+            )),
+          ),
           if (widget.onToggleTheme != null)
             IconButton(
               tooltip: 'Switch light/dark theme',
@@ -178,7 +211,7 @@ class _StudyScreenState extends State<StudyScreen> {
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Text(
-                '${widget.deck.sourceLanguage}  →  ${widget.deck.translationLanguage}',
+                '${displayLanguageName(widget.deck.sourceLanguage)}  →  ${displayLanguageName(widget.deck.translationLanguage)}',
                 style: TextStyle(
                   color: dark ? const Color(0xFF8BC7F5) : const Color(0xFF245E96),
                   fontWeight: FontWeight.bold,

@@ -147,7 +147,7 @@ class MobileGenerationService {
     if (selected.length < settings.baseWords) {
       throw StateError(
         'Only ${selected.length} ranked words are available from rank ${settings.startRank} for '
-        '${settings.learningLanguage.label}.',
+        '${settings.learningLanguage.displayLabel}.',
       );
     }
     return selected.take(settings.baseWords).toList(growable: false);

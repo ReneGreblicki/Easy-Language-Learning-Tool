@@ -33,5 +33,5 @@ class AuthService {
         redirectTo: authCallbackUrl,
       );
 
-  Future<void> signOut() => client.auth.signOut();
+  Future<void> signOut() => client.auth.signOut(scope: SignOutScope.local);
 }

@@ -23,22 +23,23 @@ class PendingProgress {
 }
 
 class LocalDeckStore {
-  LocalDeckStore({Future<Database> Function()? openDatabase})
+  LocalDeckStore({this.accountId, Future<Database> Function()? openDatabase})
       : _databaseFactory = openDatabase;
 
+  final String? accountId;
   final Future<Database> Function()? _databaseFactory;
-  Database? _database;
 
-  Future<Database> get database async {
-    if (_database != null) return _database!;
-    _database = await (_databaseFactory?.call() ?? _open());
-    return _database!;
-  }
+  String get storageName => accountId == null
+      ? 'easy_language_flashcards.sqlite3'
+      : 'account_${Uri.encodeComponent(accountId!)}.sqlite3';
+  Future<Database>? _database;
+
+  Future<Database> get database => _database ??= (_databaseFactory?.call() ?? _open());
 
   Future<Database> _open() async {
     final directory = await getApplicationDocumentsDirectory();
     return openDatabase(
-      path.join(directory.path, 'easy_language_flashcards.sqlite3'),
+      path.join(directory.path, storageName),
       version: 1,
       onCreate: (database, _) async {
         await database.execute('''
@@ -116,6 +117,9 @@ class LocalDeckStore {
       cards: cards,
       isDownloaded: true,
       deletedAt: deck.deletedAt,
+      defaultLevel: deck.defaultLevel,
+      catalogCardCount: deck.catalogCardCount,
+      contentVersion: deck.contentVersion,
     );
     await db.insert(
       'downloaded_decks',
@@ -179,7 +183,7 @@ class LocalDeckStore {
     final db = await database;
     await db.delete('downloaded_decks', where: 'id = ?', whereArgs: [deckId]);
     final directory = await getApplicationDocumentsDirectory();
-    final audioDirectory = Directory(path.join(directory.path, 'audio', deckId));
+    final audioDirectory = Directory(path.join(directory.path, 'audio', accountId ?? 'legacy', deckId));
     if (await audioDirectory.exists()) await audioDirectory.delete(recursive: true);
   }
 
@@ -191,7 +195,7 @@ class LocalDeckStore {
   ) async {
     if (url == null) return null;
     final directory = await getApplicationDocumentsDirectory();
-    final audioDirectory = Directory(path.join(directory.path, 'audio', deckId));
+    final audioDirectory = Directory(path.join(directory.path, 'audio', accountId ?? 'legacy', deckId));
     await audioDirectory.create(recursive: true);
     final destination = File(path.join(audioDirectory.path, '$cardId-$side.mp3'));
     final response = await http.get(Uri.parse(url));
@@ -216,6 +220,14 @@ class LocalDeckStore {
       ''',
       [cardId, rating.name, DateTime.now().toUtc().toIso8601String()],
     );
+    // Keep the offline snapshot in sync with the rating shown on this device.
+    for (final deck in await downloadedDecks()) {
+      if (!deck.cards.any((card) => card.id == cardId)) continue;
+      final updated = deck.copyWithCards(deck.cards.map((card) =>
+        card.id == cardId ? card.copyWith(rating: rating) : card).toList());
+      await db.update('downloaded_decks', {'payload_json': jsonEncode(updated.toJson())},
+        where: 'id = ?', whereArgs: [deck.id]);
+    }
   }
 
   Future<void> markProgressSynced(String cardId) async {
