@@ -10,6 +10,7 @@ import json
 import os
 import urllib.error
 import urllib.request
+from urllib.parse import urlparse
 from pathlib import Path
 
 import build_default_decks as builder
@@ -41,6 +42,35 @@ def query(sql, read_only=True):
     except urllib.error.HTTPError as error:
         # Provider response bodies and credentials are deliberately not logged.
         raise RuntimeError(f"Supabase database query failed: HTTP {error.code}") from None
+
+
+def publish_transaction(sql):
+    """The full curriculum exceeds the management HTTP body limit.
+
+    Reuse the CLI-linked project connection; the password never enters a URL or log.
+    PostgreSQL executes the existing BEGIN/COMMIT and all rollback guards together.
+    """
+    import psycopg
+
+    assert os.environ["PROJECT_REF"] == PROJECT
+    url = Path("supabase/.temp/pooler-url").read_text().strip()
+    parsed = urlparse(url)
+    assert (
+        PROJECT in url
+        and parsed.hostname
+        and parsed.hostname.endswith((".supabase.com", ".supabase.co"))
+    )
+    try:
+        with psycopg.connect(
+            url,
+            password=os.environ["SUPABASE_DB_PASSWORD"],
+            sslmode="require",
+            connect_timeout=30,
+            autocommit=True,
+        ) as connection:
+            connection.execute(sql)
+    except psycopg.Error as error:
+        raise RuntimeError(f"PostgreSQL publication failed; SQLSTATE={error.sqlstate}") from None
 
 
 def inspect_database():
@@ -127,7 +157,7 @@ def main():
         commit;
         """
         guarded = sql.replace("begin;", guard, 1).removesuffix("commit;\n") + checks
-        query(guarded, read_only=False)
+        publish_transaction(guarded)
         after = inspect_database()
         counts = query("select count(*)::int as concepts from public.default_concepts")
         assert after["catalog"][0]["published_decks"] == 72

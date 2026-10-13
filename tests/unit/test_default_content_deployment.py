@@ -28,6 +28,7 @@ def run_deploy(monkeypatch, tmp_path, state):
         pytest.fail("Database write must not occur after a failed preflight")
 
     monkeypatch.setattr(deploy, "query", no_write)
+    monkeypatch.setattr(deploy, "publish_transaction", no_write)
     deploy.main()
 
 
