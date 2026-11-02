@@ -40,6 +40,14 @@ void main() {
     }
   });
 
+  test('a synced local label does not override newer downloaded progress', () async {
+    await local.saveProgress('card', StudyRating.known);
+    await local.markProgressSynced((await local.pendingProgress()).single);
+    final remote = deck.copyWithCards([deck.cards.single.copyWith(rating: StudyRating.learning)]);
+    await local.saveDeck(remote, downloadAudio: false);
+    expect((await local.downloadedDecks()).single.cards.single.rating, StudyRating.learning);
+  });
+
   test('old sync acknowledgement cannot erase a newer pending label', () async {
     await local.saveProgress('card', KnowledgeLevel.dontKnow.rating);
     final older = (await local.pendingProgress()).single;

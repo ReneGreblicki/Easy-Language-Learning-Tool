@@ -75,7 +75,7 @@ class LocalDeckStore {
     final rows = await db.query('downloaded_decks', orderBy: 'updated_at DESC');
     return Future.wait(rows.map((row) => applyProgress(Deck.fromJson(
       jsonDecode(row['payload_json'] as String) as Map<String, dynamic>,
-    ).copyWith(isDownloaded: true))));
+    ).copyWith(isDownloaded: true), pendingOnly: true)));
   }
 
   /// Pending local choices take precedence over an older server response.

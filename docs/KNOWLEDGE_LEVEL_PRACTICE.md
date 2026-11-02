@@ -20,5 +20,6 @@ acknowledgements match the uploaded timestamp and review count, so an older
 response cannot clear a newer edit. Default-deck metadata is preserved.
 
 Tests cover UI positioning, relabelling, filtering for all three levels,
-SQLite reopen, stale refresh and concurrent sync acknowledgements. Physical
+SQLite reopen, stale refresh, new remote progress after sync and concurrent
+sync acknowledgements. Physical
 device checks remain necessary for final usability verification.

@@ -71,7 +71,6 @@ class SyncDeckRepository implements DeckRepository {
     int? toRank,
   }) async {
     Deck? deck;
-    var fetchedRemote = false;
     try {
       deck = _defaultIds.contains(deckId) ? await cloud.fetchDefault(deckId, translation: translationFor(
           (await cloud.fetchDefaults()).firstWhere((d) => d.id == deckId).sourceLanguage)) : await cloud.fetchDeck(
@@ -80,7 +79,6 @@ class SyncDeckRepository implements DeckRepository {
         fromRank: fromRank,
         toRank: toRank,
       );
-      fetchedRemote = true;
     } on Exception {
       final downloaded = await local.downloadedDecks();
       deck = downloaded.where((candidate) => candidate.id == deckId).firstOrNull;
@@ -90,7 +88,7 @@ class SyncDeckRepository implements DeckRepository {
     if (!_defaultIds.contains(deckId)) {
       try { await cloud.markUsed(deckId); } on Exception { /* Offline study remains available. */ }
     }
-    deck = await local.applyProgress(deck, pendingOnly: fetchedRemote);
+    deck = await local.applyProgress(deck, pendingOnly: true);
     await local.saveDeck(deck, downloadAudio: downloadAudio);
     if (!downloadAudio) return deck;
     final localDecks = await local.downloadedDecks();

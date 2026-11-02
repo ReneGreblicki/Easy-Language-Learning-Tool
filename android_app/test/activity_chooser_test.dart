@@ -84,7 +84,8 @@ void main() {
         translationLanguage: 'US English', cards: [
           for (final value in KnowledgeLevel.values) Flashcard(id: value.name,
             rank: value.index + 1, foreignWord: 'word-${value.name}', wordTranslation: 'translation',
-            foreignSentence: 'sentence', sentenceTranslation: 'translation', rating: value.rating),
+            foreignSentence: 'sentence', sentenceTranslation: 'translation',
+            rating: value == KnowledgeLevel.dontKnow ? StudyRating.newCard : value.rating),
         ]);
       final repository = MemoryDeckRepository([deck]);
       await repository.savePreferredLanguage('German');
