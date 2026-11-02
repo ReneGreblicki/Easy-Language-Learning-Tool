@@ -150,15 +150,7 @@ class MemoryDeckRepository implements DeckRepository {
       if (cardIndex < 0) continue;
       final cards = List<Flashcard>.from(deck.cards);
       cards[cardIndex] = cards[cardIndex].copyWith(rating: rating);
-      _decks[deckIndex] = Deck(
-        id: deck.id,
-        title: deck.title,
-        sourceLanguage: deck.sourceLanguage,
-        translationLanguage: deck.translationLanguage,
-        cards: cards,
-        isDownloaded: deck.isDownloaded,
-        deletedAt: deck.deletedAt,
-      );
+      _decks[deckIndex] = deck.copyWithCards(cards);
       return;
     }
     throw StateError('Card not found: $cardId');

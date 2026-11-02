@@ -51,7 +51,7 @@ void main() {
     expect(find.text('← Previous'), findsOneWidget);
     expect(find.text('Turn'), findsOneWidget);
     expect(find.text('Next →'), findsOneWidget);
-    expect(find.text('↻  Reshuffle'), findsOneWidget);
+    expect(find.text('Reshuffle'), findsOneWidget);
     expect(find.byKey(const Key('sound-button')), findsOneWidget);
     final sound = tester.widget<IconButton>(
       find.byKey(const Key('sound-button')),
@@ -102,6 +102,23 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.widget<IconButton>(find.byKey(const Key('sound-button'))).onPressed, isNotNull);
     expect(find.textContaining('Voice playback timed out'), findsOneWidget);
+  });
+
+  testWidgets('knowledge buttons replace bottom reshuffle and allow relabelling', (tester) async {
+    final repository = MemoryDeckRepository([deck]);
+    await tester.pumpWidget(MaterialApp(home: StudyScreen(deck: deck, repository: repository)));
+    expect(find.text('German  →  US English'), findsNothing);
+    expect(tester.getTopLeft(find.text('Reshuffle')).dy,
+      lessThan(tester.getTopLeft(find.byKey(const Key('flashcard-surface'))).dy));
+    for (final level in [KnowledgeLevel.know, KnowledgeLevel.unsure, KnowledgeLevel.dontKnow]) {
+      await tester.tap(find.byKey(Key('knowledge-${level.name}')));
+      await tester.pumpAndSettle();
+      final saved = (await repository.loadDeck(deck.id)).cards.single;
+      expect(saved.rating.knowledgeLevel, level);
+      expect(tester.widget<Semantics>(find.ancestor(of: find.byKey(Key('knowledge-${level.name}')),
+        matching: find.byType(Semantics)).first).properties.selected, true);
+      expect(find.text('lernen'), findsOneWidget);
+    }
   });
 
   testWidgets('words mode hides sentence content', (tester) async {

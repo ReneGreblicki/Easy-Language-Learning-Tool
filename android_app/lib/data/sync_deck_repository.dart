@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 
 import '../models/deck.dart';
 import 'deck_repository.dart';
@@ -13,6 +14,8 @@ class SyncDeckRepository implements DeckRepository {
   final SupabaseDeckSource cloud;
   final Set<String> _defaultIds = defaultDeckCatalog.map((d) => d.id).toSet();
   String _translation = 'US English';
+  Future<void>? _progressSync;
+  bool _syncAgain = false;
   String translationFor(String source) => _translation == source
       ? (source == 'US English' ? 'European Spanish' : 'US English') : _translation;
   Future<void> setDefaultTranslation(String language) async {
@@ -68,6 +71,7 @@ class SyncDeckRepository implements DeckRepository {
     int? toRank,
   }) async {
     Deck? deck;
+    var fetchedRemote = false;
     try {
       deck = _defaultIds.contains(deckId) ? await cloud.fetchDefault(deckId, translation: translationFor(
           (await cloud.fetchDefaults()).firstWhere((d) => d.id == deckId).sourceLanguage)) : await cloud.fetchDeck(
@@ -76,6 +80,7 @@ class SyncDeckRepository implements DeckRepository {
         fromRank: fromRank,
         toRank: toRank,
       );
+      fetchedRemote = true;
     } on Exception {
       final downloaded = await local.downloadedDecks();
       deck = downloaded.where((candidate) => candidate.id == deckId).firstOrNull;
@@ -85,6 +90,7 @@ class SyncDeckRepository implements DeckRepository {
     if (!_defaultIds.contains(deckId)) {
       try { await cloud.markUsed(deckId); } on Exception { /* Offline study remains available. */ }
     }
+    deck = await local.applyProgress(deck, pendingOnly: fetchedRemote);
     await local.saveDeck(deck, downloadAudio: downloadAudio);
     if (!downloadAudio) return deck;
     final localDecks = await local.downloadedDecks();
@@ -149,23 +155,32 @@ class SyncDeckRepository implements DeckRepository {
   @override
   Future<void> saveProgress(String cardId, StudyRating rating) async {
     await local.saveProgress(cardId, rating);
-    await synchronizePendingProgress();
+    // A label is saved before returning to the UI; connectivity cannot block it.
+    unawaited(synchronizePendingProgress().catchError((Object _) {}));
   }
 
   @override
-  Future<void> synchronizePendingProgress() async {
-    for (final progress in await local.pendingProgress()) {
-      try {
-        await cloud.saveProgress(
-          progress.cardId,
-          progress.rating,
-          reviewCount: progress.reviewCount,
-          updatedAt: progress.updatedAt,
-        );
-        await local.markProgressSynced(progress.cardId);
-      } on Exception {
-        // Keep this row pending. A refresh, app restart, or later rating retries it.
+  Future<void> synchronizePendingProgress() {
+    _syncAgain = true;
+    return _progressSync ??= _drainProgress().whenComplete(() => _progressSync = null);
+  }
+
+  Future<void> _drainProgress() async {
+    do {
+      _syncAgain = false;
+      for (final progress in await local.pendingProgress()) {
+        try {
+          await cloud.saveProgress(
+            progress.cardId,
+            progress.rating,
+            reviewCount: progress.reviewCount,
+            updatedAt: progress.updatedAt,
+          );
+          await local.markProgressSynced(progress);
+        } on Exception {
+          // Keep this row pending for a refresh, restart or later label change.
+        }
       }
-    }
+    } while (_syncAgain);
   }
 }

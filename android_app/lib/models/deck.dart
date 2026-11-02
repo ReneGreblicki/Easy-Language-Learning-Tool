@@ -1,5 +1,24 @@
 enum StudyRating { newCard, learning, known, difficult }
 
+// Retain existing wire values so saved desktop/mobile progress stays compatible.
+enum KnowledgeLevel {
+  dontKnow("Don't Know", StudyRating.difficult),
+  unsure('Unsure', StudyRating.learning),
+  know('Know', StudyRating.known);
+
+  const KnowledgeLevel(this.label, this.rating);
+  final String label;
+  final StudyRating rating;
+}
+
+extension StudyRatingKnowledge on StudyRating {
+  KnowledgeLevel get knowledgeLevel => switch (this) {
+    StudyRating.newCard || StudyRating.difficult => KnowledgeLevel.dontKnow,
+    StudyRating.learning => KnowledgeLevel.unsure,
+    StudyRating.known => KnowledgeLevel.know,
+  };
+}
+
 class Flashcard {
   const Flashcard({
     required this.id,

@@ -733,9 +733,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
     final includeAudio = activity != _DeckActivity.list;
     Deck sourceDeck;
     try {
-      sourceDeck = !deck.isDefault && deck.isDownloaded && !includeAudio && !configuration.downloadAudio
-          ? deck
-          : await widget.repository.loadDeck(
+      sourceDeck = await widget.repository.loadDeck(
               deck.id,
               includeAudio: includeAudio || configuration.downloadAudio,
               downloadAudio: configuration.downloadAudio,
@@ -750,9 +748,16 @@ class _DeckLibraryState extends State<DeckLibrary> {
     final selectedDeck = sourceDeck.copyWithCards(
       sourceDeck.cards
           .where((card) =>
-              card.rank >= configuration.fromRank && card.rank <= configuration.toRank)
+              card.rank >= configuration.fromRank && card.rank <= configuration.toRank &&
+              (configuration.knowledgeLevel == null ||
+                  card.rating.knowledgeLevel == configuration.knowledgeLevel))
           .toList(growable: false),
     );
+    if (selectedDeck.cards.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('No cards match this knowledge level and rank range. Choose another level or range.')));
+      return;
+    }
     unawaited(widget.analytics?.record('deck_opened', selectedDeck.sourceLanguage).catchError((Object _) {}) ?? Future.value());
     final Widget screen = DeckVoiceSetup(
       languages: [selectedDeck.sourceLanguage, selectedDeck.translationLanguage],
@@ -996,6 +1001,7 @@ class _StudyConfiguration {
     this.toRank,
     this.downloadAudio,
     this.voiceGender,
+    this.knowledgeLevel,
   );
 
   final StudyContentMode mode;
@@ -1003,6 +1009,7 @@ class _StudyConfiguration {
   final int toRank;
   final bool downloadAudio;
   final SpeechVoiceGender voiceGender;
+  final KnowledgeLevel? knowledgeLevel;
 }
 
 class _StudySetupScreen extends StatefulWidget {
@@ -1018,6 +1025,8 @@ class _StudySetupScreen extends StatefulWidget {
 class _StudySetupScreenState extends State<_StudySetupScreen> {
   StudyContentMode _mode = StudyContentMode.both;
   bool _selectedRows = false;
+  bool _selectKnowledgeLevel = false;
+  KnowledgeLevel _knowledgeLevel = KnowledgeLevel.dontKnow;
   bool _downloadAudio = false;
   SpeechVoiceGender _voiceGender = SpeechVoiceGender.female;
   late final TextEditingController _from;
@@ -1052,7 +1061,8 @@ class _StudySetupScreenState extends State<_StudySetupScreen> {
     }
     Navigator.pop(
       context,
-      _StudyConfiguration(_mode, from, to, _downloadAudio, _voiceGender),
+      _StudyConfiguration(_mode, from, to, _downloadAudio, _voiceGender,
+        _selectKnowledgeLevel ? _knowledgeLevel : null),
     );
   }
 
@@ -1082,6 +1092,24 @@ class _StudySetupScreenState extends State<_StudySetupScreen> {
                 value: _selectedRows,
                 onChanged: (value) => setState(() => _selectedRows = value),
               ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Select knowledge level'),
+                subtitle: const Text("Unlabelled cards count as Don't Know."),
+                value: _selectKnowledgeLevel,
+                onChanged: (value) => setState(() => _selectKnowledgeLevel = value ?? false),
+              ),
+              DropdownButtonFormField<KnowledgeLevel>(
+                key: const Key('knowledge-level-filter'),
+                initialValue: _knowledgeLevel,
+                decoration: const InputDecoration(labelText: 'Knowledge level'),
+                items: [for (final level in KnowledgeLevel.values)
+                  DropdownMenuItem(value: level, child: Text(level.label))],
+                onChanged: _selectKnowledgeLevel ? (level) {
+                  if (level != null) setState(() => _knowledgeLevel = level);
+                } : null,
+              ),
+              const SizedBox(height: 12),
               if (widget.activity != _DeckActivity.list)
                 DropdownButtonFormField<SpeechVoiceGender>(
                   initialValue: _voiceGender,

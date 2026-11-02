@@ -1,4 +1,3 @@
-import '../generation/generation_settings.dart';
 import 'dart:math';
 import 'dart:async';
 import '../analytics/learning_analytics.dart';
@@ -53,6 +52,7 @@ class _StudyScreenState extends State<StudyScreen> {
   var _cardIndex = 0;
   var _showingBack = false;
   var _playing = false;
+  var _savingRating = false;
 
   Flashcard get _card => _cards[_cardIndex];
 
@@ -100,6 +100,27 @@ class _StudyScreenState extends State<StudyScreen> {
       _cardIndex = 0;
       _showingBack = false;
     });
+  }
+
+  Future<void> _setKnowledge(KnowledgeLevel level) async {
+    if (_savingRating) return;
+    final id = _card.id;
+    setState(() => _savingRating = true);
+    try {
+      await widget.repository.saveProgress(id, level.rating);
+      if (!mounted) return;
+      setState(() {
+        final index = _cards.indexWhere((card) => card.id == id);
+        if (index >= 0) _cards[index] = _cards[index].copyWith(rating: level.rating);
+      });
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Could not save the knowledge level. Try again.')));
+      }
+    } finally {
+      if (mounted) setState(() => _savingRating = false);
+    }
   }
 
   Future<void> _play() async {
@@ -204,19 +225,11 @@ class _StudyScreenState extends State<StudyScreen> {
         child: Column(
           children: [
             const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-              decoration: BoxDecoration(
-                color: dark ? const Color(0xFF203E61) : const Color(0xFFE1EDF9),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text(
-                '${displayLanguageName(widget.deck.sourceLanguage)}  →  ${displayLanguageName(widget.deck.translationLanguage)}',
-                style: TextStyle(
-                  color: dark ? const Color(0xFF8BC7F5) : const Color(0xFF245E96),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+            FilledButton.icon(
+              key: const Key('reshuffle-button'),
+              onPressed: _reshuffle,
+              icon: const Icon(Icons.shuffle),
+              label: const Text('Reshuffle'),
             ),
             Expanded(
               child: Padding(
@@ -334,11 +347,29 @@ class _StudyScreenState extends State<StudyScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: FilledButton(
-                onPressed: _reshuffle,
-                child: const Text('↻  Reshuffle'),
-              ),
+              padding: const EdgeInsets.fromLTRB(10, 4, 10, 10),
+              child: Row(children: [
+                for (final level in KnowledgeLevel.values) ...[
+                  if (level != KnowledgeLevel.values.first) const SizedBox(width: 8),
+                  Expanded(child: Semantics(
+                    selected: _card.rating.knowledgeLevel == level,
+                    child: OutlinedButton(
+                      key: Key('knowledge-${level.name}'),
+                      onPressed: _savingRating ? null : () => _setKnowledge(level),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 12),
+                        backgroundColor: _card.rating.knowledgeLevel == level
+                            ? Theme.of(context).colorScheme.primaryContainer : null,
+                        foregroundColor: _card.rating.knowledgeLevel == level
+                            ? Theme.of(context).colorScheme.onPrimaryContainer : null,
+                        side: _card.rating.knowledgeLevel == level
+                            ? BorderSide(color: Theme.of(context).colorScheme.primary, width: 2) : null,
+                      ),
+                      child: Text(level.label, textAlign: TextAlign.center),
+                    ),
+                  )),
+                ],
+              ]),
             ),
           ],
         ),

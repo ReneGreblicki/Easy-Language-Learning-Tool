@@ -77,4 +77,37 @@ void main() {
     expect(find.text('Phone voice'), findsOneWidget);
     expect(find.text('Female'), findsOneWidget);
   });
+
+  for (final level in KnowledgeLevel.values) {
+    testWidgets('practice filter selects only ${level.label} cards', (tester) async {
+      final deck = Deck(id: 'filter-deck', title: 'Knowledge deck', sourceLanguage: 'German',
+        translationLanguage: 'US English', cards: [
+          for (final value in KnowledgeLevel.values) Flashcard(id: value.name,
+            rank: value.index + 1, foreignWord: 'word-${value.name}', wordTranslation: 'translation',
+            foreignSentence: 'sentence', sentenceTranslation: 'translation', rating: value.rating),
+        ]);
+      final repository = MemoryDeckRepository([deck]);
+      await repository.savePreferredLanguage('German');
+      await repository.savePreferredDeck('German', deck.id);
+      await tester.pumpWidget(MaterialApp(home: DeckLibrary(repository: repository, onToggleTheme: () {})));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Practice flashcards'));
+      await tester.pumpAndSettle();
+      final dropdown = find.byKey(const Key('knowledge-level-filter'));
+      expect(tester.widget<DropdownButtonFormField<KnowledgeLevel>>(dropdown).onChanged, isNull);
+      await tester.tap(find.text('Select knowledge level'));
+      await tester.pumpAndSettle();
+      expect(tester.widget<DropdownButtonFormField<KnowledgeLevel>>(dropdown).onChanged, isNotNull);
+      await tester.tap(dropdown);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(level.label).last);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Start'));
+      await tester.tap(find.text('Start'));
+      await tester.pumpAndSettle();
+      expect(find.text('word-${level.name}'), findsOneWidget);
+      expect(find.textContaining('Card 1 of 1'), findsOneWidget);
+    });
+  }
+
 }

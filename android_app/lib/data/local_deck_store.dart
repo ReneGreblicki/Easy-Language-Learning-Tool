@@ -41,7 +41,11 @@ class LocalDeckStore {
     return openDatabase(
       path.join(directory.path, storageName),
       version: 1,
-      onCreate: (database, _) async {
+      onCreate: createSchema,
+    );
+  }
+
+  static Future<void> createSchema(Database database, int version) async {
         await database.execute('''
           CREATE TABLE downloaded_decks (
             id TEXT PRIMARY KEY,
@@ -64,20 +68,26 @@ class LocalDeckStore {
             value TEXT NOT NULL
           )
         ''');
-      },
-    );
   }
 
   Future<List<Deck>> downloadedDecks() async {
     final db = await database;
     final rows = await db.query('downloaded_decks', orderBy: 'updated_at DESC');
-    return rows
-        .map(
-          (row) => Deck.fromJson(
-            jsonDecode(row['payload_json'] as String) as Map<String, dynamic>,
-          ).copyWith(isDownloaded: true),
-        )
-        .toList(growable: false);
+    return Future.wait(rows.map((row) => applyProgress(Deck.fromJson(
+      jsonDecode(row['payload_json'] as String) as Map<String, dynamic>,
+    ).copyWith(isDownloaded: true))));
+  }
+
+  /// Pending local choices take precedence over an older server response.
+  Future<Deck> applyProgress(Deck deck, {bool pendingOnly = false}) async {
+    final db = await database;
+    final rows = await db.query('local_progress', columns: ['card_id', 'rating'],
+      where: pendingOnly ? "sync_state = 'pending'" : null);
+    final ratings = {for (final row in rows) row['card_id'] as String:
+      StudyRating.values.firstWhere((rating) => rating.name == row['rating'],
+        orElse: () => StudyRating.newCard)};
+    return deck.copyWithCards([for (final card in deck.cards)
+      ratings.containsKey(card.id) ? card.copyWith(rating: ratings[card.id]) : card]);
   }
 
   Future<void> saveDeck(Deck deck, {bool downloadAudio = true}) async {
@@ -230,13 +240,14 @@ class LocalDeckStore {
     }
   }
 
-  Future<void> markProgressSynced(String cardId) async {
+  Future<void> markProgressSynced(PendingProgress progress) async {
     final db = await database;
     await db.update(
       'local_progress',
       {'sync_state': 'synced'},
-      where: 'card_id = ?',
-      whereArgs: [cardId],
+      // An older upload must not acknowledge a newer local label.
+      where: 'card_id = ? AND updated_at = ? AND review_count = ?',
+      whereArgs: [progress.cardId, progress.updatedAt.toUtc().toIso8601String(), progress.reviewCount],
     );
   }
 
