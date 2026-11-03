@@ -3,9 +3,41 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/deck.dart';
 
 class SupabaseDeckSource {
-  SupabaseDeckSource(this.client);
+  SupabaseDeckSource(this.client, {this.ownerId});
+
+  final String? ownerId;
 
   final SupabaseClient client;
+  final Map<String, bool> _defaultCards = {};
+
+  void registerDeck(Deck deck) {
+    for (final card in deck.cards) { _defaultCards[card.id] = deck.isDefault; }
+  }
+
+  Future<List<Deck>> fetchCatalog() async {
+    final rows = await client.from('decks')
+      .select('id,title,source_language,translation_language,deleted_at,cards(count)')
+      .isFilter('deleted_at', null).isFilter('mobile_removed_at', null)
+      .order('updated_at', ascending: false);
+    return rows.map((row) {
+      final counts = row['cards'] as List? ?? [];
+      return Deck.fromJson({...row, 'cards': <dynamic>[],
+        'card_count': counts.isEmpty ? 0 : (counts.first as Map)['count']});
+    }).toList();
+  }
+
+
+  Future<List<Deck>> fetchDefaults() async {
+    final rows = await client.from('default_decks').select().order('default_level');
+    return rows.map((row) => Deck.fromJson({...row, 'translation_language': 'US English'})).toList();
+  }
+
+  Future<Deck> fetchDefault(String deckId, {String translation = 'US English'}) async {
+    final row = await client.rpc('read_default_deck', params: {
+      'p_deck_id': deckId, 'p_translation_language': translation,
+    });
+    return Deck.fromJson(Map<String, dynamic>.from(row as Map));
+  }
 
   Future<List<Deck>> fetchLibrary({bool includeAudio = false}) async {
     final response = await client
@@ -50,9 +82,24 @@ class SupabaseDeckSource {
     int? fromRank,
     int? toRank,
   }) async {
-    final decks = await fetchLibrary();
-    final deck = decks.where((deck) => deck.id == deckId).firstOrNull;
-    if (deck == null || !includeAudio) return deck;
+    final row = await client.from('decks')
+      .select('id,title,source_language,translation_language,deleted_at')
+      .eq('id', deckId).isFilter('deleted_at', null).isFilter('mobile_removed_at', null)
+      .maybeSingle();
+    if (row == null) return null;
+    final cards = <Map<String, dynamic>>[];
+    for (var offset = 0; ; offset += 1000) {
+      final batch = await client.from('cards').select(
+        'id,rank,foreign_word,word_translation,foreign_sentence,sentence_translation,study_progress(rating)')
+        .eq('deck_id', deckId).order('rank').range(offset, offset + 999);
+      for (final card in batch) {
+        final progress = card['study_progress'] as List? ?? [];
+        cards.add({...card, 'rating': progress.isEmpty ? 'newCard' : (progress.first as Map)['rating']});
+      }
+      if (batch.length < 1000) break;
+    }
+    final deck = Deck.fromJson({...row, 'cards': cards});
+    if (!includeAudio) return deck;
     final selectedIds = deck.cards
         .where((card) =>
             (fromRank == null || card.rank >= fromRank) &&
@@ -109,7 +156,7 @@ class SupabaseDeckSource {
     Deck deck, {
     required Map<String, Object?> settings,
   }) async {
-    final userId = client.auth.currentUser?.id;
+    final userId = ownerId ?? client.auth.currentUser?.id;
     if (userId == null) throw const AuthException('Sign in is required.');
     await client.from('decks').insert({
       'id': deck.id,
@@ -208,9 +255,15 @@ class SupabaseDeckSource {
     required int reviewCount,
     required DateTime updatedAt,
   }) async {
-    final userId = client.auth.currentUser?.id;
+    final userId = ownerId ?? client.auth.currentUser?.id;
     if (userId == null) throw const AuthException('Sign in is required.');
-    await client.from('study_progress').upsert(
+    var isDefault = _defaultCards[cardId];
+    if (isDefault == null) {
+      final identity = await client.from('default_card_identity').select('id').eq('id', cardId).maybeSingle();
+      isDefault = identity != null;
+      _defaultCards[cardId] = isDefault;
+    }
+    await client.from(isDefault ? 'default_study_progress' : 'study_progress').upsert(
       {
         'user_id': userId,
         'card_id': cardId,

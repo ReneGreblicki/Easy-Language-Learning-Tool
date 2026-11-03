@@ -336,3 +336,12 @@ files are never changed.
 
 The production decision framework, metrics, quality gates, rollback thresholds, and benchmark
 workflow are maintained in [`GENERATION_OPTIMIZATION_FRAMEWORK.md`](GENERATION_OPTIMIZATION_FRAMEWORK.md).
+
+## Next iteration: Android 0.6.0
+
+See [mobile menu, default decks and analytics](MOBILE_MENU_DEFAULT_DECKS_ANALYTICS.md)
+for the accepted design, content workflow, retention contract and release checks.
+Default decks belong in Select deck; each language restores its previous selection or
+falls back to A1. Milestones count unique card answers at 10, 100, 500 and 1000.
+Shared default content and separate account caches must not consume personal-deck slots
+or change desktop files. Full content publication follows the reviewed pilot.

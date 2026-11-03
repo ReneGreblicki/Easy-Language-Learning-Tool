@@ -1,7 +1,7 @@
 import '../models/deck.dart';
 
 abstract interface class DeckRepository {
-  Future<List<Deck>> cloudLibrary();
+  Future<List<Deck>> cloudLibrary({bool refresh = false});
   Future<List<Deck>> downloadedDecks();
   Future<List<Deck>> trashedDecks();
   Future<void> download(String deckId);
@@ -9,6 +9,7 @@ abstract interface class DeckRepository {
     String deckId, {
     bool includeAudio = false,
     bool downloadAudio = false,
+    bool refresh = false,
     int? fromRank,
     int? toRank,
   });
@@ -46,7 +47,7 @@ class MemoryDeckRepository implements DeckRepository {
   final Map<String, String> _preferredDecks = {};
 
   @override
-  Future<List<Deck>> cloudLibrary() async =>
+  Future<List<Deck>> cloudLibrary({bool refresh = false}) async =>
       List.unmodifiable(_decks.where((deck) => deck.deletedAt == null));
 
   @override
@@ -67,6 +68,7 @@ class MemoryDeckRepository implements DeckRepository {
     String deckId, {
     bool includeAudio = false,
     bool downloadAudio = false,
+    bool refresh = false,
     int? fromRank,
     int? toRank,
   }) async {
@@ -150,15 +152,7 @@ class MemoryDeckRepository implements DeckRepository {
       if (cardIndex < 0) continue;
       final cards = List<Flashcard>.from(deck.cards);
       cards[cardIndex] = cards[cardIndex].copyWith(rating: rating);
-      _decks[deckIndex] = Deck(
-        id: deck.id,
-        title: deck.title,
-        sourceLanguage: deck.sourceLanguage,
-        translationLanguage: deck.translationLanguage,
-        cards: cards,
-        isDownloaded: deck.isDownloaded,
-        deletedAt: deck.deletedAt,
-      );
+      _decks[deckIndex] = deck.copyWithCards(cards);
       return;
     }
     throw StateError('Card not found: $cardId');

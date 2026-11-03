@@ -51,9 +51,11 @@ class AudioStudyScreen extends StatefulWidget {
     required this.repository,
     required this.onToggleTheme,
     this.voiceGender = SpeechVoiceGender.female,
+    this.speech,
     super.key,
   });
 
+  final DeviceSpeech? speech;
   final Deck deck;
   final StudyContentMode mode;
   final DeckRepository repository;
@@ -66,7 +68,7 @@ class AudioStudyScreen extends StatefulWidget {
 
 class _AudioStudyScreenState extends State<AudioStudyScreen> {
   final AudioPlayer _player = AudioPlayer();
-  final DeviceSpeech _speech = DeviceSpeech();
+  late final DeviceSpeech _speech = widget.speech ?? DeviceSpeech();
   late final List<AudioStudyItem> _items;
   late final String _sessionKey;
   bool _loading = true;

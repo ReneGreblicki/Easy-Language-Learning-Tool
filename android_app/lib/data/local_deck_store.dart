@@ -23,24 +23,29 @@ class PendingProgress {
 }
 
 class LocalDeckStore {
-  LocalDeckStore({Future<Database> Function()? openDatabase})
+  LocalDeckStore({this.accountId, Future<Database> Function()? openDatabase})
       : _databaseFactory = openDatabase;
 
+  final String? accountId;
   final Future<Database> Function()? _databaseFactory;
-  Database? _database;
 
-  Future<Database> get database async {
-    if (_database != null) return _database!;
-    _database = await (_databaseFactory?.call() ?? _open());
-    return _database!;
-  }
+  String get storageName => accountId == null
+      ? 'easy_language_flashcards.sqlite3'
+      : 'account_${Uri.encodeComponent(accountId!)}.sqlite3';
+  Future<Database>? _database;
+
+  Future<Database> get database => _database ??= (_databaseFactory?.call() ?? _open());
 
   Future<Database> _open() async {
     final directory = await getApplicationDocumentsDirectory();
     return openDatabase(
-      path.join(directory.path, 'easy_language_flashcards.sqlite3'),
+      path.join(directory.path, storageName),
       version: 1,
-      onCreate: (database, _) async {
+      onCreate: createSchema,
+    );
+  }
+
+  static Future<void> createSchema(Database database, int version) async {
         await database.execute('''
           CREATE TABLE downloaded_decks (
             id TEXT PRIMARY KEY,
@@ -63,26 +68,50 @@ class LocalDeckStore {
             value TEXT NOT NULL
           )
         ''');
-      },
-    );
   }
+
+  Future<Map<String, StudyRating>> _ratings({bool pendingOnly = false,
+      DateTime? changedSince}) async {
+    final db = await database;
+    final rows = await db.query('local_progress', columns: ['card_id', 'rating'],
+      where: pendingOnly ? (changedSince == null ? "sync_state = 'pending'" :
+        "sync_state = 'pending' OR updated_at > ?") : null,
+      whereArgs: pendingOnly && changedSince != null ? [changedSince.toIso8601String()] : null);
+    return {for (final row in rows) row['card_id'] as String:
+      StudyRating.values.firstWhere((rating) => rating.name == row['rating'],
+        orElse: () => StudyRating.newCard)};
+  }
+
+  Deck _withRatings(Deck deck, Map<String, StudyRating> ratings) =>
+    deck.copyWithCards([for (final card in deck.cards)
+      ratings.containsKey(card.id) ? card.copyWith(rating: ratings[card.id]) : card]);
 
   Future<List<Deck>> downloadedDecks() async {
     final db = await database;
     final rows = await db.query('downloaded_decks', orderBy: 'updated_at DESC');
-    return rows
-        .map(
-          (row) => Deck.fromJson(
-            jsonDecode(row['payload_json'] as String) as Map<String, dynamic>,
-          ).copyWith(isDownloaded: true),
-        )
-        .toList(growable: false);
+    final ratings = await _ratings();
+    return [for (final row in rows) _withRatings(Deck.fromJson(
+      jsonDecode(row['payload_json'] as String) as Map<String, dynamic>,
+    ).copyWith(isDownloaded: true), ratings)];
   }
 
-  Future<void> saveDeck(Deck deck, {bool downloadAudio = true}) async {
+  Future<Deck?> loadDeck(String deckId) async {
     final db = await database;
-    final existingDecks = await downloadedDecks();
-    final existing = existingDecks.where((item) => item.id == deck.id).firstOrNull;
+    final rows = await db.query('downloaded_decks', where: 'id = ?',
+      whereArgs: [deckId], limit: 1);
+    if (rows.isEmpty) return null;
+    return applyProgress(Deck.fromJson(jsonDecode(rows.single['payload_json'] as String)
+      as Map<String, dynamic>).copyWith(isDownloaded: true));
+  }
+
+  Future<Deck> applyProgress(Deck deck, {bool pendingOnly = false,
+      DateTime? changedSince}) async => _withRatings(deck,
+        await _ratings(pendingOnly: pendingOnly, changedSince: changedSince));
+
+  Future<void> saveDeck(Deck deck, {bool downloadAudio = true, DateTime? fetchedAt}) async {
+    final db = await database;
+    final existing = await loadDeck(deck.id);
+    final refreshStarted = fetchedAt ?? DateTime.now().toUtc();
     final existingCards = {
       if (existing != null)
         for (final card in existing.cards) card.id: card,
@@ -101,10 +130,10 @@ class LocalDeckStore {
           rating: card.rating,
           wordAudioUrl: downloadAudio
               ? await _cacheAudio(deck.id, card.id, 'word', card.wordAudioUrl)
-              : cached?.wordAudioUrl,
+              : cached?.wordAudioUrl ?? card.wordAudioUrl,
           sentenceAudioUrl: downloadAudio
               ? await _cacheAudio(deck.id, card.id, 'sentence', card.sentenceAudioUrl)
-              : cached?.sentenceAudioUrl,
+              : cached?.sentenceAudioUrl ?? card.sentenceAudioUrl,
         ),
       );
     }
@@ -116,16 +145,25 @@ class LocalDeckStore {
       cards: cards,
       isDownloaded: true,
       deletedAt: deck.deletedAt,
+      defaultLevel: deck.defaultLevel,
+      catalogCardCount: deck.catalogCardCount,
+      contentVersion: deck.contentVersion,
     );
-    await db.insert(
-      'downloaded_decks',
-      {
-        'id': deck.id,
-        'payload_json': jsonEncode(localDeck.toJson()),
+    await db.transaction((txn) async {
+      // Server snapshots can replace acknowledged progress, but never a pending
+      // edit or a local edit made after this server request began.
+      final batch = txn.batch();
+      for (final card in cards) {
+        batch.update('local_progress', {'rating': card.rating.name},
+          where: "card_id = ? AND sync_state = 'synced' AND updated_at <= ?",
+          whereArgs: [card.id, refreshStarted.toIso8601String()]);
+      }
+      await batch.commit(noResult: true);
+      await txn.insert('downloaded_decks', {
+        'id': deck.id, 'payload_json': jsonEncode(localDeck.toJson()),
         'updated_at': DateTime.now().toUtc().toIso8601String(),
-      },
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    });
   }
 
   Future<int> loadAudioPosition(String sessionKey) async {
@@ -179,7 +217,7 @@ class LocalDeckStore {
     final db = await database;
     await db.delete('downloaded_decks', where: 'id = ?', whereArgs: [deckId]);
     final directory = await getApplicationDocumentsDirectory();
-    final audioDirectory = Directory(path.join(directory.path, 'audio', deckId));
+    final audioDirectory = Directory(path.join(directory.path, 'audio', accountId ?? 'legacy', deckId));
     if (await audioDirectory.exists()) await audioDirectory.delete(recursive: true);
   }
 
@@ -191,7 +229,7 @@ class LocalDeckStore {
   ) async {
     if (url == null) return null;
     final directory = await getApplicationDocumentsDirectory();
-    final audioDirectory = Directory(path.join(directory.path, 'audio', deckId));
+    final audioDirectory = Directory(path.join(directory.path, 'audio', accountId ?? 'legacy', deckId));
     await audioDirectory.create(recursive: true);
     final destination = File(path.join(audioDirectory.path, '$cardId-$side.mp3'));
     final response = await http.get(Uri.parse(url));
@@ -216,15 +254,18 @@ class LocalDeckStore {
       ''',
       [cardId, rating.name, DateTime.now().toUtc().toIso8601String()],
     );
+    // The progress table is authoritative. Reading a deck overlays this small
+    // row; no deck JSON needs parsing or rewriting when a label is tapped.
   }
 
-  Future<void> markProgressSynced(String cardId) async {
+  Future<void> markProgressSynced(PendingProgress progress) async {
     final db = await database;
     await db.update(
       'local_progress',
       {'sync_state': 'synced'},
-      where: 'card_id = ?',
-      whereArgs: [cardId],
+      // An older upload must not acknowledge a newer local label.
+      where: 'card_id = ? AND updated_at = ? AND review_count = ?',
+      whereArgs: [progress.cardId, progress.updatedAt.toUtc().toIso8601String(), progress.reviewCount],
     );
   }
 

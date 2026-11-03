@@ -4,7 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'auth/auth_service.dart';
+import 'auth/account_http_client.dart';
+import 'analytics/learning_analytics.dart';
+import 'settings/app_preferences.dart';
+import 'settings/settings_screens.dart';
 import 'audio/device_speech.dart';
+import 'audio/voice_setup.dart';
 import 'config/app_config.dart';
 import 'data/deck_repository.dart';
 import 'data/local_deck_store.dart';
@@ -36,6 +41,7 @@ Future<void> main() async {
     await Supabase.initialize(
       url: config.supabaseUrl,
       publishableKey: config.publishableKey,
+      httpClient: DeadlineHttpClient(),
     );
   } catch (error) {
     runApp(
@@ -49,19 +55,7 @@ Future<void> main() async {
     return;
   }
   final client = Supabase.instance.client;
-  final repository = SyncDeckRepository(
-    local: LocalDeckStore(),
-    cloud: SupabaseDeckSource(client),
-  );
-  runApp(
-    EasyLanguageFlashcards(
-      repository: repository,
-      authService: AuthService(client),
-      generationService: MobileGenerationService(
-        client: client,
-      ),
-    ),
-  );
+  runApp(EasyLanguageFlashcards(authService: AuthService(client), preferences: AppPreferences()));
 }
 
 class _StartupFailureApp extends StatelessWidget {
@@ -89,11 +83,13 @@ class _StartupFailureApp extends StatelessWidget {
 class EasyLanguageFlashcards extends StatefulWidget {
   const EasyLanguageFlashcards({
     this.repository,
+    this.preferences,
     this.authService,
     this.generationService,
     super.key,
   });
 
+  final AppPreferences? preferences;
   final DeckRepository? repository;
   final AuthService? authService;
   final MobileGenerationService? generationService;
@@ -105,14 +101,32 @@ class EasyLanguageFlashcards extends StatefulWidget {
 class _EasyLanguageFlashcardsState extends State<EasyLanguageFlashcards> {
   ThemeMode _themeMode = ThemeMode.dark;
 
-  void _toggleTheme() => setState(() {
-        _themeMode = _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
-      });
+  StreamSubscription<AuthState>? _authSubscription;
+  String? _accountId;
+  @override
+  void initState() {
+    super.initState();
+    _accountId = widget.authService?.session?.user.id;
+    _authSubscription = widget.authService?.changes.listen((_) {
+      final id = widget.authService?.session?.user.id;
+      if (mounted && id != _accountId) setState(() => _accountId = id);
+    });
+    widget.preferences?.darkMode().then((dark) {
+      if (mounted) setState(() => _themeMode = dark ? ThemeMode.dark : ThemeMode.light);
+    });
+  }
+  @override
+  void dispose() { _authSubscription?.cancel(); super.dispose(); }
+  void _toggleTheme() {
+    setState(() => _themeMode = _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark);
+    widget.preferences?.saveDarkMode(_themeMode == ThemeMode.dark);
+  }
 
   @override
   Widget build(BuildContext context) {
     final fallback = MemoryDeckRepository(<Deck>[]);
     return MaterialApp(
+      key: ValueKey(_accountId),
       title: 'Easy Language Learning Tool',
       theme: ThemeData(
         brightness: Brightness.light,
@@ -132,7 +146,7 @@ class _EasyLanguageFlashcardsState extends State<EasyLanguageFlashcards> {
       home: widget.authService == null
           ? DeckLibrary(repository: widget.repository ?? fallback, onToggleTheme: _toggleTheme)
           : AuthGate(
-              repository: widget.repository!,
+              repository: widget.repository,
               authService: widget.authService!,
               generationService: widget.generationService,
               onToggleTheme: _toggleTheme,
@@ -143,14 +157,14 @@ class _EasyLanguageFlashcardsState extends State<EasyLanguageFlashcards> {
 
 class AuthGate extends StatelessWidget {
   const AuthGate({
-    required this.repository,
+    this.repository,
     required this.authService,
     required this.onToggleTheme,
     this.generationService,
     super.key,
   });
 
-  final DeckRepository repository;
+  final DeckRepository? repository;
   final AuthService authService;
   final MobileGenerationService? generationService;
   final VoidCallback onToggleTheme;
@@ -160,8 +174,10 @@ class AuthGate extends StatelessWidget {
         stream: authService.changes,
         builder: (context, _) => authService.session == null
             ? LoginScreen(authService: authService)
-            : DeckLibrary(
-                repository: repository,
+            : repository == null
+              ? _AccountWorkspace(key: ValueKey(authService.session!.user.id), auth: authService, onToggleTheme: onToggleTheme)
+              : DeckLibrary(
+                repository: repository!,
                 authService: authService,
                 generationService: generationService,
                 onToggleTheme: onToggleTheme,
@@ -169,8 +185,46 @@ class AuthGate extends StatelessWidget {
       );
 }
 
+class _AccountWorkspace extends StatefulWidget {
+  const _AccountWorkspace({required this.auth, required this.onToggleTheme, super.key});
+  final AuthService auth;
+  final VoidCallback onToggleTheme;
+  @override
+  State<_AccountWorkspace> createState() => _AccountWorkspaceState();
+}
+class _AccountWorkspaceState extends State<_AccountWorkspace> {
+  late final SupabaseClient _client;
+  late final SyncDeckRepository _repository;
+  late final LearningAnalytics _analytics;
+  late final MobileGenerationService _generation;
+  @override
+  void initState() {
+    super.initState();
+    final id = widget.auth.session!.user.id;
+    const config = AppConfig.fromEnvironment;
+    _client = SupabaseClient(config.supabaseUrl, config.publishableKey,
+      httpClient: AccountHttpClient(accountId: id, session: () => widget.auth.session));
+    final local = LocalDeckStore(accountId: id);
+    _repository = SyncDeckRepository(local: local, cloud: SupabaseDeckSource(_client, ownerId: id));
+    _generation = MobileGenerationService(client: _client);
+    _analytics = LearningAnalytics(gateway: SupabaseAnalyticsGateway(_client), load: local.loadMetadata, save: local.saveMetadata);
+    unawaited(_analytics.initialize().catchError((Object _) {}));
+    final email = widget.auth.session!.user.email;
+    if (email != null) unawaited(AppPreferences().remember(email));
+  }
+  @override
+  void dispose() { _analytics.dispose(); _repository.dispose(); _client.dispose(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) => DeckLibrary(repository: _repository,
+    authService: widget.auth, generationService: _generation,
+    analytics: _analytics, onToggleTheme: widget.onToggleTheme);
+}
+
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({required this.authService, super.key});
+  const LoginScreen({required this.authService, this.initialEmail, this.addingAccount = false, super.key});
+
+  final String? initialEmail;
+  final bool addingAccount;
 
   final AuthService authService;
 
@@ -179,7 +233,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _email = TextEditingController();
+  late final _email = TextEditingController(text: widget.initialEmail);
   final _password = TextEditingController();
   bool _busy = false;
   String? _error;
@@ -210,6 +264,7 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _email.text,
         password: _password.text,
       );
+      if (mounted && widget.addingAccount) Navigator.of(context).popUntil((route) => route.isFirst);
     } catch (error) {
       if (mounted) {
         setState(
@@ -388,11 +443,13 @@ class DeckLibrary extends StatefulWidget {
   const DeckLibrary({
     required this.repository,
     required this.onToggleTheme,
+    this.analytics,
     this.authService,
     this.generationService,
     super.key,
   });
 
+  final LearningAnalytics? analytics;
   final DeckRepository repository;
   final AuthService? authService;
   final MobileGenerationService? generationService;
@@ -413,10 +470,15 @@ class _DeckLibraryState extends State<DeckLibrary> {
   List<GenerationJob> _generationJobs = const [];
   Timer? _jobTimer;
   Timer? _maintenanceTimer;
+  bool _pollingJobs = false;
+  bool _openingDeck = false;
 
   @override
   void initState() {
     super.initState();
+    if (widget.repository is SyncDeckRepository) {
+      (widget.repository as SyncDeckRepository).addListener(_onLibraryChanged);
+    }
     _refresh();
     _pollJobs();
     _runMaintenance();
@@ -426,13 +488,21 @@ class _DeckLibraryState extends State<DeckLibrary> {
 
   @override
   void dispose() {
+    if (widget.repository is SyncDeckRepository) {
+      (widget.repository as SyncDeckRepository).removeListener(_onLibraryChanged);
+    }
     _jobTimer?.cancel();
     _maintenanceTimer?.cancel();
     super.dispose();
   }
 
+  void _onLibraryChanged() {
+    if (mounted) unawaited(_refresh());
+  }
+
   Future<void> _runMaintenance() async {
     try {
+      await widget.analytics?.flush();
       await widget.repository.runMaintenance();
     } on Exception {
       // The timer retries later; routine cleanup must not block normal app use.
@@ -441,7 +511,11 @@ class _DeckLibraryState extends State<DeckLibrary> {
 
   Future<void> _pollJobs() async {
     final service = widget.generationService;
-    if (service == null) return;
+    if (service == null || _pollingJobs ||
+        (_openingDeck && !_generationJobs.any((job) => job.isActive))) {
+      return;
+    }
+    _pollingJobs = true;
     try {
       final previous = {for (final job in _generationJobs) job.id: job.status};
       final jobs = await service.jobs();
@@ -493,18 +567,20 @@ class _DeckLibraryState extends State<DeckLibrary> {
       }
     } on Exception {
       // Background polling is best effort and retries automatically.
+    } finally {
+      _pollingJobs = false;
     }
   }
 
-  Future<void> _refresh() async {
+  Future<void> _refresh({bool remote = false}) async {
     if (mounted) {
       setState(() {
-        _loading = true;
+        _loading = _decks.isEmpty;
         _loadError = null;
       });
     }
     try {
-      final decks = await widget.repository.cloudLibrary();
+      final decks = await widget.repository.cloudLibrary(refresh: remote);
       var language = _selectedLanguage;
       var deckId = _selectedDeckId;
       if (!_selectionLoaded) {
@@ -521,8 +597,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
         (deck) => deck.id == deckId && deck.sourceLanguage == activeLanguage,
       );
       if (validDeck.isEmpty) {
-        deckId = null;
-        await widget.repository.savePreferredDeck(activeLanguage, null);
+        deckId = decks.where((d) => d.sourceLanguage == activeLanguage && d.defaultLevel == 'A1').firstOrNull?.id;
       }
       if (!mounted) return;
       setState(() {
@@ -545,7 +620,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
       _decks.where((deck) => deck.id == _selectedDeckId).firstOrNull;
 
   void _showError(Object error, String fallback) {
-    if (!mounted) return;
+    if (!mounted || !(ModalRoute.of(context)?.isCurrent ?? true)) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(describeAppError(error, fallback: fallback))),
     );
@@ -565,7 +640,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Remove download?'),
-        content: const Text(
+        content: Text(deck.isDefault ? 'This removes the downloaded copy. The default deck stays available in Select deck and your progress is kept.' :
           'This removes only the files stored on this phone. '
           'The synchronized mobile deck will be deleted after 14 days unless it is downloaded again. '
           'Desktop workbooks and desktop files remain unchanged.',
@@ -590,7 +665,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
       for (final language in GenerationLanguage.values) language.label,
       for (final deck in _decks) deck.sourceLanguage,
     }.toList(growable: false)
-      ..sort();
+      ..sort(compareLanguageNames);
     return values;
   }
 
@@ -613,7 +688,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
     if (!mounted) return false;
     setState(() {
       _selectedLanguage = language;
-      _selectedDeckId = validDeck.isEmpty ? null : validDeck.first.id;
+      _selectedDeckId = validDeck.firstOrNull?.id ?? _decks.where((d) => d.sourceLanguage == language && d.defaultLevel == 'A1').firstOrNull?.id;
     });
     return true;
   }
@@ -628,6 +703,10 @@ class _DeckLibraryState extends State<DeckLibrary> {
           language: _selectedLanguage!,
           decks: _decks,
           selectedDeckId: _selectedDeckId,
+          translationLanguage: widget.repository is SyncDeckRepository
+            ? (widget.repository as SyncDeckRepository).translationFor(_selectedLanguage!) : null,
+          onTranslationChanged: widget.repository is SyncDeckRepository
+            ? (widget.repository as SyncDeckRepository).setDefaultTranslation : null,
         ),
       ),
     );
@@ -641,12 +720,23 @@ class _DeckLibraryState extends State<DeckLibrary> {
   Future<Deck?> _requireDeck() async => _selectedDeck ?? await _selectDeck();
 
   Future<void> _startActivity(_DeckActivity activity) async {
-    final deck = await _requireDeck();
-    if (deck == null || !mounted) return;
-    await _openDeck(deck, activity);
+    if (_openingDeck) return;
+    setState(() => _openingDeck = true);
+    try {
+      final deck = await _requireDeck();
+      if (deck == null || !mounted) return;
+      await _openDeck(deck, activity);
+    } finally {
+      if (mounted) setState(() => _openingDeck = false);
+    }
   }
 
   Future<void> _openDeck(Deck deck, _DeckActivity activity) async {
+    if (deck.cards.isEmpty) {
+      try { deck = await widget.repository.loadDeck(deck.id); }
+      catch (error) { _showError(error, 'This default deck is not available yet. Please try again later.'); return; }
+      if (!mounted) return;
+    }
     if (deck.cards.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('This deck has no cards.')),
@@ -668,9 +758,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
     final includeAudio = activity != _DeckActivity.list;
     Deck sourceDeck;
     try {
-      sourceDeck = deck.isDownloaded && !includeAudio && !configuration.downloadAudio
-          ? deck
-          : await widget.repository.loadDeck(
+      sourceDeck = await widget.repository.loadDeck(
               deck.id,
               includeAudio: includeAudio || configuration.downloadAudio,
               downloadAudio: configuration.downloadAudio,
@@ -685,11 +773,23 @@ class _DeckLibraryState extends State<DeckLibrary> {
     final selectedDeck = sourceDeck.copyWithCards(
       sourceDeck.cards
           .where((card) =>
-              card.rank >= configuration.fromRank && card.rank <= configuration.toRank)
+              card.rank >= configuration.fromRank && card.rank <= configuration.toRank &&
+              (configuration.knowledgeLevel == null ||
+                  card.rating.knowledgeLevel == configuration.knowledgeLevel))
           .toList(growable: false),
     );
-    final Widget screen = switch (activity) {
+    if (selectedDeck.cards.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('No cards match this knowledge level and rank range. Choose another level or range.')));
+      return;
+    }
+    unawaited(widget.analytics?.record('deck_opened', selectedDeck.sourceLanguage).catchError((Object _) {}) ?? Future.value());
+    final Widget screen = DeckVoiceSetup(
+      languages: [selectedDeck.sourceLanguage, selectedDeck.translationLanguage],
+      builder: (speech) => switch (activity) {
       _DeckActivity.flashcards => StudyScreen(
+          speech: speech,
+          analytics: widget.analytics,
           deck: selectedDeck,
           repository: widget.repository,
           mode: configuration.mode,
@@ -697,6 +797,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
           onToggleTheme: widget.onToggleTheme,
         ),
       _DeckActivity.audio => AudioStudyScreen(
+          speech: speech,
           deck: selectedDeck,
           repository: widget.repository,
           mode: configuration.mode,
@@ -708,7 +809,9 @@ class _DeckLibraryState extends State<DeckLibrary> {
           mode: configuration.mode,
           onToggleTheme: widget.onToggleTheme,
         ),
-    };
+      },
+    );
+    ScaffoldMessenger.of(context).clearSnackBars();
     await Navigator.push<void>(context, MaterialPageRoute(builder: (_) => screen));
   }
 
@@ -784,7 +887,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
                     final deck = _decks[index];
                     return ListTile(
                       title: Text(deck.title),
-                      subtitle: Text('${deck.sourceLanguage} · ${deck.cards.length} cards'),
+                      subtitle: Text('${displayLanguageName(deck.sourceLanguage)} · ${deck.cards.length} cards'),
                       onTap: () async {
                         await widget.repository.savePreferredLanguage(deck.sourceLanguage);
                         await widget.repository.savePreferredDeck(deck.sourceLanguage, deck.id);
@@ -837,32 +940,34 @@ class _DeckLibraryState extends State<DeckLibrary> {
     );
   }
 
+  void _settings(Widget screen) {
+    Navigator.pop(context);
+    Navigator.push<void>(context, MaterialPageRoute(builder: (_) => screen));
+  }
   @override
   Widget build(BuildContext context) => Scaffold(
+        drawerScrimColor: Colors.black54,
+        drawer: Drawer(
+          width: MediaQuery.sizeOf(context).width * .58,
+          child: SafeArea(child: Column(children: [
+            const Padding(padding: EdgeInsets.all(20), child: Text('Easy Language')),
+            Expanded(child: ListView(children: [
+              ListTile(leading: const Icon(Icons.home_outlined), title: const Text('Home'), onTap: () => Navigator.pop(context)),
+              ListTile(title: const Text('Account settings'), onTap: () => _settings(AccountSettingsScreen(
+                auth: widget.authService, openLogin: (email) => Navigator.push<void>(context,
+                  MaterialPageRoute(builder: (_) => LoginScreen(authService: widget.authService!, initialEmail: email, addingAccount: true)))))),
+              ListTile(title: const Text('Privacy settings'), onTap: () => _settings(PrivacySettingsScreen(analytics: widget.analytics))),
+              ListTile(title: const Text('Display settings'), onTap: () => _settings(DisplaySettingsScreen(onToggleTheme: widget.onToggleTheme))),
+            ])),
+            const Divider(),
+            ListTile(leading: const Icon(Icons.logout), title: const Text('Log out'),
+              onTap: widget.authService == null ? null : () { Navigator.pop(context); _signOut(); }),
+          ])),
+        ),
         appBar: AppBar(
-          leadingWidth: 60,
-          leading: const Padding(
-            padding: EdgeInsets.all(9),
-            child: AppLineLogo(),
-          ),
-          actions: [
-            IconButton(
-              tooltip: 'Switch light/dark theme',
-              onPressed: widget.onToggleTheme,
-              icon: const Icon(Icons.brightness_6_outlined),
-            ),
-            IconButton(
-              tooltip: 'Manage decks',
-              onPressed: _showDeckManager,
-              icon: const Icon(Icons.folder_open_outlined),
-            ),
-            if (widget.authService != null)
-              IconButton(
-                tooltip: 'Sign out',
-                onPressed: _signOut,
-                icon: const Icon(Icons.logout),
-              ),
-          ],
+          title: const SizedBox(width: 42, height: 42, child: AppLineLogo()),
+          actions: [IconButton(tooltip: 'Manage decks', onPressed: _showDeckManager,
+            icon: const Icon(Icons.folder_open_outlined))],
         ),
         body: _loading
             ? const Center(child: CircularProgressIndicator())
@@ -882,7 +987,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
                           ),
                           const SizedBox(height: 16),
                           FilledButton.icon(
-                            onPressed: _refresh,
+                            onPressed: () => _refresh(remote: true),
                             icon: const Icon(Icons.refresh),
                             label: const Text('Try again'),
                           ),
@@ -891,7 +996,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
                     ),
                   )
                 : RefreshIndicator(
-                    onRefresh: _refresh,
+                    onRefresh: () => _refresh(remote: true),
                     child: LandingMenu(
                       selectedLanguage: _selectedLanguage,
                       selectedDeckTitle: _selectedDeck?.title,
@@ -903,7 +1008,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
                       onList: () => _startActivity(_DeckActivity.list),
                       onFurtherLearning: _openFurtherLearning,
                       onInstructions: _openInstructions,
-                      generationStatus: _generationJobs.where((job) => job.isActive).firstOrNull == null
+                      generationStatus: _openingDeck ? 'Opening deck…' : _generationJobs.where((job) => job.isActive).firstOrNull == null
                           ? null
                           : '${_generationJobs.where((job) => job.isActive).first.title}: '
                               '${_generationJobs.where((job) => job.isActive).first.completedRows} of '
@@ -922,6 +1027,7 @@ class _StudyConfiguration {
     this.toRank,
     this.downloadAudio,
     this.voiceGender,
+    this.knowledgeLevel,
   );
 
   final StudyContentMode mode;
@@ -929,6 +1035,7 @@ class _StudyConfiguration {
   final int toRank;
   final bool downloadAudio;
   final SpeechVoiceGender voiceGender;
+  final KnowledgeLevel? knowledgeLevel;
 }
 
 class _StudySetupScreen extends StatefulWidget {
@@ -944,6 +1051,8 @@ class _StudySetupScreen extends StatefulWidget {
 class _StudySetupScreenState extends State<_StudySetupScreen> {
   StudyContentMode _mode = StudyContentMode.both;
   bool _selectedRows = false;
+  bool _selectKnowledgeLevel = false;
+  KnowledgeLevel _knowledgeLevel = KnowledgeLevel.dontKnow;
   bool _downloadAudio = false;
   SpeechVoiceGender _voiceGender = SpeechVoiceGender.female;
   late final TextEditingController _from;
@@ -978,7 +1087,8 @@ class _StudySetupScreenState extends State<_StudySetupScreen> {
     }
     Navigator.pop(
       context,
-      _StudyConfiguration(_mode, from, to, _downloadAudio, _voiceGender),
+      _StudyConfiguration(_mode, from, to, _downloadAudio, _voiceGender,
+        _selectKnowledgeLevel ? _knowledgeLevel : null),
     );
   }
 
@@ -1008,6 +1118,24 @@ class _StudySetupScreenState extends State<_StudySetupScreen> {
                 value: _selectedRows,
                 onChanged: (value) => setState(() => _selectedRows = value),
               ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Select knowledge level'),
+                subtitle: const Text("Unlabelled cards count as Don't Know."),
+                value: _selectKnowledgeLevel,
+                onChanged: (value) => setState(() => _selectKnowledgeLevel = value ?? false),
+              ),
+              DropdownButtonFormField<KnowledgeLevel>(
+                key: const Key('knowledge-level-filter'),
+                initialValue: _knowledgeLevel,
+                decoration: const InputDecoration(labelText: 'Knowledge level'),
+                items: [for (final level in KnowledgeLevel.values)
+                  DropdownMenuItem(value: level, child: Text(level.label))],
+                onChanged: _selectKnowledgeLevel ? (level) {
+                  if (level != null) setState(() => _knowledgeLevel = level);
+                } : null,
+              ),
+              const SizedBox(height: 12),
               if (widget.activity != _DeckActivity.list)
                 DropdownButtonFormField<SpeechVoiceGender>(
                   initialValue: _voiceGender,

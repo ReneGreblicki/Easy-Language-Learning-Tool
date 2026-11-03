@@ -176,10 +176,10 @@ class _GenerateDeckScreenState extends State<GenerateDeckScreen> {
                 labelText: 'Learning language',
                 border: OutlineInputBorder(),
               ),
-              items: GenerationLanguage.values
+              items: GenerationLanguage.alphabetical
                   .map((language) => DropdownMenuItem(
                         value: language,
-                        child: Text(language.label),
+                        child: Text(language.displayLabel),
                       ))
                   .toList(growable: false),
               onChanged: _busy ? null : (value) => setState(() => _learning = value!),
@@ -191,10 +191,10 @@ class _GenerateDeckScreenState extends State<GenerateDeckScreen> {
                 labelText: 'Translation language',
                 border: OutlineInputBorder(),
               ),
-              items: GenerationLanguage.values
+              items: GenerationLanguage.alphabetical
                   .map((language) => DropdownMenuItem(
                         value: language,
-                        child: Text(language.label),
+                        child: Text(language.displayLabel),
                       ))
                   .toList(growable: false),
               onChanged: _busy ? null : (value) => setState(() => _translation = value!),

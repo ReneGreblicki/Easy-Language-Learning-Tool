@@ -17,8 +17,8 @@ String describeAppError(
       message.contains('network is unreachable') ||
       message.contains('connection refused') ||
       message.contains('connection reset')) {
-    return 'Cannot reach the server. Check your internet connection, disable any VPN, '
-        'Private DNS, or network blocker, and try again.';
+    return 'Cannot reach the server. Downloaded decks remain available offline. '
+        'Try online actions again when connected.';
   }
   if (error is TimeoutException || message.contains('timed out') || message.contains('timeout')) {
     return 'The server took too long to respond. Check your connection and try again.';
