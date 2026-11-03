@@ -512,7 +512,9 @@ class _DeckLibraryState extends State<DeckLibrary> {
   Future<void> _pollJobs() async {
     final service = widget.generationService;
     if (service == null || _pollingJobs ||
-        (_openingDeck && !_generationJobs.any((job) => job.isActive))) return;
+        (_openingDeck && !_generationJobs.any((job) => job.isActive))) {
+      return;
+    }
     _pollingJobs = true;
     try {
       final previous = {for (final job in _generationJobs) job.id: job.status};
