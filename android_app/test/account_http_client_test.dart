@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:easy_language_flashcards/auth/account_http_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -8,6 +9,24 @@ Session session(String id, String token) => Session(
   accessToken: token, tokenType: 'bearer', user: User(id: id,
     appMetadata: {}, userMetadata: {}, aud: 'authenticated', createdAt: '2026-09-20T00:00:00Z'));
 void main() {
+  test('stalled server headers have a deadline', () async {
+    final client = DeadlineHttpClient(requestTimeout: const Duration(milliseconds: 20),
+      inner: MockClient((_) => Completer<http.Response>().future));
+    await expectLater(client.get(Uri.parse('https://example.invalid')),
+      throwsA(isA<TimeoutException>()));
+    client.close();
+  });
+
+  test('stalled response bodies have a deadline', () async {
+    final body = StreamController<List<int>>();
+    final client = DeadlineHttpClient(requestTimeout: const Duration(milliseconds: 20),
+      inner: MockClient.streaming((_, __) async => http.StreamedResponse(body.stream, 200)));
+    await expectLater(client.get(Uri.parse('https://example.invalid')),
+      throwsA(isA<TimeoutException>()));
+    await body.close();
+    client.close();
+  });
+
   test('old account cannot send with a new session; refreshed token is used', () async {
     Session? active = session('alice', 'first');
     var requests = 0;

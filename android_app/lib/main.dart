@@ -41,6 +41,7 @@ Future<void> main() async {
     await Supabase.initialize(
       url: config.supabaseUrl,
       publishableKey: config.publishableKey,
+      httpClient: DeadlineHttpClient(),
     );
   } catch (error) {
     runApp(
@@ -212,7 +213,7 @@ class _AccountWorkspaceState extends State<_AccountWorkspace> {
     if (email != null) unawaited(AppPreferences().remember(email));
   }
   @override
-  void dispose() { _analytics.dispose(); _client.dispose(); super.dispose(); }
+  void dispose() { _analytics.dispose(); _repository.dispose(); _client.dispose(); super.dispose(); }
   @override
   Widget build(BuildContext context) => DeckLibrary(repository: _repository,
     authService: widget.auth, generationService: _generation,
@@ -469,10 +470,15 @@ class _DeckLibraryState extends State<DeckLibrary> {
   List<GenerationJob> _generationJobs = const [];
   Timer? _jobTimer;
   Timer? _maintenanceTimer;
+  bool _pollingJobs = false;
+  bool _openingDeck = false;
 
   @override
   void initState() {
     super.initState();
+    if (widget.repository is SyncDeckRepository) {
+      (widget.repository as SyncDeckRepository).addListener(_onLibraryChanged);
+    }
     _refresh();
     _pollJobs();
     _runMaintenance();
@@ -482,9 +488,16 @@ class _DeckLibraryState extends State<DeckLibrary> {
 
   @override
   void dispose() {
+    if (widget.repository is SyncDeckRepository) {
+      (widget.repository as SyncDeckRepository).removeListener(_onLibraryChanged);
+    }
     _jobTimer?.cancel();
     _maintenanceTimer?.cancel();
     super.dispose();
+  }
+
+  void _onLibraryChanged() {
+    if (mounted) unawaited(_refresh());
   }
 
   Future<void> _runMaintenance() async {
@@ -498,7 +511,8 @@ class _DeckLibraryState extends State<DeckLibrary> {
 
   Future<void> _pollJobs() async {
     final service = widget.generationService;
-    if (service == null) return;
+    if (service == null || _pollingJobs || _openingDeck) return;
+    _pollingJobs = true;
     try {
       final previous = {for (final job in _generationJobs) job.id: job.status};
       final jobs = await service.jobs();
@@ -550,18 +564,20 @@ class _DeckLibraryState extends State<DeckLibrary> {
       }
     } on Exception {
       // Background polling is best effort and retries automatically.
+    } finally {
+      _pollingJobs = false;
     }
   }
 
-  Future<void> _refresh() async {
+  Future<void> _refresh({bool remote = false}) async {
     if (mounted) {
       setState(() {
-        _loading = true;
+        _loading = _decks.isEmpty;
         _loadError = null;
       });
     }
     try {
-      final decks = await widget.repository.cloudLibrary();
+      final decks = await widget.repository.cloudLibrary(refresh: remote);
       var language = _selectedLanguage;
       var deckId = _selectedDeckId;
       if (!_selectionLoaded) {
@@ -601,7 +617,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
       _decks.where((deck) => deck.id == _selectedDeckId).firstOrNull;
 
   void _showError(Object error, String fallback) {
-    if (!mounted) return;
+    if (!mounted || !(ModalRoute.of(context)?.isCurrent ?? true)) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(describeAppError(error, fallback: fallback))),
     );
@@ -701,13 +717,19 @@ class _DeckLibraryState extends State<DeckLibrary> {
   Future<Deck?> _requireDeck() async => _selectedDeck ?? await _selectDeck();
 
   Future<void> _startActivity(_DeckActivity activity) async {
-    final deck = await _requireDeck();
-    if (deck == null || !mounted) return;
-    await _openDeck(deck, activity);
+    if (_openingDeck) return;
+    setState(() => _openingDeck = true);
+    try {
+      final deck = await _requireDeck();
+      if (deck == null || !mounted) return;
+      await _openDeck(deck, activity);
+    } finally {
+      if (mounted) setState(() => _openingDeck = false);
+    }
   }
 
   Future<void> _openDeck(Deck deck, _DeckActivity activity) async {
-    if (deck.isDefault && deck.cards.isEmpty) {
+    if (deck.cards.isEmpty) {
       try { deck = await widget.repository.loadDeck(deck.id); }
       catch (error) { _showError(error, 'This default deck is not available yet. Please try again later.'); return; }
       if (!mounted) return;
@@ -786,6 +808,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
         ),
       },
     );
+    ScaffoldMessenger.of(context).clearSnackBars();
     await Navigator.push<void>(context, MaterialPageRoute(builder: (_) => screen));
   }
 
@@ -961,7 +984,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
                           ),
                           const SizedBox(height: 16),
                           FilledButton.icon(
-                            onPressed: _refresh,
+                            onPressed: () => _refresh(remote: true),
                             icon: const Icon(Icons.refresh),
                             label: const Text('Try again'),
                           ),
@@ -970,7 +993,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
                     ),
                   )
                 : RefreshIndicator(
-                    onRefresh: _refresh,
+                    onRefresh: () => _refresh(remote: true),
                     child: LandingMenu(
                       selectedLanguage: _selectedLanguage,
                       selectedDeckTitle: _selectedDeck?.title,
@@ -982,7 +1005,7 @@ class _DeckLibraryState extends State<DeckLibrary> {
                       onList: () => _startActivity(_DeckActivity.list),
                       onFurtherLearning: _openFurtherLearning,
                       onInstructions: _openInstructions,
-                      generationStatus: _generationJobs.where((job) => job.isActive).firstOrNull == null
+                      generationStatus: _openingDeck ? 'Opening deck…' : _generationJobs.where((job) => job.isActive).firstOrNull == null
                           ? null
                           : '${_generationJobs.where((job) => job.isActive).first.title}: '
                               '${_generationJobs.where((job) => job.isActive).first.completedRows} of '

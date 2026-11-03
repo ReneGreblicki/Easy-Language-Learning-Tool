@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:easy_language_flashcards/data/local_deck_store.dart';
+import 'package:easy_language_flashcards/data/default_catalog.dart';
 import 'package:easy_language_flashcards/data/sync_deck_repository.dart';
 import 'package:easy_language_flashcards/data/supabase_deck_source.dart';
 import 'package:easy_language_flashcards/models/deck.dart';
@@ -48,6 +49,74 @@ void main() {
     expect((await local.downloadedDecks()).single.cards.single.rating, StudyRating.learning);
   });
 
+  test('a synced label survives restart without rewriting deck snapshots', () async {
+    final before = (await db.query('downloaded_decks')).single['payload_json'];
+    await local.saveProgress('card', StudyRating.known);
+    await local.markProgressSynced((await local.pendingProgress()).single);
+    expect((await db.query('downloaded_decks')).single['payload_json'], before);
+    await db.close();
+    db = await open();
+    local = LocalDeckStore(accountId: 'user', openDatabase: () async => db);
+    expect((await local.loadDeck('personal'))!.cards.single.rating, StudyRating.known);
+  });
+
+  test('cached deck opens without making any server request', () async {
+    final cloud = OfflineSource();
+    final repo = SyncDeckRepository(local: local, cloud: cloud);
+    final loaded = await repo.loadDeck('personal').timeout(const Duration(milliseconds: 500));
+    expect(loaded.cards.single.id, 'card');
+    expect(cloud.requests, 0);
+    await repo.synchronizePendingProgress();
+    repo.dispose();
+  });
+
+  test('library returns cached content while remote catalog is stalled', () async {
+    final cloud = StalledCatalog();
+    final repo = SyncDeckRepository(local: local, cloud: cloud);
+    final library = await repo.cloudLibrary().timeout(const Duration(milliseconds: 500));
+    expect(library.any((d) => d.id == 'personal' && d.isDownloaded), true);
+    cloud.defaults.complete([]);
+    cloud.catalog.complete([deck.copyWithCards([])]);
+    await repo.cloudLibrary(refresh: true);
+    await repo.synchronizePendingProgress();
+    repo.dispose();
+  });
+
+  test('default cache opens offline and never substitutes the wrong translation', () async {
+    final metadata = defaultDeckCatalog.firstWhere((d) => d.sourceLanguage == 'European Spanish');
+    await local.saveDeck(metadata.copyWithCards(deck.cards), downloadAudio: false);
+    final cloud = OfflineSource();
+    final repo = SyncDeckRepository(local: local, cloud: cloud);
+    expect((await repo.loadDeck(metadata.id)).translationLanguage, 'US English');
+    expect(cloud.requests, 0);
+    await repo.setDefaultTranslation('French');
+    await expectLater(repo.loadDeck(metadata.id), throwsA(isA<SocketException>()));
+    expect(cloud.requests, 1);
+    await repo.synchronizePendingProgress();
+    repo.dispose();
+  });
+
+  test('a server fetch started before a newer local edit cannot erase it', () async {
+    final startedAt = DateTime.now().toUtc().subtract(const Duration(days: 1));
+    await local.saveProgress('card', StudyRating.known);
+    await local.markProgressSynced((await local.pendingProgress()).single);
+    await local.saveDeck(deck, downloadAudio: false, fetchedAt: startedAt);
+    expect((await local.loadDeck('personal'))!.cards.single.rating, StudyRating.known);
+  });
+
+  test('offline outbox stops after first failure and retains all labels', () async {
+    await local.saveProgress('card', StudyRating.known);
+    await local.saveProgress('second', StudyRating.learning);
+    final cloud = OfflineSource();
+    final repo = SyncDeckRepository(local: local, cloud: cloud);
+    await repo.synchronizePendingProgress();
+    expect(cloud.requests, 1);
+    expect(await local.pendingProgress(), hasLength(2));
+    await repo.synchronizePendingProgress();
+    expect(cloud.requests, 1);
+    repo.dispose();
+  });
+
   test('old sync acknowledgement cannot erase a newer pending label', () async {
     await local.saveProgress('card', KnowledgeLevel.dontKnow.rating);
     final older = (await local.pendingProgress()).single;
@@ -87,4 +156,36 @@ class ControlledSource extends SupabaseDeckSource {
     if (!started.isCompleted) started.complete();
     await finish.future;
   }
+}
+
+class OfflineSource extends SupabaseDeckSource {
+  OfflineSource() : super(SupabaseClient('https://example.supabase.co', 'anon'));
+  int requests = 0;
+  @override
+  Future<Deck?> fetchDeck(String deckId, {bool includeAudio = false,
+    int? fromRank, int? toRank}) async {
+    requests++;
+    throw const SocketException('offline');
+  }
+  @override
+  Future<Deck> fetchDefault(String deckId, {String translation = 'US English'}) async {
+    requests++;
+    throw const SocketException('offline');
+  }
+  @override
+  Future<void> saveProgress(String cardId, StudyRating rating,
+    {required int reviewCount, required DateTime updatedAt}) async {
+    requests++;
+    throw const SocketException('offline');
+  }
+}
+
+class StalledCatalog extends SupabaseDeckSource {
+  StalledCatalog() : super(SupabaseClient('https://example.supabase.co', 'anon'));
+  final defaults = Completer<List<Deck>>();
+  final catalog = Completer<List<Deck>>();
+  @override
+  Future<List<Deck>> fetchDefaults() => defaults.future;
+  @override
+  Future<List<Deck>> fetchCatalog() => catalog.future;
 }
