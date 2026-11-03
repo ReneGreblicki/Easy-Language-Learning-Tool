@@ -22,8 +22,8 @@ query only the selected deck. Reading the library shares one progress lookup.
 
 HTTP headers and stalled bodies have eight-second deadlines; repository
 server reads/uploads have twelve-second deadlines. Uploads stop after one
-failure and back off for 30 seconds. Polls do not overlap and pause during
-deck activity. Repeated taps cannot launch concurrent deck openings; late
+failure and back off for 30 seconds. Polls do not overlap. Idle polling pauses during deck activity, while active
+generation jobs continue to be polled and resumed. Repeated taps cannot launch concurrent deck openings; late
 home-route errors do not interrupt the study route.
 
 Regression checks cover a stalled remote catalog, offline cache loading,

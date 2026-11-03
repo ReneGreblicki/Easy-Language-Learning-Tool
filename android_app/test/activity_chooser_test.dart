@@ -1,5 +1,6 @@
 import 'package:easy_language_flashcards/data/deck_repository.dart';
 import 'package:easy_language_flashcards/main.dart';
+import 'package:easy_language_flashcards/home/landing_menu.dart';
 import 'package:easy_language_flashcards/models/deck.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -78,6 +79,26 @@ void main() {
     expect(find.text('Female'), findsOneWidget);
   });
 
+  testWidgets('repeated practice taps launch only one setup route', (tester) async {
+    const deck = Deck(id: 'single', title: 'Single', sourceLanguage: 'German',
+      translationLanguage: 'US English', cards: [Flashcard(id: 'single-card', rank: 1,
+        foreignWord: 'lernen', wordTranslation: 'learn', foreignSentence: 'Ich lerne.',
+        sentenceTranslation: 'I learn.')]);
+    final repo = MemoryDeckRepository([deck]);
+    await repo.savePreferredLanguage('German');
+    await repo.savePreferredDeck('German', deck.id);
+    final observer = CountingRoutes();
+    await tester.pumpWidget(MaterialApp(navigatorObservers: [observer],
+      home: DeckLibrary(repository: repo, onToggleTheme: () {})));
+    await tester.pumpAndSettle();
+    final start = tester.widget<LandingMenu>(find.byType(LandingMenu)).onFlashcards;
+    start();
+    start();
+    await tester.pumpAndSettle();
+    expect(observer.pushes, 2); // Home plus exactly one setup route.
+    expect(find.text('Flashcard settings'), findsOneWidget);
+  });
+
   for (final level in KnowledgeLevel.values) {
     testWidgets('practice filter selects only ${level.label} cards', (tester) async {
       final deck = Deck(id: 'filter-deck', title: 'Knowledge deck', sourceLanguage: 'German',
@@ -111,4 +132,13 @@ void main() {
     });
   }
 
+}
+
+class CountingRoutes extends NavigatorObserver {
+  int pushes = 0;
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    pushes++;
+    super.didPush(route, previousRoute);
+  }
 }
